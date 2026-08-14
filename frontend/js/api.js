@@ -98,6 +98,13 @@ function deleteMock(table, id) {
 
 function listMock(table, filters = {}) {
   let rows = snapshot(table);
+  // Mirror the live PostgREST embed: attach the linked student.
+  if (table === 'emergency_contacts') {
+    rows = rows.map((r) => ({
+      ...r,
+      students: r.student_id ? MOCK.students.find((s) => s.id === r.student_id) || null : null,
+    }));
+  }
   for (const [k, v] of Object.entries(filters)) {
     if (v === null || v === undefined || v === '') continue;
     rows = rows.filter((r) => String(r[k] ?? '').toLowerCase().includes(String(v).toLowerCase()));
