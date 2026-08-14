@@ -107,6 +107,9 @@ export function emergencyContacts(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'name', label: 'Name', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
+    { key: 'student', label: 'Student', render: (r) => r.category === 'student' && r.students?.[0]
+      ? h('span', { class: 'text-gray-600' }, `${r.students[0].name}${r.students[0].grade ? ` · Grade ${r.students[0].grade}` : ''}`)
+      : h('span', { class: 'text-gray-300' }, '—') },
     { key: 'category', label: 'Type', render: (r) => r.category === 'school' ? pill(r.role || 'School', 'purple') : pill('Parent/Guardian', 'blue') },
     { key: 'relationship', label: 'Relationship', render: (r) => r.relationship || h('span', { class: 'text-gray-300' }, '—') },
     { key: 'phone', label: 'Phone', render: (r) => h('span', { class: 'font-mono text-[12px]' }, r.phone || '—') },
@@ -584,6 +587,7 @@ function composer(el) {
 
   const students = awaitP('students');
   const incidents = awaitP('incidents');
+  const contacts = awaitP('emergency_contacts');
 
   const renderFields = async () => {
     fields.innerHTML = '';
@@ -595,13 +599,20 @@ function composer(el) {
       fields.appendChild(h('div', { class: 'sm:col-span-2' },
         h('span', { class: `inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold ${'bg-red-50 text-red-700 border border-red-200 animate-pulse'}` },
           icon('priority_high', 'text-[12px]'), 'URGENT — email parents immediately')));
+      const parentHint = h('div', { class: 'sm:col-span-2 hidden rounded-xl bg-emerald-50 border border-emerald-200/70 px-3.5 py-2.5 text-[12px] text-emerald-800' });
       const studentSel = h('select', { class: inputCls, onchange: (e) => {
         const s = st.find((x) => x.id === e.target.value);
         f.studentId = e.target.value; f.student_name = s?.name || ''; f.student_grade = s?.grade || null;
+        const linked = (s ? contacts : []).filter((c) => c.student_id === s?.id);
+        parentHint.classList.toggle('hidden', !linked.length);
+        parentHint.textContent = linked.length
+          ? `Emails go to: ${linked.map((c) => `${c.name} (${c.relationship}) - ${c.email}`).join(', ')}`
+          : '';
       } },
         h('option', { value: '' }, 'Select student…'),
         st.map((s) => h('option', { value: s.id }, `${s.name} — Grade ${s.grade}`)));
       fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Student (required)'), studentSel));
+      fields.appendChild(parentHint);
 
       const incSel = h('select', { class: inputCls, onchange: (e) => { f.related_incident_id = e.target.value; } },
         h('option', { value: '' }, 'No related incident'),

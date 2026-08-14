@@ -70,15 +70,29 @@ function escapeHtml(s: string): string {
   );
 }
 
-// Parent emails from emergency_contacts (category = student).
-async function parentEmails(svc: ReturnType<typeof createClient>): Promise<string[]> {
+// Parent emails for a notification. When a student is given, only that
+// student's linked guardians are emailed; if none are linked yet, it
+// falls back to every guardian on file.
+async function parentEmails(svc: ReturnType<typeof createClient>, studentId?: string): Promise<string[]> {
+  const emails = (rows: { email?: string | null }[]) =>
+    [...new Set((rows || []).map((r) => (r.email || '').trim()).filter(Boolean))];
+  if (studentId) {
+    const { data } = await svc
+      .from('emergency_contacts')
+      .select('email')
+      .eq('category', 'student')
+      .eq('student_id', studentId)
+      .not('email', 'is', null);
+    const linked = emails(data || []);
+    if (linked.length) return linked;
+  }
   const { data, error } = await svc
     .from('emergency_contacts')
     .select('email')
     .eq('category', 'student')
     .not('email', 'is', null);
   if (error) return [];
-  return [...new Set((data || []).map((r) => (r.email as string).trim()).filter(Boolean))];
+  return emails(data || []);
 }
 
 const fmt = (iso?: string) =>
@@ -195,7 +209,7 @@ Deno.serve(async (req) => {
   let delivery: Record<string, unknown> = { provider: 'recorded', status: 'queued' };
 
   if (channel === 'email') {
-    const to = await parentEmails(svc);
+    const to = await parentEmails(svc, created.student_id || undefined);
     if (!to.length) {
       delivery = { provider: 'email', status: 'failed', error: 'No parent emails found in emergency_contacts (category=student).' };
     } else if (!MAILEROO_API_KEY) {

@@ -29,8 +29,8 @@ export const MOCK = {
     { id: 'SU-008', item: 'Instant cold packs', quantity: 2, unit: 'pcs', location: 'Emergency Bag', expiry: '2026-10-20', reorder_threshold: 4, last_restocked: '2026-02-10' },
   ],
   emergency_contacts: [
-    { id: 'GC-1001', category: 'student', name: 'Luzviminda Abella', relationship: 'Mother', phone: '0917 555 2000', email: 'luzvimindaabella@gmail.com', priority: 1 },
-    { id: 'GC-1002', category: 'student', name: 'Ramon Aguilar', relationship: 'Father', phone: '0917 555 2017', email: 'ramonaguilar@gmail.com', priority: 2 },
+    { id: 'GC-1001', category: 'student', name: 'Marco Dela Cruz', relationship: 'Father', phone: '0917 555 2001', email: 'yoboieliii@gmail.com', priority: 1, student_id: 'stu-05' },
+    { id: 'GC-1002', category: 'student', name: 'Ramon Reyes', relationship: 'Father', phone: '0917 555 2002', email: 'ramon.reyes@gmail.com', priority: 1, student_id: 'stu-12' },
     { id: 'SC-1', category: 'school', role: 'School Nurse', name: 'Ms. Corazon Dela Peña', phone: '0917 555 0001', email: 'nurse@saac.edu.ph', priority: null },
     { id: 'SC-3', category: 'school', role: 'Nearest Police Station', name: 'Caloocan City Police Station 1', phone: '(02) 8-364-1234', email: 'cpd1@ncrpo.pnp.gov.ph', priority: null },
   ],

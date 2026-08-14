@@ -139,11 +139,20 @@ export async function listRows(table, filters = {}) {
     return listMock(table, filters);
   }
   // Substring search → PostgREST `ilike` filter.
-  const query = { select: '*' };
+  const query = { select: table === 'emergency_contacts' ? '*,students(name,grade)' : '*' };
   for (const [k, v] of Object.entries(filters)) {
     if (v) query[k] = `ilike.*${v}*`;
   }
-  const rows = await restFetch('GET', table, { query });
+  let rows;
+  try {
+    rows = await restFetch('GET', table, { query });
+  } catch (e) {
+    // The student_id link may not exist in the live DB yet (see
+    // supabase/link_parents.sql) — retry without the embed rather
+    // than failing the whole page.
+    if (table !== 'emergency_contacts') throw e;
+    rows = await restFetch('GET', table, { query: { ...query, select: '*' } });
+  }
   provider = 'api';
   return rows || [];
 }

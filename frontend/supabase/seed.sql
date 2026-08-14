@@ -11,12 +11,12 @@ INSERT INTO students (id, name, grade, section, phone) VALUES
   ('33333333-3333-4333-8333-333333333333', 'Yap, Lorenzo Miguel',      10,  '10-B', '0917 555 1402');
 
 -- ---------- Emergency contacts (parent emails — used for notifications) ----------
-INSERT INTO emergency_contacts (category, name, relationship, phone, email, priority) VALUES
-  ('student', 'Marco Dela Cruz',   'Father', '0917 555 2001', 'yoboieliii@gmail.com', 1),
-  ('student', 'Ramon Reyes',       'Father', '0917 555 2002', 'ramon.reyes@gmail.com', 1),
-  ('student', 'Grace Yap',         'Mother', '0917 555 2003', 'grace.yap@gmail.com', 1),
-  ('school',  'School Nurse',      NULL,     '0917 555 0001', 'nurse@saac.edu.ph', NULL),
-  ('school',  'Caloocan City Police Station 1', NULL, '(02) 8-364-1234', 'cpd1@ncrpo.pnp.gov.ph', NULL);
+INSERT INTO emergency_contacts (category, name, relationship, phone, email, priority, student_id) VALUES
+  ('student', 'Marco Dela Cruz',   'Father', '0917 555 2001', 'yoboieliii@gmail.com', 1, '11111111-1111-4111-8111-111111111111'),
+  ('student', 'Ramon Reyes',       'Father', '0917 555 2002', 'ramon.reyes@gmail.com', 1, '22222222-2222-4222-8222-222222222222'),
+  ('student', 'Grace Yap',         'Mother', '0917 555 2003', 'grace.yap@gmail.com', 1, '33333333-3333-4333-8333-333333333333'),
+  ('school',  'School Nurse',      NULL,     '0917 555 0001', 'nurse@saac.edu.ph', NULL, NULL),
+  ('school',  'Caloocan City Police Station 1', NULL, '(02) 8-364-1234', 'cpd1@ncrpo.pnp.gov.ph', NULL, NULL);
 
 -- ---------- A few operational rows so the dashboard shows real numbers ----------
 INSERT INTO incidents (date, time, type, location, description, reporter, severity, status, student_id) VALUES
