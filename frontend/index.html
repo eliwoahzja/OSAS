@@ -49,11 +49,6 @@
           <p id="user-handle" class="text-xs text-gray-400">@admin</p>
         </div>
       </div>
-      <button id="logout-btn"
-        class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-600/50 text-gray-300 hover:bg-gray-800 transition-colors cursor-pointer">
-        <svg class="w-4 h-4" viewBox="0 0 512 512" fill="currentColor" aria-hidden="true"><path d="M502.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-128-128c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L402.7 224 192 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l210.7 0-73.4 73.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l128-128zM160 96c17.7 0 32-14.3 32-32s-14.3-32-32-32L96 32C43 32 0 75 0 128L0 384c0 53 43 96 96 96l64 0c17.7 0 32-14.3 32-32s-14.3-32-32-32l-64 0c-17.7 0-32-14.3-32-32l0-256c0-17.7 14.3-32 32-32l64 0z"/></svg>
-        <span class="text-sm font-medium">Logout</span>
-      </button>
     </div>
   </aside>
   <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden" aria-hidden="true"></div>
@@ -92,44 +87,6 @@
 
     <div id="view" class="flex-1 overflow-y-auto px-4 sm:px-10 pb-10" data-purpose="dashboard-content"></div>
   </main>
-
-  <!-- ===================== LOGIN ===================== -->
-  <div id="login-view" class="hidden fixed inset-0 z-[60] overflow-y-auto">
-    <div class="min-h-full flex items-center justify-center p-6">
-      <div class="w-full max-w-md">
-        <div class="bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
-          <div class="flex flex-col items-center text-center mb-8">
-            <img src="/assets/logo.png" alt="SAAC Logo" class="w-16 h-16 object-contain mb-4" />
-            <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">SAAC — OSAS Dashboard</h1>
-            <p class="text-sm text-gray-500 mt-1">Office of Student Affairs and Services</p>
-          </div>
-          <form id="login-form" class="space-y-4">
-            <div>
-              <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Email</label>
-              <input id="login-email" type="email" required placeholder="admin@saac.ph"
-                class="w-full rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:ring-pink-500" />
-            </div>
-            <div>
-              <label class="block text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Password</label>
-              <input id="login-password" type="password" required placeholder="••••••••"
-                class="w-full rounded-xl border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-pink-500 focus:ring-pink-500" />
-            </div>
-            <button type="submit" class="w-full bg-maroon-gradient text-white font-bold py-2.5 rounded-xl hover:opacity-90 transition-opacity cursor-pointer">
-              Sign in
-            </button>
-          </form>
-          <button id="magic-link-btn" class="w-full mt-3 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 transition-colors cursor-pointer">
-            Send magic link instead
-          </button>
-          <p id="login-error" class="hidden mt-4 text-xs text-red-600 font-medium text-center"></p>
-          <p class="mt-6 text-[11px] text-gray-400 text-center leading-relaxed">
-            Demo accounts: <span class="font-semibold text-gray-500">admin@saac.ph</span> / <span class="font-semibold text-gray-500">staff@saac.ph</span>
-            <br />Seeded via <code class="text-pink-600">backend/seed.js</code> after Supabase setup.
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Toast root -->
   <div id="toast-root" class="fixed bottom-6 right-6 z-[70] space-y-3 w-80 max-w-[90vw]"></div>

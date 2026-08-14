@@ -1,4 +1,4 @@
-import { h, icon, statCard, donutChart, skeleton, errorBanner, toast } from './ui.js';
+import { h, icon, statCard, donutChart, skeleton, errorBanner } from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -87,20 +87,9 @@ function route() {
   }
 }
 
-// ---------- Login ----------
-
-function setLoginVisible(show) {
-  document.getElementById('login-view').classList.toggle('hidden', !show);
-  document.getElementById('sidebar').classList.toggle('hidden', show);
-}
-
-function showLogin() {
-  setLoginVisible(true);
-  renderSidebar();
-}
+// ---------- Entry ----------
 
 function enterApp() {
-  setLoginVisible(false);
   document.getElementById('sidebar-backdrop').classList.add('hidden');
   const user = auth.currentUser() || { name: 'Local Administrator', email: '@admin', role: 'admin' };
   const initials = (user.name || user.email || 'LA').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -112,60 +101,6 @@ function enterApp() {
   document.querySelectorAll('[data-user-role]').forEach((el) => { el.textContent = isAdmin ? 'Administrator' : 'Staff'; });
   renderSidebar();
   route();
-}
-
-function wireLogin() {
-  const form = document.getElementById('login-form');
-  const err = document.getElementById('login-error');
-  const btn = form.querySelector('button[type="submit"]');
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    err.classList.add('hidden');
-    btn.disabled = true;
-    btn.textContent = 'Signing in…';
-    const res = await auth.login(
-      document.getElementById('login-email').value.trim(),
-      document.getElementById('login-password').value,
-    );
-    btn.disabled = false;
-    btn.textContent = 'Sign in';
-    if (!res.ok) {
-      err.textContent = res.error;
-      err.classList.remove('hidden');
-      return;
-    }
-    toast(res.provider === 'dev' ? 'Signed in (dev session — no Supabase keys configured).' : 'Signed in.');
-    enterApp();
-  });
-
-  document.getElementById('magic-link-btn').addEventListener('click', async () => {
-    const email = document.getElementById('login-email').value.trim();
-    if (!email) {
-      err.textContent = 'Enter your email first.';
-      err.classList.remove('hidden');
-      return;
-    }
-    err.classList.add('hidden');
-    const res = await auth.magicLink(email);
-    if (!res.ok) {
-      err.textContent = res.error;
-      err.classList.remove('hidden');
-      return;
-    }
-    err.textContent = 'Magic link sent — check your inbox.';
-    err.classList.remove('hidden');
-    err.classList.replace('text-red-600', 'text-emerald-600');
-  });
-
-  document.getElementById('logout-btn').addEventListener('click', async () => {
-    await auth.logout();
-    if (auth.getSession()) {
-      enterApp();
-    } else {
-      showLogin();
-    }
-  });
 }
 
 function wireShell() {
@@ -201,8 +136,8 @@ function drawStats(box, s) {
       h('h4', { class: 'text-[13px] font-bold text-gray-900' }, 'Live data status'),
       h('p', { class: 'text-[13px] text-gray-600 mt-0.5' },
         api.dataMode() === 'api'
-          ? 'Connected to the PHP REST API — figures update from the database.'
-          : 'Running on the built-in demo dataset (no API / Supabase keys configured).'),
+          ? 'Connected to Supabase — figures update from the database.'
+          : 'Demo dataset — sign in via the companion app to see live data.'),
     ),
   ));
 
@@ -318,14 +253,6 @@ async function renderDashboard(el) {
 
 async function boot() {
   wireShell();
-  wireLogin();
-  auth.onAuthChange((s) => {
-    if (s) {
-      enterApp();
-    } else {
-      showLogin();
-    }
-  });
 
   // Keep raw icon ligatures invisible until the icon font is truly ready:
   // wait for the Google Fonts stylesheet, then explicitly load the font,
@@ -344,12 +271,10 @@ async function boot() {
   }
   setTimeout(ready, 6000);
 
+  // Resolve the session (injected token → shared supabase-js
+  // storage → demo fallback) and boot straight into the module.
   await auth.restore();
-  if (auth.getSession()) {
-    enterApp();
-  } else {
-    showLogin();
-  }
+  enterApp();
 }
 
 boot();

@@ -576,7 +576,7 @@ function composer(el) {
     fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Message'),
       h('textarea', { class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'What should parents know?', oninput: (e) => { f.message = e.target.value; } })));
 
-    const methods = isAlert ? ['call', 'sms'] : ['app', 'email'];
+    const methods = isAlert ? ['call', 'sms', 'email'] : ['app', 'email'];
     fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Contact Method'),
       h('select', { class: inputCls, onchange: (e) => { f.contact_method = e.target.value; } },
         methods.map((m) => h('option', { value: m, selected: m === (isAlert ? 'call' : 'app') }, capitalize(m))))));

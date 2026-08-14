@@ -182,10 +182,10 @@ CREATE TABLE notifications (
     created_by UUID REFERENCES auth.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
-    -- incident_alert ⇒ student required, urgent, call/sms
+    -- incident_alert ⇒ student required, urgent, call/sms/email
     CONSTRAINT chk_incident_alert CHECK (
         notif_type <> 'incident_alert'
-        OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method IN ('call', 'sms'))
+        OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method IN ('call', 'sms', 'email'))
     ),
     -- event_notice ⇒ audience + event window required, informational, app/email
     CONSTRAINT chk_event_notice CHECK (
@@ -284,14 +284,60 @@ VALUES ('evacuation-maps', 'evacuation-maps', TRUE),
 ON CONFLICT (id) DO NOTHING;
 
 -- Authenticated users may upload to both buckets.
+-- (DROP POLICY IF EXISTS so the script is safe to re-run.)
+DROP POLICY IF EXISTS "upload_evacuation_maps" ON storage.objects;
 CREATE POLICY "upload_evacuation_maps"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'evacuation-maps');
 
+DROP POLICY IF EXISTS "upload_inspection_photos" ON storage.objects;
 CREATE POLICY "upload_inspection_photos"
   ON storage.objects FOR INSERT TO authenticated
   WITH CHECK (bucket_id = 'inspection-photos');
 
+DROP POLICY IF EXISTS "read_objects" ON storage.objects;
 CREATE POLICY "read_objects"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id IN ('evacuation-maps', 'inspection-photos'));
+
+-- ---------- Relax incident alerts to allow email (real free delivery) ----------
+ALTER TABLE notifications DROP CONSTRAINT IF EXISTS chk_incident_alert;
+ALTER TABLE notifications ADD CONSTRAINT chk_incident_alert CHECK (
+    notif_type <> 'incident_alert'
+    OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method IN ('call', 'sms', 'email'))
+);
+
+-- ---------- Audit log via DB triggers (replaces the old PHP API's Db::audit) ----------
+CREATE OR REPLACE FUNCTION public.audit_log_trigger()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+    INSERT INTO audit_log (table_name, record_id, action, old_value, new_value, changed_by, changed_at)
+    VALUES (
+        TG_TABLE_NAME,
+        COALESCE(NEW.id::text, OLD.id::text),
+        CASE TG_OP WHEN 'INSERT' THEN 'insert' WHEN 'UPDATE' THEN 'update' WHEN 'DELETE' THEN 'delete' END,
+        CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END,
+        CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
+        auth.uid(),
+        NOW()
+    );
+    RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+DO $$
+DECLARE t text;
+BEGIN
+    FOR t IN SELECT unnest(ARRAY[
+        'students', 'emergency_contacts', 'drills', 'incidents', 'inspections',
+        'risks', 'notifications', 'emergency_roles', 'supplies', 'evacuation_plans', 'reports'
+    ])
+    LOOP
+        EXECUTE format('DROP TRIGGER IF EXISTS trg_audit_%s ON %I;', t, t);
+        EXECUTE format(
+            'CREATE TRIGGER trg_audit_%s AFTER INSERT OR UPDATE OR DELETE ON %I
+             FOR EACH ROW EXECUTE FUNCTION public.audit_log_trigger();',
+            t, t
+        );
+    END LOOP;
+END $$;

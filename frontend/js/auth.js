@@ -1,6 +1,20 @@
 // ============================================================
-// OSAS authentication — Supabase Auth (client-side) with a dev
-// session fallback when no Supabase keys are configured.
+// OSAS session handling — Supabase Auth (client-side).
+//
+// This module is a SUBSYSTEM: the login page lives in a
+// companion app. We never show a login form here; we consume a
+// real Supabase session from one of two places, in order:
+//
+//   1. window.OSAS.accessToken  — the companion shell injects
+//      the signed-in user's access token before this module
+//      boots (works across origins).
+//   2. supabase-js localStorage — if the companion uses the same
+//      Supabase project in the same browser origin, its session
+//      is picked up automatically (key sb-<ref>-auth-token).
+//
+// If neither exists (e.g. local dev before the companion is
+// wired), a demo session is created so the module stays usable —
+// the UI labels this state via api.dataMode() === 'mock'.
 // ============================================================
 
 const AUTH_KEY = 'osas.session.v1';
@@ -29,15 +43,42 @@ async function getClient() {
   if (client) return client;
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.OSAS;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
-  // supabase-js v2 from CDN — only loaded when keys are configured
-  await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
-  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  client = sb;
-  return sb;
+  // supabase-js v2 ESM from CDN — only loaded when keys are configured.
+  const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  client = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return client;
+}
+
+/** Decode a JWT's payload claims (no signature verification — display only). */
+function decodeClaims(token) {
+  try {
+    const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(decodeURIComponent(escape(atob(part))));
+  } catch {
+    return null;
+  }
+}
+
+/** Session from an injected companion token, if one was provided. */
+function injectedSession() {
+  const t = window.OSAS && window.OSAS.accessToken;
+  if (!t) return null;
+  const claims = decodeClaims(t) || {};
+  const role = claims.user_metadata && claims.user_metadata.role === 'admin' ? 'admin' : 'staff';
+  return {
+    provider: 'injected',
+    user: {
+      email: claims.email || 'signed-in@saac.ph',
+      role,
+      name: (claims.user_metadata && claims.user_metadata.name) || claims.email || 'Signed-in user',
+    },
+    access_token: t,
+  };
 }
 
 function devSession() {
-  // Dev fallback session (no Supabase keys) — simulates an Admin.
+  // Dev fallback session (no real Supabase session available) —
+  // simulates an Admin so the module is usable pre-companion.
   return {
     provider: 'dev',
     user: { email: 'admin@saac.ph', role: 'admin', name: 'Local Administrator' },
@@ -54,6 +95,41 @@ export function getSession() {
   return session;
 }
 
+/** A REAL (non-demo) Supabase session is active. */
+export function hasRealSession() {
+  return Boolean(session && (session.provider === 'supabase' || session.provider === 'injected'));
+}
+
+/**
+ * Freshest access token for API calls. supabase-js refreshes the
+ * session in its own storage when the token nears expiry, so we
+ * re-read it from the client rather than trusting the cached copy.
+ */
+export async function currentAccessToken() {
+  const s = session;
+  if (!s) return null;
+  if (s.provider === 'injected') return s.access_token || null;
+  if (s.provider !== 'supabase') return s.access_token || null; // dev
+  const sb = await getClient();
+  if (!sb) return s.access_token || null;
+  const { data } = await sb.auth.getSession();
+  if (data.session && data.session.access_token) {
+    if (data.session.access_token !== s.access_token) {
+      saveSession({
+        ...s,
+        access_token: data.session.access_token,
+        user: {
+          email: data.session.user.email,
+          role: data.session.user.user_metadata?.role || 'staff',
+          name: data.session.user.user_metadata?.name || data.session.user.email,
+        },
+      });
+    }
+    return data.session.access_token;
+  }
+  return s.access_token || null;
+}
+
 export function isAdmin() {
   return !session || session.user.role === 'admin';
 }
@@ -66,56 +142,21 @@ export function usesSupabaseAuth() {
   return Boolean(window.OSAS.SUPABASE_URL && window.OSAS.SUPABASE_ANON_KEY);
 }
 
-/** Start a session (called after Supabase sign-in or in dev mode). */
+/** Replace the session (used by the companion contract and dev boot). */
 export function setSession(s) {
   saveSession(s);
 }
 
-/** Email + password sign-in via Supabase Auth. */
-export async function login(email, password) {
-  const sb = await getClient();
-  if (!sb) {
-    // Dev mode: accept the demo credentials, otherwise sign in as admin.
-    if (email === 'staff@saac.ph' && password) {
-      saveSession({
-        provider: 'dev',
-        user: { email: 'staff@saac.ph', role: 'staff', name: 'Staff Member' },
-        access_token: 'dev-token-staff',
-      });
-    } else {
-      saveSession(devSession());
-    }
-    return { ok: true, provider: 'dev' };
-  }
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error) return { ok: false, error: error.message };
-  saveSession({
-    provider: 'supabase',
-    user: { email: data.user.email, role: data.user.user_metadata?.role || 'staff', name: data.user.user_metadata?.name || data.user.email },
-    access_token: data.session.access_token,
-  });
-  return { ok: true, provider: 'supabase' };
-}
-
-/** Magic-link email sign-in via Supabase Auth. */
-export async function magicLink(email) {
-  const sb = await getClient();
-  if (!sb) {
-    return { ok: false, error: 'Supabase is not configured — use email + password (demo) instead.' };
-  }
-  const { error } = await sb.auth.signInWithOtp({ email });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true };
-}
-
-export async function logout() {
-  const sb = await getClient();
-  if (sb) await sb.auth.signOut().catch(() => {});
-  saveSession(null);
-}
-
-/** Restore a Supabase session on boot (dev mode boots straight in). */
+/**
+ * Resolve the session on boot, in priority order:
+ * injected token → supabase-js storage → demo fallback.
+ */
 export async function restore() {
+  const inj = injectedSession();
+  if (inj) {
+    saveSession(inj);
+    return;
+  }
   const sb = await getClient();
   if (!sb) {
     if (!session) saveSession(devSession());
@@ -125,8 +166,15 @@ export async function restore() {
   if (data.session) {
     saveSession({
       provider: 'supabase',
-      user: { email: data.session.user.email, role: data.session.user.user_metadata?.role || 'staff', name: data.session.user.user_metadata?.name || data.session.user.email },
+      user: {
+        email: data.session.user.email,
+        role: data.session.user.user_metadata?.role || 'staff',
+        name: data.session.user.user_metadata?.name || data.session.user.email,
+      },
       access_token: data.session.access_token,
     });
+    return;
   }
+  // No real session anywhere — demo fallback so the module boots.
+  if (!session) saveSession(devSession());
 }

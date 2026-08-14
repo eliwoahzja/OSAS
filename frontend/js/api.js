@@ -1,46 +1,68 @@
 // ============================================================
-// OSAS data layer — talks to the PHP REST API first, falls back
-// to the in-browser mock dataset when the API is unreachable and
-// no Supabase keys are configured (keeps the UI usable offline).
+// OSAS data layer — Supabase-native (no PHP backend).
+//
+// The browser talks to Supabase directly:
+//   * PostgREST (https://<project>.supabase.co/rest/v1/...) for
+//     table CRUD — the server validates the JWT, enforces RLS
+//     roles and the DB CHECK constraints.
+//   * Storage (https://<project>.supabase.co/storage/v1/...) for
+//     file uploads (evacuation maps, inspection photos).
+//   * An Edge Function for notification delivery.
+//
+// The exported function signatures are unchanged so the 10
+// module pages don't need edits. The built-in demo dataset is
+// used ONLY when no real Supabase session exists (i.e. the
+// companion hasn't signed anyone in) — that state is visible in
+// the UI via dataMode() === 'mock'.
 // ============================================================
+import * as auth from './auth.js';
 import { MOCK, mockNextId } from './mock.js';
 
-const API = window.OSAS.API_URL || '/api';
-let provider = 'api'; // 'api' | 'mock'
+const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.OSAS;
+const REST = `${SUPABASE_URL}/rest/v1`;
+let provider = 'mock'; // 'api' | 'mock'
 
-const REQ_TIMEOUT = 7000;
+// ---------- PostgREST helpers ----------
 
-async function apiFetch(path, options = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), REQ_TIMEOUT);
-  let res;
-  try {
-    res = await fetch(`${API}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options,
-      signal: ctrl.signal,
-    });
-  } catch (e) {
-    clearTimeout(timer);
-    throw e instanceof TypeError ? e : new TypeError('API unavailable');
+async function restFetch(method, path, { query = {}, body = null, prefer = null } = {}) {
+  const token = await auth.currentAccessToken();
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(query)) {
+    if (v === null || v === undefined || v === '') continue;
+    qs.set(k, v);
   }
-  clearTimeout(timer);
-  const type = res.headers.get('content-type') || '';
-  let body = null;
-  try { body = await res.json(); } catch { /* non-JSON */ }
-  // Only a real JSON API counts as the backend. Static hosts answer
-  // /api with HTML (404 page or SPA fallback) — treat those as
-  // unavailable so callers fall back to the demo dataset.
-  if (!type.includes('application/json')) {
-    throw new TypeError('API unavailable');
-  }
+  const url = `${REST}/${path}${qs.toString() ? `?${qs}` : ''}`;
+  const headers = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+  if (prefer) headers.Prefer = prefer;
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
   if (!res.ok) {
-    // Real API answered — surface its validation/server error.
-    const detail = body && (body.error || (body.errors && body.errors.join(', ')) || body.message);
-    throw new Error(detail || `Request failed (${res.status})`);
+    let detail = `Request failed (${res.status})`;
+    try {
+      const j = await res.json();
+      if (j.message) detail = j.message;
+      if (res.status === 401) detail = 'Sign-in required — no valid session for this data.';
+      if (res.status === 403 || j.code === '42501') detail = 'Permission denied for this account.';
+    } catch { /* non-JSON error body */ }
+    throw new Error(detail);
   }
-  return body;
+  if (res.status === 204) return null;
+  return res.json();
 }
+
+/** Whether we're running on the demo dataset (no real session). */
+async function demoMode() {
+  return !(await auth.hasRealSession());
+}
+
+// ---------- Mock (demo dataset, dev only) ----------
 
 function snapshot(table) {
   return JSON.parse(JSON.stringify(MOCK[table] || []));
@@ -76,164 +98,191 @@ function listMock(table, filters = {}) {
   return rows;
 }
 
+/** Dashboard stats aggregation — shared by the mock and live paths. */
+function computeStats(incidents, inspections, drills, supplies, contacts) {
+  const typeCount = {};
+  incidents.forEach((i) => { typeCount[i.type] = (typeCount[i.type] || 0) + 1; });
+  const statusCount = {};
+  inspections.forEach((i) => { statusCount[i.status] = (statusCount[i.status] || 0) + 1; });
+  const total = inspections.length || 1;
+  return {
+    incidents_total: incidents.length,
+    incidents_open: incidents.filter((i) => i.status === 'open').length,
+    inspections_pending: inspections.filter((i) => i.status === 'pending').length,
+    inspections_passed: inspections.filter((i) => i.status === 'passed').length,
+    inspections_overdue: inspections.filter((i) => i.status === 'overdue').length,
+    drills_active: drills.filter((d) => d.status === 'upcoming').length,
+    drills_completed: drills.filter((d) => d.status === 'completed').length,
+    supplies_low: supplies.filter((s) => Number(s.quantity) <= Number(s.reorder_threshold)).length,
+    emergency_contacts_total: contacts.length,
+    compliance_score: Math.round((inspections.filter((i) => i.status === 'passed').length / total) * 100),
+    incident_breakdown: Object.entries(typeCount).map(([label, value]) => ({ label, value })),
+    inspection_status: Object.entries(statusCount).map(([label, value]) => ({ label, value })),
+  };
+}
+
 /** Which data provider is active — shown in the UI for transparency. */
 export function dataMode() {
   return provider;
 }
 
-// --- Public API (mirrors the PHP routes) ---
+// ---------- Public API (mirrors the old PHP routes) ----------
 
 export async function listRows(table, filters = {}) {
-  try {
-    const qs = new URLSearchParams();
-    for (const [k, v] of Object.entries(filters)) if (v) qs.set(k, v);
-    const rows = await apiFetch(`/${table}${qs.toString() ? `?${qs}` : ''}`);
-    provider = 'api';
-    return rows;
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|NetworkError/i.test(e.message)) {
-      provider = 'mock';
-      return listMock(table, filters);
-    }
-    throw e;
+  if (await demoMode()) {
+    provider = 'mock';
+    return listMock(table, filters);
   }
+  // Substring search → PostgREST `ilike` filter.
+  const query = { select: '*' };
+  for (const [k, v] of Object.entries(filters)) {
+    if (v) query[k] = `ilike.*${v}*`;
+  }
+  const rows = await restFetch('GET', table, { query });
+  provider = 'api';
+  return rows || [];
 }
 
 export async function insertRow(table, payload) {
-  try {
-    const row = await apiFetch(`/${table}`, { method: 'POST', body: JSON.stringify(payload) });
-    provider = 'api';
-    return row;
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|NetworkError/i.test(e.message)) {
-      provider = 'mock';
-      return insertMock(table, payload);
-    }
-    throw e;
+  if (await demoMode()) {
+    provider = 'mock';
+    return insertMock(table, payload);
   }
+  const rows = await restFetch('POST', table, {
+    body: payload,
+    prefer: 'return=representation',
+  });
+  provider = 'api';
+  return (rows && rows[0]) || payload;
 }
 
 export async function updateRow(table, id, patch) {
-  try {
-    const row = await apiFetch(`/${table}/${id}`, { method: 'PATCH', body: JSON.stringify(patch) });
-    provider = 'api';
-    return row;
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|NetworkError/i.test(e.message)) {
-      provider = 'mock';
-      return updateMock(table, id, patch);
-    }
-    throw e;
+  if (await demoMode()) {
+    provider = 'mock';
+    return updateMock(table, id, patch);
   }
+  const rows = await restFetch('PATCH', table, {
+    query: { id: `eq.${id}` },
+    body: patch,
+    prefer: 'return=representation',
+  });
+  provider = 'api';
+  if (!rows || !rows[0]) throw new Error('Record not found');
+  return rows[0];
 }
 
 export async function deleteRow(table, id) {
-  try {
-    const r = await apiFetch(`/${table}/${id}`, { method: 'DELETE' });
-    provider = 'api';
-    return r;
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|NetworkError/i.test(e.message)) {
-      provider = 'mock';
-      deleteMock(table, id);
-      return { ok: true };
-    }
-    throw e;
+  if (await demoMode()) {
+    provider = 'mock';
+    deleteMock(table, id);
+    return { ok: true };
   }
-}
-
-/** POST /notifications/send — server validates type-specific rules. */
-export async function sendNotification(payload) {
-  try {
-    const r = await apiFetch('/notifications/send', { method: 'POST', body: JSON.stringify(payload) });
-    provider = 'api';
-    return r;
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|NetworkError/i.test(e.message)) {
-      provider = 'mock';
-      insertMock('notifications', {
-        ...payload,
-        sent_at: new Date().toISOString(),
-        delivery_status: 'sent',
-        created_by: 'admin',
-      });
-      return { ok: true, provider: 'direct', id: mockNextId('notifications') };
-    }
-    throw e;
-  }
-}
-
-/** GET /dashboard/stats — live aggregation for KPI cards + donuts. */
-export async function getDashboardStats() {
-  try {
-    const s = await apiFetch('/dashboard/stats');
-    provider = 'api';
-    return s;
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|NetworkError/i.test(e.message)) {
-      provider = 'mock';
-      const incidents = listMock('incidents');
-      const inspections = listMock('inspections');
-      const drills = listMock('drills');
-      const supplies = listMock('supplies');
-      const contacts = listMock('emergency_contacts');
-      const typeCount = {};
-      incidents.forEach((i) => { typeCount[i.type] = (typeCount[i.type] || 0) + 1; });
-      const statusCount = {};
-      inspections.forEach((i) => { statusCount[i.status] = (statusCount[i.status] || 0) + 1; });
-      const total = inspections.length || 1;
-      return {
-        incidents_total: incidents.length,
-        incidents_open: incidents.filter((i) => i.status === 'open').length,
-        inspections_pending: inspections.filter((i) => i.status === 'pending').length,
-        inspections_passed: inspections.filter((i) => i.status === 'passed').length,
-        inspections_overdue: inspections.filter((i) => i.status === 'overdue').length,
-        drills_active: drills.filter((d) => d.status === 'upcoming').length,
-        drills_completed: drills.filter((d) => d.status === 'completed').length,
-        supplies_low: supplies.filter((s) => Number(s.quantity) <= Number(s.reorder_threshold)).length,
-        emergency_contacts_total: contacts.length,
-        compliance_score: Math.round(((inspections.filter((i) => i.status === 'passed').length) / total) * 100),
-        incident_breakdown: Object.entries(typeCount).map(([label, value]) => ({ label, value })),
-        inspection_status: Object.entries(statusCount).map(([label, value]) => ({ label, value })),
-      };
-    }
-    throw e;
-  }
+  await restFetch('DELETE', table, { query: { id: `eq.${id}` } });
+  provider = 'api';
+  return { ok: true };
 }
 
 /**
- * File upload → PHP proxy. The PHP backend forwards to Supabase
- * Storage when keys are set, otherwise it stores the file under
- * backend/storage/ and serves it back.
+ * Notification delivery.
+ *
+ * With NOTIFY_FN_URL configured (recommended), the Edge Function
+ * validates, records, and really delivers (email via Resend,
+ * SMS/call via Twilio when keys exist). Without it, the row is
+ * recorded directly through PostgREST — the DB CHECK constraints
+ * still enforce the business rules, but no email/SMS is sent.
  */
-export async function uploadFile(bucket, file, path) {
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('bucket', bucket);
-  fd.append('path', path || `${Date.now()}-${file.name}`);
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), REQ_TIMEOUT);
-    let res;
+export async function sendNotification(payload) {
+  const fnUrl = window.OSAS.NOTIFY_FN_URL;
+  if (fnUrl) {
     try {
-      res = await fetch(`${API}/upload`, { method: 'POST', body: fd, signal: ctrl.signal });
-    } finally {
-      clearTimeout(timer);
+      const token = await auth.currentAccessToken();
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((data && data.error) || `Notification failed (${res.status})`);
+      provider = 'api';
+      return { ok: true, channel: (data && data.channel) || payload.contact_method, ...(data || {}) };
+    } catch (e) {
+      // Edge Function unreachable → fall through and record directly.
+      console.error('sendNotification via Edge Function failed:', e);
     }
-    const body = await res.json().catch(() => null);
-    if (!res.ok) {
-      if (body && body.error) throw new Error(body.error);
-      throw new TypeError('API unavailable');
-    }
-    provider = 'api';
-    return body; // { path, url }
-  } catch (e) {
-    if (e instanceof TypeError || /Failed to fetch|NetworkError/i.test(e.message)) {
-      provider = 'mock';
-      return { path: `mock://${bucket}/${path || file.name}`, url: null, mock: true };
-    }
-    throw e;
   }
+  if (await demoMode()) {
+    provider = 'mock';
+    insertMock('notifications', {
+      ...payload,
+      sent_at: new Date().toISOString(),
+      delivery_status: 'sent',
+      created_by: 'admin',
+    });
+    return { ok: true, provider: 'direct', channel: payload.contact_method || 'app', id: mockNextId('notifications') };
+  }
+  const record = { ...payload };
+  delete record.student_name; // enrichment fields — not columns
+  delete record.student_grade;
+  const row = await insertRow('notifications', {
+    ...record,
+    sent_at: new Date().toISOString(),
+    delivery_status: 'sent',
+  });
+  return { ok: true, provider: 'direct', channel: row.contact_method || payload.contact_method || 'app', id: row.id };
 }
 
+/** GET /dashboard/stats — KPI + donut data. Aggregated client-side from live rows. */
+export async function getDashboardStats() {
+  if (await demoMode()) {
+    provider = 'mock';
+    return computeStats(
+      listMock('incidents'), listMock('inspections'), listMock('drills'),
+      listMock('supplies'), listMock('emergency_contacts'),
+    );
+  }
+  const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
+    restFetch('GET', 'incidents', { query: { select: '*' } }),
+    restFetch('GET', 'inspections', { query: { select: '*' } }),
+    restFetch('GET', 'drills', { query: { select: '*' } }),
+    restFetch('GET', 'supplies', { query: { select: '*' } }),
+    restFetch('GET', 'emergency_contacts', { query: { select: '*' } }),
+  ]);
+  provider = 'api';
+  return computeStats(incidents || [], inspections || [], drills || [], supplies || [], contacts || []);
+}
 
+/**
+ * File upload → Supabase Storage (public buckets). Requires a
+ * real session (storage policies are authenticated-only).
+ */
+export async function uploadFile(bucket, file, path) {
+  if (await demoMode()) {
+    provider = 'mock';
+    return { path: `mock://${bucket}/${path || file.name}`, url: null, mock: true };
+  }
+  const token = await auth.currentAccessToken();
+  const url = `${SUPABASE_URL}/storage/v1/object/${bucket}/${encodeURIComponent(path || file.name)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true',
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    let detail = `Upload failed (${res.status})`;
+    try {
+      const j = await res.json();
+      if (j.message) detail = j.message;
+    } catch { /* non-JSON */ }
+    throw new Error(detail);
+  }
+  provider = 'api';
+  return {
+    path: `${bucket}/${path || file.name}`,
+    url: `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeURIComponent(path || file.name)}`,
+  };
+}
