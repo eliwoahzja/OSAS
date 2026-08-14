@@ -1,21 +1,12 @@
 {
-  "name": "saac-attendance-frontend",
+  "name": "saac-osas-dashboard",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
+  "description": "SAAC – OSAS Dashboard. Static frontend (HTML/CSS/JS) + PHP REST API + Supabase.",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3",
-    "@vitejs/plugin-react": "^4.3.4",
-    "tailwindcss": "^4.3.3",
-    "vite": "^5.4.11"
+    "dev": "php -S 127.0.0.1:5173 -t . backend/router.php",
+    "server": "php -S 127.0.0.1:8080 -t backend backend/router.php",
+    "seed": "php backend/seed.php",
+    "lint": "php -l backend/public/index.php && php -l backend/src/*.php"
   }
 }
