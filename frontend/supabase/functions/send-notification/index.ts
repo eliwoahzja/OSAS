@@ -81,6 +81,67 @@ async function parentEmails(svc: ReturnType<typeof createClient>): Promise<strin
   return [...new Set((data || []).map((r) => (r.email as string).trim()).filter(Boolean))];
 }
 
+const fmt = (iso?: string) =>
+  iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+
+// Full school-style notification email, inline styles only (email-safe).
+function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): string {
+  const isAlert = n.notif_type === 'incident_alert';
+  const student = p.student_name as string | undefined;
+  const greeting = isAlert && student
+    ? `Dear Parent/Guardian of ${escapeHtml(student)}${p.student_grade ? `, Grade ${p.student_grade}` : ''},`
+    : 'Dear Parents and Guardians,';
+
+  const details: string[] = [];
+  if (student) {
+    details.push(row('Student', `${escapeHtml(student)}${p.student_grade ? ` (Grade ${p.student_grade})` : ''}`));
+  }
+  if (isAlert) {
+    details.push(row('Priority', 'URGENT - please contact the school as soon as possible'));
+  }
+  if (p.audience_group) details.push(row('Audience', escapeHtml(String(p.audience_group))));
+  if (p.event_start_at) {
+    details.push(row('Event', `${fmt(p.event_start_at as string)} - ${fmt(p.event_end_at as string)}`));
+  }
+  details.push(row('Sent', fmt(n.sent_at as string)));
+
+  return `
+<div style="background:#f5f1ea;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e7e0d4">
+    <div style="background:#3A1024;padding:22px 32px">
+      <div style="color:#ffffff;font-size:19px;font-weight:700">Saint Agnes Academy</div>
+      <div style="color:#e9b9ca;font-size:11px;letter-spacing:2px;margin-top:3px">OFFICE OF STUDENT AFFAIRS AND SERVICES</div>
+    </div>
+    <div style="padding:30px 32px">
+      <div style="margin-bottom:18px">
+        ${isAlert
+          ? '<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:999px">URGENT INCIDENT ALERT</span>'
+          : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:999px">EVENT NOTICE</span>'}
+      </div>
+      <h2 style="margin:0 0 6px;color:#27272a;font-size:18px;font-weight:700">${escapeHtml(String(n.title))}</h2>
+      <p style="margin:0 0 18px;color:#3f3f46;font-size:14px;line-height:1.7">${escapeHtml(String(n.message))}</p>
+      <table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13px">
+        ${details.join('')}
+      </table>
+      <p style="margin:0 0 4px;color:#3f3f46;font-size:14px;line-height:1.7">
+        ${isAlert
+          ? 'If you have any questions or need more information, please call the OSAS office or reply through the school\'s official channels.'
+          : 'We look forward to seeing you there. For questions, contact the OSAS office during school hours.'}
+      </p>
+    </div>
+    <div style="background:#faf7f2;padding:14px 32px;border-top:1px solid #eee6d9;color:#8b8176;font-size:11px;line-height:1.6">
+      This is an automated message from Saint Agnes Academy, Office of Student Affairs and Services.<br/>
+      Please do not reply to this email.
+    </div>
+  </div>
+</div>`;
+}
+
+function row(label: string, value: string): string {
+  return `<tr><td style="padding:7px 12px;background:#faf7f2;color:#8b8176;font-weight:600;width:110px;border-bottom:1px solid #f0eae0">${label}</td>` +
+    `<td style="padding:7px 12px;color:#3f3f46;border-bottom:1px solid #f0eae0">${value}</td></tr>`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
@@ -106,6 +167,7 @@ Deno.serve(async (req) => {
   if (errors.length) return json({ error: errors.join('; ') }, 400);
 
   const notifType = payload.notif_type as string;
+  const isAlert = notifType === 'incident_alert';
   const record = {
     ...payload,
     priority: notifType === 'incident_alert' ? 'urgent' : 'informational',
@@ -149,10 +211,8 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from,
           to: to.map((address) => ({ address })),
-          subject: `${created.title} - SAAC OSAS`,
-          html:
-            `<p style="font-family:Inter,Arial,sans-serif;color:#3f3f46">${escapeHtml(created.message)}</p>` +
-            `<p style="font-family:Inter,Arial,sans-serif;color:#a1a1aa;font-size:12px">Sent by the Office of Student Affairs and Services.</p>`,
+          subject: `${isAlert ? '[URGENT] ' : ''}${created.title} - Saint Agnes Academy`,
+          html: emailHtml(payload, created),
         }),
       });
       delivery = r.ok

@@ -10,9 +10,9 @@ INSERT INTO students (id, name, grade, section, phone) VALUES
   ('22222222-2222-4222-8222-222222222222', 'Reyes, Althea Jane',        7,  '7-B', '0917 555 1107'),
   ('33333333-3333-4333-8333-333333333333', 'Yap, Lorenzo Miguel',      10,  '10-B', '0917 555 1402');
 
--- ---------- Emergency contacts (parent emails — used by Resend) ----------
+-- ---------- Emergency contacts (parent emails — used for notifications) ----------
 INSERT INTO emergency_contacts (category, name, relationship, phone, email, priority) VALUES
-  ('student', 'Marites Dela Cruz', 'Mother', '0917 555 2001', 'yoboieliii@gmail.com', 1),
+  ('student', 'Marco Dela Cruz',   'Father', '0917 555 2001', 'yoboieliii@gmail.com', 1),
   ('student', 'Ramon Reyes',       'Father', '0917 555 2002', 'ramon.reyes@gmail.com', 1),
   ('student', 'Grace Yap',         'Mother', '0917 555 2003', 'grace.yap@gmail.com', 1),
   ('school',  'School Nurse',      NULL,     '0917 555 0001', 'nurse@saac.edu.ph', NULL),

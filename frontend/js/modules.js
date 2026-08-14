@@ -45,7 +45,7 @@ const SUMMARY = {
   ],
 };
 
-async function loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters = {} }) {
+async function loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters = {}, searchKeys = [], searchPlaceholder, selectFilters = [] }) {
   el.appendChild(moduleShell({ icon: iconName, title, subtitle, actionLabel, onAction }));
   const holder = h('div', { class: 'space-y-5' });
   el.appendChild(holder);
@@ -57,7 +57,7 @@ async function loadTable(el, { table, columns, empty, iconName, title, subtitle,
   } catch (e) {
     holder.replaceChildren(errorBanner(e.message, () => {
       el.innerHTML = '';
-      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters });
+      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters, searchKeys, searchPlaceholder, selectFilters });
     }));
     return;
   }
@@ -65,10 +65,41 @@ async function loadTable(el, { table, columns, empty, iconName, title, subtitle,
     holder.replaceChildren(emptyBanner({ icon: empty?.icon || iconName, title: empty?.title || 'No records yet', text: empty?.text }));
     return;
   }
+
+  const state = { q: '', sel: {} };
+  const matches = (r) => {
+    if (state.q) {
+      const s = state.q.toLowerCase();
+      if (!searchKeys.some((k) => String(r[k] ?? '').toLowerCase().includes(s))) return false;
+    }
+    return selectFilters.every((d) => !state.sel[d.key] || String(r[d.key]) === state.sel[d.key]);
+  };
+
   const parts = [];
   if (SUMMARY[table]) parts.push(moduleStats(SUMMARY[table](rows)));
-  parts.push(dataTable(columns, rows));
+  if (searchKeys.length || selectFilters.length) {
+    parts.push(h('div', { class: 'flex flex-wrap items-center gap-3' },
+      h('div', { class: 'relative flex-1 min-w-[240px]' },
+        icon('search', 'text-gray-400 text-sm absolute left-3.5 top-1/2 -translate-y-1/2'),
+        h('input', { class: `${inputCls} pl-10`, placeholder: searchPlaceholder || 'Search…', 'aria-label': 'Search',
+          oninput: (e) => { state.q = e.target.value; renderTable(); } })),
+      selectFilters.map((d) => h('select', { class: `${inputCls} w-auto`, 'aria-label': d.label,
+        onchange: (e) => { state.sel[d.key] = e.target.value; renderTable(); } },
+        h('option', { value: '', selected: true }, d.label),
+        d.options.map((o) => h('option', { value: o.value }, o.label))))));
+  }
+  const tableWrap = h('div');
+  parts.push(tableWrap);
   holder.replaceChildren(...parts);
+
+  const renderTable = () => {
+    const filtered = rows.filter(matches);
+    tableWrap.replaceChildren(dataTable(columns, filtered));
+    if (!filtered.length) {
+      tableWrap.appendChild(emptyBanner({ icon: 'search', title: 'No matches', text: 'Try a different search or clear the filters.' }));
+    }
+  };
+  renderTable();
   return rows;
 }
 
@@ -86,6 +117,11 @@ export function emergencyContacts(el) {
     table: 'emergency_contacts', columns, iconName: 'contacts',
     title: 'Emergency Contact Database',
     subtitle: 'Per-student guardians (priority order) plus school-wide responders: nurse, security head, and nearest police/fire/hospital.',
+    searchKeys: ['name', 'email', 'phone', 'relationship', 'role'],
+    searchPlaceholder: 'Search by name, email, or phone…',
+    selectFilters: [
+      { key: 'category', label: 'All types', options: [{ value: 'student', label: 'Parents / Guardians' }, { value: 'school', label: 'School & Agencies' }] },
+    ],
     empty: { title: 'No contacts yet', text: 'Add student guardians and school-wide responders to build the emergency directory.' },
   });
 }
@@ -99,7 +135,7 @@ export function drillScheduling(el) {
     { key: 'type', label: 'Drill Type', render: (r) => pill(r.type) },
     { key: 'date', label: 'Schedule', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
     { key: 'building', label: 'Building / Area' },
-    { key: 'personInCharge', label: 'Person in Charge' },
+    { key: 'person_in_charge', label: 'Person in Charge' },
     { key: 'status', label: 'Status', render: (r) => pill(r.status) },
     { key: 'notes', label: 'Outcome Notes', render: (r) => r.notes ? h('span', { class: 'block max-w-[340px] text-gray-600' }, r.notes) : h('span', { class: 'text-gray-300' }, '—') },
   ];
@@ -109,6 +145,8 @@ export function drillScheduling(el) {
     title: 'Drill Scheduling',
     subtitle: 'Plan fire, earthquake, lockdown, and evacuation drills. Scheduled drills can auto-send an event notice to parents.',
     actionLabel: 'Schedule Drill',
+    searchKeys: ['type', 'building', 'person_in_charge', 'notes'],
+    searchPlaceholder: 'Search by type, building, or person in charge…',
     empty: { title: 'No drills scheduled yet', text: 'Schedule the first drill — parent notices can be sent straight from the form.' },
     onAction: () => drillForm(el),
   });
@@ -229,6 +267,8 @@ export function evacuationPlans(el) {
     title: 'Evacuation Map & Plans',
     subtitle: 'Floor plans per building with exits, evacuation routes, and assembly points. Upload a new plan to keep a version history.',
     actionLabel: 'Upload Floor Plan',
+    searchKeys: ['building', 'floor', 'exits', 'routes', 'assembly_point'],
+    searchPlaceholder: 'Search by building, floor, or exit…',
     empty: { title: 'No floor plans uploaded yet', text: 'Upload the first building floor plan with its evacuation routes.' },
     onAction: () => planUploadForm(el),
   });
@@ -314,6 +354,8 @@ export function incidentLogging(el) {
     title: 'Incident Logging',
     subtitle: 'Record medical, fire, security, and structural incidents. Incidents tied to a student can auto-notify their parents.',
     actionLabel: 'Log Incident',
+    searchKeys: ['type', 'location', 'description', 'reporter', 'status'],
+    searchPlaceholder: 'Search by type, location, or reporter…',
     empty: { title: 'No incidents logged yet', text: 'Log the first incident — parent alerts can be sent straight from the form.' },
     onAction: () => incidentForm(el),
   });
@@ -436,6 +478,8 @@ export function safetyInspections(el) {
     table: 'inspections', columns, iconName: 'fact_check',
     title: 'Safety Inspection Checklist',
     subtitle: 'Track inspection items per area with frequency, status, and follow-up notes. Items past their due date are auto-flagged Overdue.',
+    searchKeys: ['item', 'area', 'inspector', 'status', 'notes'],
+    searchPlaceholder: 'Search by item, area, or inspector…',
     empty: { title: 'No inspections recorded yet', text: 'Add the first inspection item to start the compliance checklist.' },
   });
 }
@@ -455,6 +499,8 @@ export function riskAssessment(el) {
     table: 'risks', columns, iconName: 'security',
     title: 'Risk Assessment Tool',
     subtitle: 'Hazards with likelihood/impact scoring, computed risk level, mitigation plans, and review owners.',
+    searchKeys: ['hazard', 'mitigation', 'owner', 'risk_level'],
+    searchPlaceholder: 'Search by hazard or owner…',
     empty: { title: 'No risks assessed yet', text: 'Add the first hazard to start the risk register.' },
   });
 }
@@ -701,6 +747,8 @@ export function emergencyRoles(el) {
     table: 'emergency_roles', columns, iconName: 'groups',
     title: 'Emergency Role Assignment',
     subtitle: 'Fire wardens, first aiders, and evacuation marshals assigned per zone, each with a backup person.',
+    searchKeys: ['role', 'staff', 'zone', 'backup'],
+    searchPlaceholder: 'Search by role, staff, or zone…',
     empty: { title: 'No roles assigned yet', text: 'Assign the first emergency role to a staff member.' },
   });
 }
@@ -720,6 +768,8 @@ export function firstAidSupplies(el) {
     table: 'supplies', columns, iconName: 'medical_services',
     title: 'First Aid Supplies Monitor',
     subtitle: 'Stock levels with expiry dates and reorder thresholds. Items at or below threshold are flagged Low automatically.',
+    searchKeys: ['item', 'location', 'unit'],
+    searchPlaceholder: 'Search by item or location…',
     empty: { title: 'No supplies tracked yet', text: 'Add the first first-aid item to start the stock monitor.' },
   });
 }
