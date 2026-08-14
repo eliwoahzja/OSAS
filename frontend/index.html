@@ -4,7 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="School safety and compliance dashboard for the Office of Student Affairs and Services: emergency contacts, incident reports, inspections, drills, and parent notifications." />
+  <meta name="author" content="Office of Student Affairs and Services, Saint Agnes Academy" />
   <meta name="theme-color" content="#241A22" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://*.functions.supabase.co" />
   <meta property="og:title" content="SAAC - OSAS Dashboard" />
   <meta property="og:type" content="website" />
   <meta property="og:description" content="School safety and compliance dashboard for the Office of Student Affairs and Services." />
@@ -14,10 +17,11 @@
   <link rel="stylesheet" href="/css/tailwind.css" />
   <link rel="stylesheet" href="/css/fa.min.css" />
   <link rel="stylesheet" href="/css/osas.css" />
+  <noscript><p style="padding:24px;font-family:sans-serif">Please enable JavaScript to use the OSAS dashboard.</p></noscript>
 </head>
 <body class="flex h-screen overflow-hidden">
 
-  <aside id="sidebar" data-purpose="sidebar"
+  <aside id="sidebar"
     class="bg-maroon-dark text-gray-300 flex flex-col w-72 h-full overflow-y-auto shrink-0 fixed inset-y-0 left-0 z-50 transition-transform duration-300 lg:static lg:translate-x-0 -translate-x-full lg:translate-x-0">
     <div class="p-6 flex items-center gap-3 mt-2">
       <img src="/assets/logo.png" alt="SAAC seal" class="w-10 h-10 object-contain" />
@@ -51,7 +55,7 @@
         </div>
       </div>
       <button id="logout-btn"
-        class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-600/50 text-gray-300 hover:bg-gray-800 transition-colors cursor-pointer">
+        class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-600/50 text-gray-300 hover:bg-gray-800 transition-colors clickable">
         <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
         <span class="text-sm font-medium">Logout</span>
       </button>
@@ -59,12 +63,12 @@
   </aside>
   <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden" aria-hidden="true"></div>
 
-  <main class="flex-1 flex flex-col h-full overflow-hidden" data-purpose="main-area">
-    <header class="bg-transparent px-4 sm:px-10 py-6 shrink-0" data-purpose="top-header">
+  <main class="flex-1 flex flex-col h-full overflow-hidden">
+    <header class="bg-transparent px-4 sm:px-10 py-6 shrink-0">
       <div class="max-w-[1400px] 2xl:max-w-[1600px] mx-auto flex items-center justify-between gap-4">
         <div class="flex items-center gap-4 min-w-0">
-          <button id="hamburger" aria-label="Open menu"
-            class="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm shrink-0 cursor-pointer">
+          <button id="hamburger" aria-label="Open menu" onclick="window.OSAS.toggleSidebar()"
+            class="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm shrink-0 clickable">
             <i class="fa-solid fa-bars text-lg"></i>
           </button>
           <div class="min-w-0">
@@ -91,7 +95,10 @@
       </div>
     </header>
 
-    <div id="view" class="flex-1 overflow-y-auto px-4 sm:px-10 pb-10" data-purpose="dashboard-content"></div>
+    <div id="view" class="flex-1 overflow-y-auto px-4 sm:px-10 pb-6"></div>
+    <footer class="px-4 sm:px-10 pb-4 shrink-0">
+      <p class="text-[11px] text-gray-400 border-t border-gray-200 pt-3">Saint Agnes Academy &middot; Office of Student Affairs and Services &mdash; &copy; 2026</p>
+    </footer>
   </main>
 
   <div id="toast-root" class="fixed bottom-6 right-6 z-[70] space-y-3 w-80 max-w-[90vw]"></div>

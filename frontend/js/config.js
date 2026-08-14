@@ -8,3 +8,8 @@ window.OSAS = Object.assign({
   NOTIFY_FN_URL: 'https://rwqaeabxusivkyjgskko.functions.supabase.co/send-notification',
   accessToken: '',
 }, window.OSAS || {});
+
+window.OSAS.toggleSidebar = () => {
+  document.getElementById('sidebar').classList.toggle('-translate-x-full');
+  document.getElementById('sidebar-backdrop').classList.toggle('hidden');
+};

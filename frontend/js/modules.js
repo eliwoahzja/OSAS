@@ -202,8 +202,8 @@ function drillForm(el) {
   grid.appendChild(errBox);
 
   const btnRow = h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
-    h('button', { type: 'submit', class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer' }, icon('send', 'text-base'), 'Schedule Drill'),
-    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel'));
+    h('button', { type: 'submit', class: 'btn-primary' }, icon('send', 'text-base'), 'Schedule Drill'),
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel'));
   grid.appendChild(btnRow);
 
   form.addEventListener('submit', async (e) => {
@@ -298,8 +298,8 @@ function planUploadForm(el) {
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
-    h('button', { type: 'submit', class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer' }, icon('upload', 'text-base'), 'Upload Plan'),
-    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel')));
+    h('button', { type: 'submit', class: 'btn-primary' }, icon('upload', 'text-base'), 'Upload Plan'),
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -416,8 +416,8 @@ function incidentForm(el) {
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
-    h('button', { type: 'submit', class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer' }, icon('send', 'text-base'), 'Save Incident'),
-    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel')));
+    h('button', { type: 'submit', class: 'btn-primary' }, icon('send', 'text-base'), 'Save Incident'),
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -523,7 +523,7 @@ function renderNotifications(el, holder) {
   const filterRow = h('div', { class: 'flex flex-wrap items-center gap-2' },
     ['all', 'incident_alert', 'event_notice'].map((k) =>
       h('button', {
-        class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors cursor-pointer ${k === 'all' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
+        class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k === 'all' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
         onclick: () => renderNotifications(el, holder),
       }, k === 'all' ? 'All' : k === 'incident_alert' ? 'Incident Alerts' : 'Event Notices')));
   holder.appendChild(filterRow);
@@ -659,7 +659,7 @@ function composer(el) {
   };
 
   const mkTab = (label, type) => h('button', {
-    class: `py-2.5 rounded-xl text-sm font-bold transition-colors cursor-pointer ${f.notif_type === type ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`,
+    class: `py-2.5 rounded-xl text-sm font-bold transition-colors clickable ${f.notif_type === type ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`,
     onclick: (e) => {
       f.notif_type = type;
       // contact method defaults per type (email for alerts, app/email for notices)
@@ -700,8 +700,8 @@ export function complianceReports(el) {
     holder.appendChild(grid);
 
     holder.appendChild(h('div', { class: 'flex flex-wrap gap-3' },
-      h('button', { class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer', onclick: () => exportCSV(s) }, icon('download', 'text-base'), 'Export CSV (Excel)'),
-      h('button', { class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-gray-700 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => window.print() }, icon('print', 'text-base'), 'Export PDF (Print)')));
+      h('button', { class: 'btn-primary', onclick: () => exportCSV(s) }, icon('download', 'text-base'), 'Export CSV (Excel)'),
+      h('button', { class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-gray-700 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors clickable', onclick: () => window.print() }, icon('print', 'text-base'), 'Export PDF (Print)')));
 
     holder.appendChild(h('div', { class: 'bg-[#FFF8E7] border border-amber-200/60 rounded-2xl p-4 flex items-center gap-4' },
       h('div', { class: 'w-8 h-8 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center shrink-0' }, icon('database', 'text-xs')),

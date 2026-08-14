@@ -54,6 +54,8 @@ body {
 #view::-webkit-scrollbar-thumb     { background: rgba(0,0,0,.12); border-radius: 999px; }
 #view::-webkit-scrollbar-track     { background: transparent; }
 
+.clickable { cursor: pointer; }
+
 /* Buttons */
 .btn-primary {
   display: inline-flex;

@@ -41,7 +41,7 @@ function renderSidebar() {
   for (const item of NAV) {
     if (item.adminOnly && !admin) continue;
     const a = h('a', {
-      class: 'flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-800/50 text-gray-400 hover:text-white transition-colors cursor-pointer',
+      class: 'flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-800/50 text-gray-400 hover:text-white transition-colors clickable',
       href: `#/${item.route}`,
     },
       icon(item.icon, 'text-sm w-5 text-center'),
@@ -65,7 +65,6 @@ function route() {
   let r = (location.hash || '#/dashboard').replace(/^#\//, '');
   if (!VIEWS[r]) r = 'dashboard';
   if (r !== 'dashboard') {
-    clearInterval(clockTimer);
     clearInterval(statsTimer);
   }
   const view = VIEWS[r];
@@ -103,16 +102,9 @@ function enterApp() {
 
 function wireShell() {
   // Logout is a visual placeholder; the companion owns auth.
-  const burger = document.getElementById('hamburger');
-  const sidebar = document.getElementById('sidebar');
-  const backdrop = document.getElementById('sidebar-backdrop');
-  burger.addEventListener('click', () => {
-    sidebar.classList.toggle('-translate-x-full');
-    backdrop.classList.toggle('hidden');
-  });
-  backdrop.addEventListener('click', () => {
-    sidebar.classList.add('-translate-x-full');
-    backdrop.classList.add('hidden');
+  document.getElementById('sidebar-backdrop').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.add('-translate-x-full');
+    document.getElementById('sidebar-backdrop').classList.add('hidden');
   });
   window.addEventListener('hashchange', route);
 
@@ -120,8 +112,14 @@ function wireShell() {
   document.getElementById('topbar-date').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-let clockTimer = null;
 let statsTimer = null;
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 function drawStats(box, s) {
   box.innerHTML = '';
@@ -148,7 +146,7 @@ function drawStats(box, s) {
     { label: 'Compliance Score', value: `${s.compliance_score}%`, sub: 'Overall safety\nrating', iconName: 'verified_user', tone: 'purple', blob: 'bg-purple-50' },
   ];
   defs.forEach((d) => cards.appendChild(statCard(d)));
-  box.appendChild(h('section', { 'data-purpose': 'summary-grid' },
+  box.appendChild(h('section', {},
     h('div', { class: 'mb-6' },
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'At a Glance'),
       h('div', { class: 'flex items-center justify-between' },
@@ -162,7 +160,7 @@ function drawStats(box, s) {
     cards,
   ));
 
-  box.appendChild(h('section', { 'data-purpose': 'analytics-preview', class: 'space-y-5' },
+  box.appendChild(h('section', { class: 'space-y-5' },
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
       h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident & Inspection Health'),
@@ -181,7 +179,6 @@ async function renderDashboard(el) {
   wrap.appendChild(
     h('section', {
       class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm',
-      'data-purpose': 'welcome-banner',
     },
       h('div', {
         class: 'absolute right-0 top-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50',
@@ -192,16 +189,10 @@ async function renderDashboard(el) {
             h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
             h('p', { class: 'text-[11px] font-bold tracking-[0.2em] text-pink-100 uppercase' }, 'OSAS Overview'),
           ),
-          h('h2', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, 'Welcome Back, OSAS', h('br'), 'Administrator!'),
+          h('h2', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, `${greeting()},`),
           h('p', { class: 'text-[15px] text-gray-200 mb-8 max-w-xl font-light' },
-            'Student affairs and school safety, all in one place.'),
-          h('div', { class: 'inline-flex items-center gap-3 bg-white/5 rounded-2xl px-5 py-3 border border-white/10 backdrop-blur-md' },
-            icon('schedule', 'text-pink-200 text-base'),
-            h('div', {},
-              h('p', { class: 'text-[9px] text-gray-300 uppercase tracking-widest font-bold' }, 'Current Date and Time'),
-              h('p', { class: 'text-sm font-bold mt-0.5', id: 'banner-clock' }),
-            ),
-          ),
+            'Here\'s what\'s happening across campus safety today.'),
+          h('p', { class: 'text-[13px] text-pink-100/80' }, new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })),
         ),
         h('div', { class: 'hidden md:block pr-8' },
           h('div', { class: 'w-44 h-44 rounded-full border border-white/10 flex items-center justify-center p-2 bg-black/5 relative' },
@@ -220,14 +211,6 @@ async function renderDashboard(el) {
   const box = h('div', { class: 'space-y-8' });
   statsWrap.appendChild(box);
   box.appendChild(skeleton(2, 6));
-
-  const tick = () => {
-    const c = document.getElementById('banner-clock');
-    if (c) c.textContent = new Date().toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' });
-  };
-  tick();
-  clearInterval(clockTimer);
-  clockTimer = setInterval(tick, 1000);
 
   const refresh = async () => {
     try {

@@ -213,7 +213,7 @@ export function errorBanner(message, onRetry) {
       h('p', { class: 'text-[13px] text-red-600/80 mt-0.5' }, message || 'The request failed.'),
     ),
     onRetry ? h('button', {
-      class: 'px-4 py-2 rounded-xl bg-white border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors cursor-pointer shrink-0',
+      class: 'px-4 py-2 rounded-xl bg-white border border-red-200 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors clickable shrink-0',
       onclick: onRetry,
     }, 'Retry') : null,
   );
@@ -228,7 +228,7 @@ export function toast(msg) {
     icon('check_circle', 'text-emerald-400 text-base shrink-0'),
     h('span', { class: 'flex-1' }, msg),
     h('button', {
-      class: 'text-gray-400 hover:text-white cursor-pointer shrink-0',
+      class: 'text-gray-400 hover:text-white clickable shrink-0',
       'aria-label': 'Dismiss',
       onclick: () => node.remove(),
     }, '✕'),
