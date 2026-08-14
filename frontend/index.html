@@ -12,6 +12,7 @@
   <link rel="icon" href="/assets/logo.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/tailwind.css" />
+  <link rel="stylesheet" href="/css/fa.min.css" />
   <link rel="stylesheet" href="/css/osas.css" />
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -51,7 +52,7 @@
       </div>
       <button id="logout-btn"
         class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-600/50 text-gray-300 hover:bg-gray-800 transition-colors cursor-pointer">
-        <i class="material-symbols-outlined text-sm">logout</i>
+        <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
         <span class="text-sm font-medium">Logout</span>
       </button>
     </div>
@@ -64,7 +65,7 @@
         <div class="flex items-center gap-4 min-w-0">
           <button id="hamburger" aria-label="Open menu"
             class="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm shrink-0 cursor-pointer">
-            <i class="material-symbols-outlined text-lg">menu</i>
+            <i class="fa-solid fa-bars text-lg"></i>
           </button>
           <div class="min-w-0">
             <p class="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-0.5">Administrator Workspace</p>
@@ -73,7 +74,7 @@
         </div>
         <div class="flex items-center gap-6 shrink-0">
           <div class="hidden md:flex items-center gap-3">
-            <i class="material-symbols-outlined text-gray-400 text-lg">calendar_month</i>
+            <i class="fa-solid fa-calendar-days text-gray-400 text-lg"></i>
             <div class="text-sm leading-tight">
               <p class="text-gray-500 text-[10px]">Today</p>
               <p id="topbar-date" class="font-bold text-gray-900 text-xs"></p>

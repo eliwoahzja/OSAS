@@ -248,16 +248,6 @@ async function renderDashboard(el) {
 
 async function boot() {
   wireShell();
-
-  // Icons are hidden until the icon font is confirmed loaded, so a font
-  // failure can never show raw ligature text like "logout".
-  try {
-    await document.fonts.load('16px "Material Symbols Outlined"');
-    if (document.fonts.check('16px "Material Symbols Outlined"')) {
-      document.body.classList.add('icons-ready');
-    }
-  } catch { /* keep icons hidden */ }
-
   await auth.restore();
   enterApp();
 }

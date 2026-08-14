@@ -59,9 +59,26 @@ function svgEl(tag, attrs = {}) {
   return el;
 }
 
-/** Material symbol icon (ligature glyph from the icon font). */
+// Icon name -> Font Awesome 6 free solid. Keeps every call site as
+// icon(name, cls) while rendering real FA glyphs.
+const FA = {
+  add: 'plus', assessment: 'chart-column', 'border-all': 'table-cells',
+  check_circle: 'circle-check', checklist: 'list-check', contacts: 'address-book',
+  dangerous: 'circle-xmark', database: 'database', download: 'download',
+  emergency: 'truck-medical', error: 'circle-exclamation', event: 'calendar-day',
+  fact_check: 'clipboard-check', family_restroom: 'children', groups: 'users',
+  inbox: 'inbox', local_police: 'handcuffs', logout: 'arrow-right-from-bracket',
+  map: 'map', medical_services: 'kit-medical', menu: 'bars',
+  calendar_month: 'calendar-days', notifications: 'bell', 'person-running': 'person-running',
+  phone: 'phone', print: 'print', priority_high: 'exclamation', report: 'file-lines',
+  schedule: 'clock', school: 'school', security: 'shield-halved',
+  send: 'paper-plane', support_agent: 'headset', task_alt: 'check',
+  upload: 'upload', verified: 'circle-check', verified_user: 'certificate',
+  warning: 'triangle-exclamation',
+};
+
 export function icon(name, cls = 'text-sm') {
-  return h('span', { class: `material-symbols-outlined ${cls}`, 'aria-hidden': 'true' }, name);
+  return h('i', { class: `fa-solid fa-${FA[name] || 'circle'} ${cls}`, 'aria-hidden': 'true' });
 }
 
 function parseDate(iso) {

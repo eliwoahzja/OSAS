@@ -12,27 +12,7 @@ body {
 .bg-maroon-gradient  { background: linear-gradient(135deg, #3A1024 0%, #5B1638 50%, #762143 100%); }
 .bg-sidebar-active   { background-color: #352331; }
 
-/* Icons: self-hosted Material Symbols variable font (no Google Fonts
-   dependency — icons work even when fonts.googleapis.com is blocked). */
-@font-face {
-  font-family: 'Material Symbols Outlined';
-  font-style: normal;
-  font-weight: 100 700;
-  src: url('/assets/fonts/material-symbols.woff2') format('woff2');
-  font-display: block;
-}
-
-/* Hidden until app.js confirms the icon font loaded, so a failure can
-   never leak raw ligature text (e.g. "logout") onto the page. */
-.material-symbols-outlined {
-  font-family: 'Material Symbols Outlined';
-  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
-  font-size: inherit;
-  line-height: 1;
-  overflow: hidden;
-  visibility: hidden;
-}
-.icons-ready .material-symbols-outlined { visibility: visible; }
+/* Icons are Font Awesome 6 (css/fa.min.css + assets/fonts/fa). */
 
 /* Short, subtle animations that respect reduced motion. */
 
@@ -57,8 +37,8 @@ body {
 .btn-press:active { transform: scale(.97); }
 
 /* sidebar icon nudge on hover */
-#sidebar-nav a .material-symbols-outlined { transition: transform .15s ease; }
-#sidebar-nav a:hover .material-symbols-outlined { transform: translateX(2px) scale(1.08); }
+#sidebar-nav a .fa-solid { transition: transform .15s ease; }
+#sidebar-nav a:hover .fa-solid { transform: translateX(2px) scale(1.08); }
 
 /* donut chart draw-in */
 .donut-seg { transition: stroke-dashoffset .7s ease; }
