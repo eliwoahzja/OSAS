@@ -1,4 +1,4 @@
-import { h, icon, statCard, donutChart, skeleton, errorBanner } from './ui.js';
+import { h, icon, statCard, donutChart, skeleton, errorBanner, toast } from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -104,6 +104,8 @@ function enterApp() {
 }
 
 function wireShell() {
+  // Logout is intentionally a no-op for now (no login page in this module —
+  // the companion owns auth). The button exists visually only.
   const burger = document.getElementById('hamburger');
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');

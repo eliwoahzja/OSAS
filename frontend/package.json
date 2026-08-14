@@ -2,11 +2,11 @@
   "name": "saac-osas-dashboard",
   "private": true,
   "version": "0.1.0",
-  "description": "SAAC – OSAS Dashboard. Static frontend (HTML/CSS/JS) + PHP REST API + Supabase.",
+  "description": "SAAC – OSAS Dashboard. Supabase-native static frontend (HTML/CSS/JS) + Edge Function notifications.",
   "scripts": {
-    "dev": "php -S 127.0.0.1:5173 -t . backend/router.php",
-    "server": "php -S 127.0.0.1:8080 -t backend backend/router.php",
-    "seed": "php backend/seed.php",
-    "lint": "php -l backend/public/index.php && php -l backend/src/*.php"
+    "dev": "npx serve .",
+    "deploy": "npx vercel --prod",
+    "lint": "for f in js/*.js; do node --input-type=module --check < \"$f\" || exit 1; done",
+    "seed": "echo \"Seed via the Supabase SQL editor: run backend/supabase/schema.sql then backend/supabase/seed.sql\""
   }
 }

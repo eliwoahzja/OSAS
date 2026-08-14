@@ -28,6 +28,30 @@ export function append(el, children) {
   return el;
 }
 
+/**
+ * Open content (usually a form) as a centered modal popup.
+ * Closes on backdrop click, Escape, or the returned close().
+ */
+export function openModal(content) {
+  const overlay = h('div', {
+    class: 'fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4 overflow-y-auto',
+    onclick: (e) => { if (e.target === overlay) close(); },
+  });
+  const card = h('div', {
+    class: 'bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-2xl max-h-[90vh] overflow-y-auto',
+  });
+  overlay.appendChild(card);
+  card.appendChild(content);
+  document.body.appendChild(overlay);
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', onKey);
+  function close() {
+    document.removeEventListener('keydown', onKey);
+    overlay.remove();
+  }
+  return { close };
+}
+
 /** SVG element builder (circle/text need the SVG namespace). */
 function svgEl(tag, attrs = {}) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);

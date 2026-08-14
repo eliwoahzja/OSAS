@@ -2,7 +2,7 @@
 // OSAS module pages — 10 modules, vanilla JS, same design system
 // and data shapes as the PHP REST API they talk to.
 // ============================================================
-import { h, icon, pill, dataTable, moduleShell, moduleStats, skeleton, emptyBanner, errorBanner, toast, inputCls, labelCls, capitalize, formatDate, statCard } from './ui.js';
+import { h, icon, pill, dataTable, moduleShell, moduleStats, skeleton, emptyBanner, errorBanner, toast, inputCls, labelCls, capitalize, formatDate, statCard, openModal } from './ui.js';
 import * as api from './api.js';
 
 // Per-module summary chips shown above each table (designs the tab content).
@@ -118,6 +118,7 @@ export function drillScheduling(el) {
 }
 
 function drillForm(el) {
+  let closeModal = () => {};
   const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Schedule New Drill')),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
@@ -167,7 +168,7 @@ function drillForm(el) {
 
   const btnRow = h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
     h('button', { type: 'submit', class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer' }, icon('send', 'text-base'), 'Schedule Drill'),
-    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => { form.remove(); } }, 'Cancel'));
+    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel'));
   grid.appendChild(btnRow);
 
   form.addEventListener('submit', async (e) => {
@@ -201,7 +202,7 @@ function drillForm(el) {
       } else {
         toast(`Drill ${created.id} scheduled.`);
       }
-      form.remove();
+      closeModal();
       drillScheduling(el);
     } catch (err) {
       errBox.textContent = err.message;
@@ -211,7 +212,7 @@ function drillForm(el) {
     }
   });
 
-  el.appendChild(form);
+  closeModal = openModal(form).close;
 }
 
 export function evacuationPlans(el) {
@@ -237,6 +238,7 @@ export function evacuationPlans(el) {
 }
 
 function planUploadForm(el) {
+  let closeModal = () => {};
   const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Upload Floor Plan')),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
@@ -260,7 +262,7 @@ function planUploadForm(el) {
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
     h('button', { type: 'submit', class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer' }, icon('upload', 'text-base'), 'Upload Plan'),
-    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => form.remove() }, 'Cancel')));
+    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel')));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -285,7 +287,7 @@ function planUploadForm(el) {
         file_url: url, current: true,
       });
       toast(`Floor plan for ${f.building} (${f.floor}) uploaded.`);
-      form.remove();
+      closeModal();
       evacuationPlans(el);
     } catch (err) {
       errBox.textContent = err.message;
@@ -293,7 +295,7 @@ function planUploadForm(el) {
       btn.disabled = false;
     }
   });
-  el.appendChild(form);
+  closeModal = openModal(form).close;
 }
 
 const INCIDENT_TYPES = ['medical', 'slips/falls', 'fire-related', 'security', 'equipment failure'];
@@ -321,6 +323,7 @@ export function incidentLogging(el) {
 }
 
 function incidentForm(el) {
+  let closeModal = () => {};
   const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Log New Incident')),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
@@ -375,7 +378,7 @@ function incidentForm(el) {
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
     h('button', { type: 'submit', class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer' }, icon('send', 'text-base'), 'Save Incident'),
-    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => form.remove() }, 'Cancel')));
+    h('button', { type: 'button', class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel')));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -409,7 +412,7 @@ function incidentForm(el) {
       } else {
         toast(`Incident ${created.id} logged.`);
       }
-      form.remove();
+      closeModal();
       incidentLogging(el);
     } catch (err) {
       errBox.textContent = err.message;
@@ -418,7 +421,7 @@ function incidentForm(el) {
       btn.textContent = 'Save Incident';
     }
   });
-  el.appendChild(form);
+  closeModal = openModal(form).close;
 }
 
 export function safetyInspections(el) {
@@ -518,6 +521,7 @@ function notifBadge(r) {
 }
 
 function composer(el) {
+  let closeModal = () => {};
   const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden' });
   const tabs = h('div', { class: 'grid grid-cols-2 gap-1 p-2 bg-gray-50 border-b border-gray-100' });
   card.appendChild(tabs);
@@ -600,7 +604,7 @@ function composer(el) {
               : { notif_type: 'event_notice', priority: 'informational', audience_group: f.audience_group, title: f.title.trim(), message: f.message.trim(), event_start_at: f.event_start_at, event_end_at: f.event_end_at, contact_method: f.contact_method };
             const res = await api.sendNotification(payload);
             toast(res.ok ? `Notification sent via ${res.channel || f.contact_method}.` : 'Notification queued but delivery failed.');
-            card.remove();
+            closeModal();
             el.innerHTML = '';
             parentNotifications(el);
           } catch (e) {
@@ -608,7 +612,7 @@ function composer(el) {
           }
         },
       }, icon('send', 'text-base'), 'Send Notification'),
-      h('button', { class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => card.remove() }, 'Cancel')));
+      h('button', { class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel')));
   };
 
   const mkTab = (label, type) => h('button', {
@@ -628,7 +632,7 @@ function composer(el) {
   tabs.appendChild(mkTab('Incident Alert', 'incident_alert'));
   tabs.appendChild(mkTab('Event Notice', 'event_notice'));
   renderFields();
-  el.appendChild(card);
+  closeModal = openModal(card).close;
 }
 
 export function complianceReports(el) {

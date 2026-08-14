@@ -63,6 +63,27 @@ async function demoMode() {
 }
 
 // ---------- Mock (demo dataset, dev only) ----------
+// Persisted to localStorage so demo-mode changes (sent notifications,
+// added records) survive a page reload instead of silently disappearing.
+const MOCK_KEY = 'osas.mock.v1';
+
+function loadMock() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MOCK_KEY) || '{}');
+    for (const [table, rows] of Object.entries(saved)) {
+      if (!Array.isArray(rows)) continue;
+      const defaults = MOCK[table] || [];
+      // keep saved rows, then add any default rows whose ids aren't present
+      MOCK[table] = [...rows, ...defaults.filter((d) => !rows.some((r) => r.id === d.id))];
+    }
+  } catch { /* ignore corrupted storage */ }
+}
+
+function persistMock() {
+  try { localStorage.setItem(MOCK_KEY, JSON.stringify(MOCK)); } catch { /* quota/private mode */ }
+}
+
+loadMock();
 
 function snapshot(table) {
   return JSON.parse(JSON.stringify(MOCK[table] || []));
@@ -72,6 +93,7 @@ function insertMock(table, payload) {
   const row = { id: mockNextId(table), ...payload };
   MOCK[table] = MOCK[table] || [];
   MOCK[table].unshift(row);
+  persistMock();
   return row;
 }
 
@@ -80,6 +102,7 @@ function updateMock(table, id, patch) {
   const i = rows.findIndex((r) => r.id === id);
   if (i < 0) throw new Error('Record not found');
   rows[i] = { ...rows[i], ...patch };
+  persistMock();
   return rows[i];
 }
 
@@ -87,6 +110,7 @@ function deleteMock(table, id) {
   const rows = MOCK[table] || [];
   const i = rows.findIndex((r) => r.id === id);
   if (i >= 0) rows.splice(i, 1);
+  persistMock();
 }
 
 function listMock(table, filters = {}) {

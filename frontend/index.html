@@ -10,7 +10,7 @@
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <link id="icons-font" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" rel="stylesheet" />
+  <!-- Material Symbols icon font is self-hosted (see css/osas.css @font-face) -->
   <link rel="stylesheet" href="/css/osas.css" />
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -49,6 +49,11 @@
           <p id="user-handle" class="text-xs text-gray-400">@admin</p>
         </div>
       </div>
+      <button id="logout-btn"
+        class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-600/50 text-gray-300 hover:bg-gray-800 transition-colors cursor-pointer">
+        <i class="material-symbols-outlined text-sm">logout</i>
+        <span class="text-sm font-medium">Logout</span>
+      </button>
     </div>
   </aside>
   <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden" aria-hidden="true"></div>

@@ -15,6 +15,16 @@ body {
 .bg-maroon-gradient  { background: linear-gradient(135deg, #3A1024 0%, #5B1638 50%, #762143 100%); }
 .bg-sidebar-active   { background-color: #352331; }
 
+/* Icons: self-hosted Material Symbols variable font (no Google Fonts
+   dependency — icons work even when fonts.googleapis.com is blocked). */
+@font-face {
+  font-family: 'Material Symbols Outlined';
+  font-style: normal;
+  font-weight: 100 700;
+  src: url('/assets/fonts/material-symbols.woff2') format('woff2');
+  font-display: block;
+}
+
 /* Icons: sized by their slot (not Google's 24px default), clipped so raw
    ligature text can never spill onto a label, and kept hidden until the
    icon font is genuinely loaded (see app.js boot). */
