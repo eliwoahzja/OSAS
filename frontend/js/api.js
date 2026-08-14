@@ -1,28 +1,12 @@
-// ============================================================
-// OSAS data layer — Supabase-native (no PHP backend).
-//
-// The browser talks to Supabase directly:
-//   * PostgREST (https://<project>.supabase.co/rest/v1/...) for
-//     table CRUD — the server validates the JWT, enforces RLS
-//     roles and the DB CHECK constraints.
-//   * Storage (https://<project>.supabase.co/storage/v1/...) for
-//     file uploads (evacuation maps, inspection photos).
-//   * An Edge Function for notification delivery.
-//
-// The exported function signatures are unchanged so the 10
-// module pages don't need edits. The built-in demo dataset is
-// used ONLY when no real Supabase session exists (i.e. the
-// companion hasn't signed anyone in) — that state is visible in
-// the UI via dataMode() === 'mock'.
-// ============================================================
+// Data layer: PostgREST + Storage for real sessions, demo dataset
+// when there's no session. Function names are stable so the module
+// pages don't change.
 import * as auth from './auth.js';
 import { MOCK, mockNextId } from './mock.js';
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.OSAS;
 const REST = `${SUPABASE_URL}/rest/v1`;
 let provider = 'mock'; // 'api' | 'mock'
-
-// ---------- PostgREST helpers ----------
 
 async function restFetch(method, path, { query = {}, body = null, prefer = null } = {}) {
   const token = await auth.currentAccessToken();
@@ -62,9 +46,8 @@ async function demoMode() {
   return !(await auth.hasRealSession());
 }
 
-// ---------- Mock (demo dataset, dev only) ----------
-// Persisted to localStorage so demo-mode changes (sent notifications,
-// added records) survive a page reload instead of silently disappearing.
+// Demo dataset, persisted to localStorage so demo-mode changes
+// (sent notifications, added records) survive a reload.
 const MOCK_KEY = 'osas.mock.v1';
 
 function loadMock() {
@@ -149,8 +132,6 @@ function computeStats(incidents, inspections, drills, supplies, contacts) {
 export function dataMode() {
   return provider;
 }
-
-// ---------- Public API (mirrors the old PHP routes) ----------
 
 export async function listRows(table, filters = {}) {
   if (await demoMode()) {

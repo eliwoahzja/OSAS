@@ -2,11 +2,16 @@
   "name": "saac-osas-dashboard",
   "private": true,
   "version": "0.1.0",
-  "description": "SAAC – OSAS Dashboard. Supabase-native static frontend (HTML/CSS/JS) + Edge Function notifications.",
+  "description": "SAAC - OSAS Dashboard. Static frontend (HTML/CSS/JS) + Supabase data + Maileroo notifications.",
   "scripts": {
     "dev": "npx serve .",
+    "build": "tailwindcss -i css/tailwind.input.css -o css/tailwind.css --minify",
     "deploy": "npx vercel --prod",
-    "lint": "for f in js/*.js; do node --input-type=module --check < \"$f\" || exit 1; done",
+    "lint": "node scripts/lint.mjs",
     "seed": "echo \"Seed via the Supabase SQL editor: run supabase/schema.sql then supabase/seed.sql\""
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.9",
+    "tailwindcss": "^3.4.17"
   }
 }

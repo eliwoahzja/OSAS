@@ -1,8 +1,3 @@
-// ============================================================
-// OSAS shared UI builders — small DOM helpers that render the
-// design system (maroon/cream/pink) without any framework.
-// ============================================================
-
 /** Minimal hyperscript: h('div', {class:'x', onclick:fn}, ...children) */
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -69,8 +64,6 @@ export function icon(name, cls = 'text-sm') {
   return h('span', { class: `material-symbols-outlined ${cls}`, 'aria-hidden': 'true' }, name);
 }
 
-// ---------- Formatting helpers ----------
-
 function parseDate(iso) {
   const s = String(iso).replace(' ', 'T');
   // date-only strings parse as UTC; read them as local so the
@@ -96,13 +89,9 @@ export function capitalize(s = '') {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-// ---------- Form class constants (ported from the React pages) ----------
-
 export const inputCls =
   'w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-900 placeholder:text-gray-400 focus:border-pink-500 focus:outline-none focus:ring-2 focus:ring-pink-100 transition-colors';
 export const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5';
-
-// ---------- Status pill ----------
 
 const TONES = {
   // neutral statuses
@@ -140,8 +129,6 @@ export function pill(status, tone) {
   }, String(status ?? '—'));
 }
 
-// ---------- Module page shell ----------
-
 export function moduleShell({ icon: iconName, title, subtitle, actionLabel, onAction, children }) {
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
   const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4' });
@@ -152,7 +139,7 @@ export function moduleShell({ icon: iconName, title, subtitle, actionLabel, onAc
   head.appendChild(left);
   if (actionLabel) {
     head.appendChild(h('button', {
-      class: 'btn-press inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 cursor-pointer shrink-0',
+      class: 'btn-primary shrink-0',
       onclick: onAction,
     }, icon('add', 'text-base'), actionLabel));
   }
@@ -160,8 +147,6 @@ export function moduleShell({ icon: iconName, title, subtitle, actionLabel, onAc
   append(wrap, children);
   return wrap;
 }
-
-// ---------- Module summary strip ----------
 
 export function moduleStats(chips) {
   if (!chips || !chips.length) return null;
@@ -178,8 +163,6 @@ export function moduleStats(chips) {
     ),
   );
 }
-
-// ---------- Data states ----------
 
 export function skeleton(rows = 5, cols = 6) {
   const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-3' });
@@ -237,8 +220,6 @@ export function toast(msg) {
   setTimeout(() => node.remove(), 4500);
 }
 
-// ---------- Data table ----------
-
 export function dataTable(columns, rows) {
   const table = h('table', { class: 'w-full text-left border-collapse' });
   const thead = h('thead');
@@ -267,8 +248,6 @@ export function dataTable(columns, rows) {
 
   return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-x-auto' }, table);
 }
-
-// ---------- Donut chart (SVG, legend shows name + count + %) ----------
 
 const CHART_COLORS = ['#EC4899', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981', '#EF4444', '#14B8A6', '#F97316', '#6366F1', '#D946EF'];
 
@@ -339,8 +318,6 @@ export function donutChart(items, { centerLabel = 'Total', size = 200, stroke = 
     legend,
   );
 }
-
-// ---------- Dashboard stat card ----------
 
 const STAT_TONES = {
   pink: 'bg-pink-50 text-pink-600', blue: 'bg-blue-50 text-blue-600', green: 'bg-emerald-50 text-emerald-600',

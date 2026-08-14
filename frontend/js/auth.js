@@ -1,21 +1,6 @@
-// ============================================================
-// OSAS session handling — Supabase Auth (client-side).
-//
-// This module is a SUBSYSTEM: the login page lives in a
-// companion app. We never show a login form here; we consume a
-// real Supabase session from one of two places, in order:
-//
-//   1. window.OSAS.accessToken  — the companion shell injects
-//      the signed-in user's access token before this module
-//      boots (works across origins).
-//   2. supabase-js localStorage — if the companion uses the same
-//      Supabase project in the same browser origin, its session
-//      is picked up automatically (key sb-<ref>-auth-token).
-//
-// If neither exists (e.g. local dev before the companion is
-// wired), a demo session is created so the module stays usable —
-// the UI labels this state via api.dataMode() === 'mock'.
-// ============================================================
+// Session handling. The companion app owns login; this module only
+// consumes a Supabase session: injected token, shared supabase-js
+// storage, or a demo session when neither exists (dataMode 'mock').
 
 const AUTH_KEY = 'osas.session.v1';
 

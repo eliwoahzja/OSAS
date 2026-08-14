@@ -1,11 +1,8 @@
-// ============================================================
-// OSAS module pages — 10 modules, vanilla JS, same design system
-// and data shapes as the PHP REST API they talk to.
-// ============================================================
+// The 10 module pages.
 import { h, icon, pill, dataTable, moduleShell, moduleStats, skeleton, emptyBanner, errorBanner, toast, inputCls, labelCls, capitalize, formatDate, statCard, openModal } from './ui.js';
 import * as api from './api.js';
 
-// Per-module summary chips shown above each table (designs the tab content).
+// Summary chips per module.
 const SUMMARY = {
   emergency_contacts: (rows) => [
     { label: 'Total contacts', value: rows.length, icon: 'contacts', chipCls: 'bg-pink-50 text-pink-600' },
@@ -589,7 +586,7 @@ function composer(el) {
     fields.appendChild(errBox);
     fields.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
       h('button', {
-        class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-pink-600 text-white text-sm font-semibold shadow-sm hover:bg-pink-700 transition-colors cursor-pointer',
+        class: 'btn-primary',
         onclick: async () => {
           if (isAlert && !f.studentId) { errBox.textContent = 'A student is required for incident alerts.'; errBox.classList.remove('hidden'); return; }
           if (!isAlert && (!f.audience_group || !f.event_start_at || !f.event_end_at)) {
@@ -612,7 +609,7 @@ function composer(el) {
           }
         },
       }, icon('send', 'text-base'), 'Send Notification'),
-      h('button', { class: 'px-5 py-2.5 rounded-xl bg-white text-gray-600 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer', onclick: () => closeModal() }, 'Cancel')));
+      h('button', { class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
   };
 
   const mkTab = (label, type) => h('button', {

@@ -3,25 +3,25 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SAAC — OSAS Dashboard</title>
+  <meta name="description" content="School safety and compliance dashboard for the Office of Student Affairs and Services: emergency contacts, incident reports, inspections, drills, and parent notifications." />
+  <meta name="theme-color" content="#241A22" />
+  <meta property="og:title" content="SAAC - OSAS Dashboard" />
+  <meta property="og:type" content="website" />
+  <meta property="og:description" content="School safety and compliance dashboard for the Office of Student Affairs and Services." />
+  <title>SAAC - OSAS Dashboard</title>
   <link rel="icon" href="/assets/logo.png" />
-
-  <!-- Design system: Tailwind (CDN), Inter, Material Symbols, Font Awesome -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-  <!-- Material Symbols icon font is self-hosted (see css/osas.css @font-face) -->
+  <link rel="stylesheet" href="/css/tailwind.css" />
   <link rel="stylesheet" href="/css/osas.css" />
 </head>
 <body class="flex h-screen overflow-hidden">
 
-  <!-- ===================== SIDEBAR ===================== -->
   <aside id="sidebar" data-purpose="sidebar"
     class="bg-maroon-dark text-gray-300 flex flex-col w-72 h-full overflow-y-auto shrink-0 fixed inset-y-0 left-0 z-50 transition-transform duration-300 lg:static lg:translate-x-0 -translate-x-full lg:translate-x-0">
     <div class="p-6 flex items-center gap-3 mt-2">
-      <img src="/assets/logo.png" alt="SAAC Logo" class="w-10 h-10 object-contain" />
+      <img src="/assets/logo.png" alt="SAAC seal" class="w-10 h-10 object-contain" />
       <div>
-        <h1 class="text-white font-bold text-lg leading-tight tracking-wide">SAAC</h1>
+        <p class="text-white font-bold text-lg leading-tight tracking-wide">SAAC</p>
         <p class="text-[11px] text-gray-400">OSAS Dashboard</p>
       </div>
     </div>
@@ -36,7 +36,7 @@
       </div>
     </div>
 
-    <nav class="flex-1 px-4 py-4 mt-2">
+    <nav class="flex-1 px-4 py-4 mt-2" aria-label="Main">
       <p class="text-[10px] uppercase text-gray-500 font-bold mb-2 ml-4 tracking-wider">Menu</p>
       <ul id="sidebar-nav" class="space-y-0.5"></ul>
     </nav>
@@ -58,22 +58,22 @@
   </aside>
   <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden" aria-hidden="true"></div>
 
-  <!-- ===================== MAIN ===================== -->
   <main class="flex-1 flex flex-col h-full overflow-hidden" data-purpose="main-area">
     <header class="bg-transparent px-4 sm:px-10 py-6 shrink-0" data-purpose="top-header">
       <div class="max-w-[1400px] 2xl:max-w-[1600px] mx-auto flex items-center justify-between gap-4">
         <div class="flex items-center gap-4 min-w-0">
-          <button id="hamburger" class="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm shrink-0 cursor-pointer">
-            <i class="fa-solid fa-bars"></i>
+          <button id="hamburger" aria-label="Open menu"
+            class="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm shrink-0 cursor-pointer">
+            <i class="material-symbols-outlined text-lg">menu</i>
           </button>
           <div class="min-w-0">
             <p class="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-0.5">Administrator Workspace</p>
-            <h2 id="page-title" class="text-2xl font-bold text-gray-900 leading-none truncate">Admin Dashboard</h2>
+            <h1 id="page-title" class="text-2xl font-bold text-gray-900 leading-none truncate">Admin Dashboard</h1>
           </div>
         </div>
         <div class="flex items-center gap-6 shrink-0">
           <div class="hidden md:flex items-center gap-3">
-            <i class="fa-regular fa-calendar text-gray-400 text-lg"></i>
+            <i class="material-symbols-outlined text-gray-400 text-lg">calendar_month</i>
             <div class="text-sm leading-tight">
               <p class="text-gray-500 text-[10px]">Today</p>
               <p id="topbar-date" class="font-bold text-gray-900 text-xs"></p>
@@ -93,7 +93,6 @@
     <div id="view" class="flex-1 overflow-y-auto px-4 sm:px-10 pb-10" data-purpose="dashboard-content"></div>
   </main>
 
-  <!-- Toast root -->
   <div id="toast-root" class="fixed bottom-6 right-6 z-[70] space-y-3 w-80 max-w-[90vw]"></div>
 
   <script src="/js/config.js"></script>

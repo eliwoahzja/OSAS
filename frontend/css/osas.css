@@ -1,7 +1,4 @@
-/* ============================================================
-   SAAC – OSAS Dashboard · custom styles (Tailwind CDN handles
-   utilities; these are the design-system tokens + helpers)
-   ============================================================ */
+/* Design-system tokens + custom helpers on top of compiled Tailwind. */
 
 body {
   font-family: 'Inter', sans-serif;
@@ -25,9 +22,8 @@ body {
   font-display: block;
 }
 
-/* Icons: sized by their slot (not Google's 24px default), clipped so raw
-   ligature text can never spill onto a label, and kept hidden until the
-   icon font is genuinely loaded (see app.js boot). */
+/* Hidden until app.js confirms the icon font loaded, so a failure can
+   never leak raw ligature text (e.g. "logout") onto the page. */
 .material-symbols-outlined {
   font-family: 'Material Symbols Outlined';
   font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
@@ -38,9 +34,7 @@ body {
 }
 .icons-ready .material-symbols-outlined { visibility: visible; }
 
-/* ============================================================
-   Micro-animations — short, subtle, respects reduced motion.
-   ============================================================ */
+/* Short, subtle animations that respect reduced motion. */
 
 @keyframes viewFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .animate-view { animation: viewFade .28s ease-out; }
@@ -80,7 +74,40 @@ body {
 #view::-webkit-scrollbar-thumb     { background: rgba(0,0,0,.12); border-radius: 999px; }
 #view::-webkit-scrollbar-track     { background: transparent; }
 
-/* Module-page building blocks (plain CSS, no build step needed) */
+/* Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .625rem 1.25rem;
+  border-radius: .75rem;
+  background: #DB2777;
+  color: #fff;
+  font-size: .875rem;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+.btn-primary:hover { background: #BE185D; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .625rem 1.25rem;
+  border-radius: .75rem;
+  background: #fff;
+  color: #4B5563;
+  font-size: .875rem;
+  font-weight: 600;
+  border: 1px solid #E5E7EB;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+.btn-ghost:hover { background: #F9FAFB; }
+
+/* Module-page building blocks */
 .osas-card {
   background: #fff;
   border-radius: 1.5rem;

@@ -1,9 +1,4 @@
-// ============================================================
-// Dev fallback dataset — used ONLY when the PHP API is
-// unreachable and no Supabase keys are configured, so the UI
-// stays usable offline. Mirror of backend/src/MockStore.php.
-// ============================================================
-
+// Demo dataset used when there's no real Supabase session.
 export const MOCK = {
   students: [
     { id: 'stu-01', name: 'Abella, Maria Clara', grade: 7, phone: '0917 555 1101' },

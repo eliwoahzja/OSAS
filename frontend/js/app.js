@@ -87,8 +87,6 @@ function route() {
   }
 }
 
-// ---------- Entry ----------
-
 function enterApp() {
   document.getElementById('sidebar-backdrop').classList.add('hidden');
   const user = auth.currentUser() || { name: 'Local Administrator', email: '@admin', role: 'admin' };
@@ -104,8 +102,7 @@ function enterApp() {
 }
 
 function wireShell() {
-  // Logout is intentionally a no-op for now (no login page in this module —
-  // the companion owns auth). The button exists visually only.
+  // Logout is a visual placeholder; the companion owns auth.
   const burger = document.getElementById('hamburger');
   const sidebar = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
@@ -122,8 +119,6 @@ function wireShell() {
   const d = new Date();
   document.getElementById('topbar-date').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
-
-// ---------- Dashboard ----------
 
 let clockTimer = null;
 let statsTimer = null;
@@ -159,7 +154,7 @@ function drawStats(box, s) {
       h('div', { class: 'flex items-center justify-between' },
         h('div', {},
           h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Dashboard summary'),
-          h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'Role-specific figures from the OSAS database.'),
+          h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'Figures from the OSAS database.'),
         ),
         h('span', { class: 'px-4 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-bold text-gray-600 shadow-sm' }, `${defs.length} summaries`),
       ),
@@ -171,7 +166,7 @@ function drawStats(box, s) {
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
       h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident & Inspection Health'),
-      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'Live aggregation from the Incident Logging and Safety Inspection modules.'),
+      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'From the incident and inspection modules.'),
     ),
     h('div', { class: 'grid lg:grid-cols-2 gap-5' },
       donutChart(s.incident_breakdown || [], { centerLabel: 'Incidents' }),
@@ -197,9 +192,9 @@ async function renderDashboard(el) {
             h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
             h('p', { class: 'text-[11px] font-bold tracking-[0.2em] text-pink-100 uppercase' }, 'OSAS Overview'),
           ),
-          h('h1', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, 'Welcome Back, OSAS', h('br'), 'Administrator!'),
+          h('h2', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, 'Welcome Back, OSAS', h('br'), 'Administrator!'),
           h('p', { class: 'text-[15px] text-gray-200 mb-8 max-w-xl font-light' },
-            'Manage student affairs, safety protocols, and emergency responses. Monitor school activities and ensure a secure environment.'),
+            'Student affairs and school safety, all in one place.'),
           h('div', { class: 'inline-flex items-center gap-3 bg-white/5 rounded-2xl px-5 py-3 border border-white/10 backdrop-blur-md' },
             icon('schedule', 'text-pink-200 text-base'),
             h('div', {},
@@ -251,30 +246,18 @@ async function renderDashboard(el) {
   statsTimer = setInterval(refresh, 15000);
 }
 
-// ---------- Boot ----------
-
 async function boot() {
   wireShell();
 
-  // Keep raw icon ligatures invisible until the icon font is truly ready:
-  // wait for the Google Fonts stylesheet, then explicitly load the font,
-  // with a safety timer so icons never stay hidden forever.
-  const ready = () => document.body.classList.add('icons-ready');
-  const loadIcons = async () => {
-    try { await document.fonts.load('16px "Material Symbols Outlined"'); } catch { /* fall through */ }
-    ready();
-  };
-  const iconLink = document.getElementById('icons-font');
-  if (iconLink && !iconLink.sheet) {
-    iconLink.addEventListener('load', loadIcons, { once: true });
-    iconLink.addEventListener('error', ready, { once: true });
-  } else {
-    loadIcons();
-  }
-  setTimeout(ready, 6000);
+  // Icons are hidden until the icon font is confirmed loaded, so a font
+  // failure can never show raw ligature text like "logout".
+  try {
+    await document.fonts.load('16px "Material Symbols Outlined"');
+    if (document.fonts.check('16px "Material Symbols Outlined"')) {
+      document.body.classList.add('icons-ready');
+    }
+  } catch { /* keep icons hidden */ }
 
-  // Resolve the session (injected token → shared supabase-js
-  // storage → demo fallback) and boot straight into the module.
   await auth.restore();
   enterApp();
 }
