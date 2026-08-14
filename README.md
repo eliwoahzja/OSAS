@@ -1,42 +1,52 @@
 # SAAC – OSAS Dashboard
 
-School safety & compliance system for the Office of Student Affairs and Services (OSAS) —
-a role-based dashboard for managing student safety, emergency preparedness, and compliance.
+Safety and compliance dashboard for the Office of Student Affairs and Services. Keeps emergency contacts, drills, incident reports, inspections, and parent notifications in one place.
 
-## Architecture
+The app is a module of a bigger system. The login page lives in a companion app; this module just needs a Supabase session (see [Companion app](#companion-app) below).
 
-- **Frontend**: HTML + CSS + JavaScript (vanilla, no build step) — `frontend/`
-- **Backend**: PHP 8 REST API — `frontend/backend/`
-- **Database**: Supabase PostgreSQL with Row Level Security
-- **Auth**: Supabase Auth (email + password / magic link)
-- **Storage**: Supabase Storage (`evacuation-maps`, `inspection-photos`)
-- **API**: RESTful JSON (PHP, served by the built-in server in dev, Docker on Render)
-- **DevOps**: Vercel (frontend) + Render (backend)
+## Stack
 
-## Layout
+- Frontend: plain HTML/CSS/JS in `frontend/` (no build step, no framework)
+- Database: Supabase (PostgreSQL) with row-level security
+- Email: Maileroo via the `send-notification` Edge Function (free tier, no card)
+- Hosting: Vercel for the site, Supabase for data + the one Edge Function
 
-```
-frontend/
-  index.html          # app shell (sidebar, topbar, login overlay)
-  css/  js/           # design system + vanilla-JS modules (no framework)
-  assets/             # logos
-  backend/            # PHP REST API + Supabase schema + seed script
-    public/index.php  # front controller
-    src/              # Db (Supabase REST + mock), Auth (JWT), Validation, Notifications
-    supabase/schema.sql
-    seed.php
-    Dockerfile        # Render deployment
-  README.md           # full docs: setup, env vars, ERD, deployment
-```
+## Setup
 
-## Quick start
+1. Create a project at [supabase.com](https://supabase.com).
+2. In the SQL editor, run `frontend/supabase/schema.sql`, then `frontend/supabase/seed.sql` for sample data.
+3. Deploy the notification function:
+
+   ```bash
+   cd frontend
+   supabase init
+   supabase link --project-ref <your-project-ref>
+   supabase functions deploy send-notification
+   supabase secrets set MAILEROO_API_KEY=<key> MAILEROO_FROM="SAAC OSAS <notifications@<you>.maileroo.net>"
+   ```
+
+   Get the Maileroo API key and free sender address from [maileroo.com](https://maileroo.com) (3,000 emails/month free, no card, they give you a sender domain).
+
+4. Put the URL the deploy command prints into `frontend/js/config.js` → `NOTIFY_FN_URL`.
+
+## Running locally
 
 ```bash
-# dev (serves the static frontend AND /api from one process)
-php -S 127.0.0.1:5173 -t . backend/router.php
-# Windows (XAMPP): C:\xampp\php\php.exe -S 127.0.0.1:5173 -t . backend/router.php
+cd frontend
+npx serve .
 ```
 
-With no env vars the API runs in mock mode (JSON-file store) and the app boots into a
-demo Admin session. See `frontend/README.md` for Supabase setup, seeding, env vars,
-the ERD, and Vercel/Render deployment.
+With no Supabase session around, the app falls back to a demo dataset (`js/mock.js`) so you can still look around. Once a real session exists it reads and writes live Supabase data.
+
+## Deploying to Vercel
+
+Import the repo, root directory `frontend`. It's a static site — no build step. Every push auto-deploys.
+
+## Companion app
+
+The companion owns login and hands this module a session either by setting `window.OSAS.accessToken` before the scripts load, or by signing in with the same Supabase project so the shared session in localStorage is picked up. Roles (admin vs staff) are enforced in the UI and by RLS.
+
+## Notes
+
+- SMS/call were removed — no budget for them. Notifications are in-app + email only.
+- `contact_method` is `app` or `email`. Incident alerts always email the student's parents.

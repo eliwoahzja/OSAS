@@ -210,10 +210,10 @@ export async function deleteRow(table, id) {
  * Notification delivery.
  *
  * With NOTIFY_FN_URL configured (recommended), the Edge Function
- * validates, records, and really delivers (email via Resend,
- * SMS/call via Twilio when keys exist). Without it, the row is
- * recorded directly through PostgREST — the DB CHECK constraints
- * still enforce the business rules, but no email/SMS is sent.
+ * validates, records, and emails parents through Maileroo. Without
+ * it, the row is recorded directly through PostgREST — the DB
+ * CHECK constraints still enforce the business rules, but no
+ * email is sent.
  */
 export async function sendNotification(payload) {
   const fnUrl = window.OSAS.NOTIFY_FN_URL;

@@ -176,16 +176,16 @@ CREATE TABLE notifications (
     message TEXT NOT NULL,
     event_start_at TIMESTAMPTZ,
     event_end_at TIMESTAMPTZ,
-    contact_method VARCHAR(10) NOT NULL CHECK (contact_method IN ('app', 'sms', 'call', 'email')),
+    contact_method VARCHAR(10) NOT NULL CHECK (contact_method IN ('app', 'email')),
     sent_at TIMESTAMPTZ,
     delivery_status VARCHAR(10) NOT NULL DEFAULT 'pending' CHECK (delivery_status IN ('pending', 'sent', 'failed', 'delivered', 'read')),
     created_by UUID REFERENCES auth.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
-    -- incident_alert ⇒ student required, urgent, call/sms/email
+    -- incident_alert ⇒ student required, urgent, emailed
     CONSTRAINT chk_incident_alert CHECK (
         notif_type <> 'incident_alert'
-        OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method IN ('call', 'sms', 'email'))
+        OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method = 'email')
     ),
     -- event_notice ⇒ audience + event window required, informational, app/email
     CONSTRAINT chk_event_notice CHECK (
@@ -300,11 +300,11 @@ CREATE POLICY "read_objects"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id IN ('evacuation-maps', 'inspection-photos'));
 
--- ---------- Relax incident alerts to allow email (real free delivery) ----------
+-- ---------- Incident alerts go by email (SMS/call removed) ----------
 ALTER TABLE notifications DROP CONSTRAINT IF EXISTS chk_incident_alert;
 ALTER TABLE notifications ADD CONSTRAINT chk_incident_alert CHECK (
     notif_type <> 'incident_alert'
-    OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method IN ('call', 'sms', 'email'))
+    OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method = 'email')
 );
 
 -- ---------- Audit log via DB triggers (replaces the old PHP API's Db::audit) ----------

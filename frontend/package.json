@@ -7,6 +7,6 @@
     "dev": "npx serve .",
     "deploy": "npx vercel --prod",
     "lint": "for f in js/*.js; do node --input-type=module --check < \"$f\" || exit 1; done",
-    "seed": "echo \"Seed via the Supabase SQL editor: run backend/supabase/schema.sql then backend/supabase/seed.sql\""
+    "seed": "echo \"Seed via the Supabase SQL editor: run supabase/schema.sql then supabase/seed.sql\""
   }
 }

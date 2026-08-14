@@ -59,7 +59,7 @@ export const MOCK = {
       id: 'nt-2', notif_type: 'incident_alert', priority: 'urgent', student_id: 'stu-05', related_incident_id: 'INC-001',
       audience_group: null, title: 'Medical Emergency — PE Class',
       message: 'Sofia was attended to after fainting during PE.',
-      event_start_at: null, event_end_at: null, contact_method: 'call', sent_at: '2026-07-15T09:20:00+08:00',
+      event_start_at: null, event_end_at: null, contact_method: 'email', sent_at: '2026-07-15T09:20:00+08:00',
       delivery_status: 'delivered', created_by: 'admin',
     },
   ],

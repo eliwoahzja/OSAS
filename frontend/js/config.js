@@ -1,22 +1,19 @@
 // ============================================================
-// OSAS runtime configuration (static site — no build step).
+// OSAS runtime config. Static site, no build step: the browser
+// talks to Supabase directly (PostgREST for data, Storage for
+// files). There is no PHP backend.
 //
-// Supabase-native architecture: the browser talks to Supabase
-// directly (PostgREST for data, Storage for files, Auth for
-// sessions). There is no PHP backend.
-//
-//   SUPABASE_URL / SUPABASE_ANON_KEY — the Supabase project
-//       (anon key is public by design; the service key lives
-//       only in server-side env vars / Edge Function secrets).
+//   SUPABASE_URL / SUPABASE_ANON_KEY — the Supabase project.
+//       The anon key is public by design; the service key only
+//       ever lives in Edge Function secrets.
 //   NOTIFY_FN_URL — the send-notification Edge Function that
-//       delivers alerts (email via Resend, SMS/call via Twilio
-//       when configured).
-//   accessToken — OPTIONAL. The companion shell (the app that
-//       owns the login page) can inject a signed-in user's
-//       Supabase access token here before this module boots.
-//       If unset, this module picks up a shared supabase-js
-//       session from localStorage automatically, and falls back
-//       to a demo session only when no real session exists.
+//       emails parents via Maileroo.
+//   accessToken — optional. The companion app (which owns the
+//       login page) can inject a signed-in user's Supabase
+//       access token here before this module boots. If unset,
+//       the module picks up a shared supabase-js session from
+//       localStorage automatically, and falls back to a demo
+//       session only when no real session exists.
 // ============================================================
 window.OSAS = Object.assign({
   SUPABASE_URL: 'https://rwqaeabxusivkyjgskko.supabase.co',

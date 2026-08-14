@@ -371,7 +371,7 @@ function incidentForm(el) {
     notifyWrap.classList.remove('hidden');
     notifyWrap.appendChild(h('input', { type: 'checkbox', id: 'incident-notify', class: 'w-4 h-4 accent-pink-600', onchange: (e) => { f.notifyParent = e.target.checked; } }));
     notifyWrap.appendChild(h('label', { for: 'incident-notify', class: 'text-[13px] font-semibold text-gray-700' },
-      'Notify parent? ', h('span', { class: 'text-gray-400 font-normal' }, 'Creates an urgent incident alert (call/SMS) linked to this incident.')));
+      'Notify parent? ', h('span', { class: 'text-gray-400 font-normal' }, 'Emails an urgent incident alert linked to this incident.')));
   };
 
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
@@ -406,9 +406,9 @@ function incidentForm(el) {
           related_incident_id: created.id,
           title: `${capitalize(f.type)} — Student Incident`,
           message: f.description.trim(),
-          contact_method: 'call',
+          contact_method: 'email',
         });
-        toast(res.ok ? `Incident ${created.id} logged — parent alert sent via ${res.channel || 'call'}.` : `Incident ${created.id} logged, but the parent alert could not be queued.`);
+        toast(res.ok ? `Incident ${created.id} logged — parent alert sent via ${res.channel || 'email'}.` : `Incident ${created.id} logged, but the parent alert could not be queued.`);
       } else {
         toast(`Incident ${created.id} logged.`);
       }
@@ -466,7 +466,7 @@ export function parentNotifications(el) {
   el.appendChild(moduleShell({
     icon: 'notifications',
     title: 'Parent Notification System',
-    subtitle: 'Send urgent incident alerts (call/SMS) or informational event notices (app/email) to parents.',
+    subtitle: 'Send urgent incident alerts or informational event notices to parents.',
     actionLabel: 'New Notification',
     onAction: () => composer(el),
   }));
@@ -499,7 +499,7 @@ function renderNotifications(el, holder) {
       { key: 'audience', label: 'Audience', render: (r) => r.student_name
           ? h('span', { class: 'text-gray-600' }, `${r.student_name}${r.student_grade ? ` · Grade ${r.student_grade}` : ''}`)
           : h('span', { class: 'text-gray-600' }, r.audience_group || '—') },
-      { key: 'contact_method', label: 'Channel', render: (r) => pill(r.contact_method, r.contact_method === 'call' || r.contact_method === 'sms' ? 'red' : 'blue') },
+      { key: 'contact_method', label: 'Channel', render: (r) => pill(r.contact_method) },
       { key: 'sent_at', label: 'Sent', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.sent_at)) },
       { key: 'delivery_status', label: 'Delivery', render: (r) => pill(r.delivery_status) },
     ];
@@ -528,7 +528,7 @@ function composer(el) {
 
   const f = {
     notif_type: 'incident_alert', studentId: '', student_name: '', student_grade: null,
-    related_incident_id: '', title: '', message: '', contact_method: 'call',
+    related_incident_id: '', title: '', message: '', contact_method: 'email',
     audience_group: 'All Parents', event_start_at: '', event_end_at: '',
   };
 
@@ -551,7 +551,7 @@ function composer(el) {
     if (isAlert) {
       fields.appendChild(h('div', { class: 'sm:col-span-2' },
         h('span', { class: `inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold ${'bg-red-50 text-red-700 border border-red-200 animate-pulse'}` },
-          icon('priority_high', 'text-[12px]'), 'URGENT — reach parents by phone or SMS')));
+          icon('priority_high', 'text-[12px]'), 'URGENT — email parents immediately')));
       const studentSel = h('select', { class: inputCls, onchange: (e) => {
         const s = st.find((x) => x.id === e.target.value);
         f.studentId = e.target.value; f.student_name = s?.name || ''; f.student_grade = s?.grade || null;
@@ -580,10 +580,10 @@ function composer(el) {
     fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Message'),
       h('textarea', { class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'What should parents know?', oninput: (e) => { f.message = e.target.value; } })));
 
-    const methods = isAlert ? ['call', 'sms', 'email'] : ['app', 'email'];
+    const methods = isAlert ? ['email'] : ['app', 'email'];
     fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Contact Method'),
       h('select', { class: inputCls, onchange: (e) => { f.contact_method = e.target.value; } },
-        methods.map((m) => h('option', { value: m, selected: m === (isAlert ? 'call' : 'app') }, capitalize(m))))));
+        methods.map((m) => h('option', { value: m, selected: m === (isAlert ? 'email' : 'app') }, capitalize(m))))));
 
     const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
     fields.appendChild(errBox);
@@ -619,8 +619,8 @@ function composer(el) {
     class: `py-2.5 rounded-xl text-sm font-bold transition-colors cursor-pointer ${f.notif_type === type ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`,
     onclick: (e) => {
       f.notif_type = type;
-      // contact method defaults per type (call/sms for alerts, app/email for notices)
-      f.contact_method = type === 'incident_alert' ? 'call' : 'app';
+      // contact method defaults per type (email for alerts, app/email for notices)
+      f.contact_method = type === 'incident_alert' ? 'email' : 'app';
       tabs.querySelectorAll('button').forEach((b) => {
         b.classList.remove('bg-white', 'text-pink-600', 'shadow-sm');
         if (b === e.currentTarget) b.classList.add('bg-white', 'text-pink-600', 'shadow-sm');
