@@ -338,12 +338,12 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
 
   const barColor = (year) => year === currentYear ? '#DB2777' : '#F9A8D4';
 
-  const barHeight = 28;
-  const chartWidth = 500;
-  const barGap = 16;
+  const barHeight = 14;
+  const chartWidth = 420;
+  const barGap = 10;
   const chartHeight = items.length * (barHeight + barGap);
-  const labelWidth = 52;
-  const barAreaWidth = chartWidth - labelWidth - 40;
+  const labelWidth = 44;
+  const barAreaWidth = chartWidth - labelWidth - 36;
 
   const svg = svgEl('svg', { viewBox: `0 0 ${chartWidth} ${chartHeight + 20}`, class: 'w-full h-auto', role: 'img' });
 
@@ -355,7 +355,7 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
       x: labelWidth - 8, y: y + barHeight / 2 + 1,
       'text-anchor': 'end',
       class: isCurrent ? 'fill-gray-900' : 'fill-gray-500',
-      style: { fontSize: 13, fontWeight: isCurrent ? 800 : 600 },
+      style: { fontSize: 11, fontWeight: isCurrent ? 800 : 600 },
     });
     yearLabel.textContent = String(d.year);
     svg.appendChild(yearLabel);
@@ -365,7 +365,7 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
         x: labelWidth - 8, y: y - 2,
         'text-anchor': 'end',
         class: 'fill-pink-600',
-        style: { fontSize: 8, fontWeight: 700, letterSpacing: '.08em' },
+        style: { fontSize: 7, fontWeight: 700, letterSpacing: '.08em' },
       });
       badge.textContent = 'CURRENT';
       svg.appendChild(badge);
@@ -399,7 +399,7 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
       y: y + barHeight / 2 + 1,
       'text-anchor': 'start',
       class: 'fill-gray-900',
-      style: { fontSize: 12, fontWeight: 700 },
+      style: { fontSize: 10, fontWeight: 700 },
     });
     countLabel.textContent = String(d.incidents);
     svg.appendChild(countLabel);

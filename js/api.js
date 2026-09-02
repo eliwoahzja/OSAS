@@ -131,6 +131,8 @@ function computeStats(incidents, inspections, drills, supplies, contacts) {
     drills_active: drills.filter((d) => d.status === 'upcoming').length,
     drills_completed: drills.filter((d) => d.status === 'completed').length,
     supplies_low: supplies.filter((s) => Number(s.quantity) <= Number(s.reorder_threshold)).length,
+    supplies_total: supplies.reduce((s, x) => s + Number(x.quantity || 0), 0),
+    supplies_breakdown: supplies.map((s) => ({ label: s.item, value: Number(s.quantity || 0) })),
     emergency_contacts_total: contacts.length,
     compliance_score: Math.round((inspections.filter((i) => i.status === 'passed').length / total) * 100),
     incident_breakdown: Object.entries(typeCount).map(([label, value]) => ({ label, value })),

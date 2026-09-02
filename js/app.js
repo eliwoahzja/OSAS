@@ -165,9 +165,10 @@ function drawStats(box, s) {
       h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident & Inspection Health'),
       h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'From the incident and inspection modules.'),
     ),
-    h('div', { class: 'grid lg:grid-cols-2 gap-5' },
+    h('div', { class: 'grid lg:grid-cols-3 gap-5' },
       donutChart(s.incident_breakdown || [], { centerLabel: 'Incidents' }),
       donutChart(s.inspection_status || [], { centerLabel: 'Inspections' }),
+      donutChart(s.supplies_breakdown || [], { centerLabel: 'Supplies' }),
     ),
   ));
 
