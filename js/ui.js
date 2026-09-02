@@ -275,8 +275,12 @@ export function pieChart(items, { title = '', centerLabel = 'Total', size = 180,
     const largeArc = frac > 0.5 ? 1 : 0;
 
     let pathD = '';
-    if (frac >= 0.9999) {
-      pathD = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`;
+    if (frac >= 0.999) {
+      if (isDonut) {
+        pathD = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx} ${cy + r} A ${r} ${r} 0 1 1 ${cx} ${cy - r} M ${cx} ${cy - innerR} A ${innerR} ${innerR} 0 1 0 ${cx} ${cy + innerR} A ${innerR} ${innerR} 0 1 0 ${cx} ${cy - innerR} Z`;
+      } else {
+        pathD = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx} ${cy + r} A ${r} ${r} 0 1 1 ${cx} ${cy - r} Z`;
+      }
     } else if (frac > 0) {
       if (isDonut) {
         const ix1 = cx + innerR * Math.cos(endAngle);
@@ -302,7 +306,7 @@ export function pieChart(items, { title = '', centerLabel = 'Total', size = 180,
 
   const svg = svgEl('svg', {
     viewBox: `0 0 ${size} ${size}`,
-    class: 'w-full max-w-[170px] h-auto drop-shadow-sm',
+    class: 'w-full max-w-[160px] h-auto drop-shadow-sm',
     role: 'img',
   });
 
@@ -337,14 +341,14 @@ export function pieChart(items, { title = '', centerLabel = 'Total', size = 180,
     });
   }
 
-  const legend = h('div', { class: 'flex-1 min-w-[140px] space-y-2' },
+  const legend = h('div', { class: 'flex-1 min-w-[130px] space-y-1.5 max-h-[160px] overflow-y-auto pr-1' },
     segs.length
       ? segs.map((s) =>
-          h('div', { class: 'flex items-center gap-2 text-xs' },
+          h('div', { class: 'flex items-center gap-2 text-xs hover:bg-gray-50/80 p-1 rounded-lg transition-colors' },
             h('span', { class: 'w-2.5 h-2.5 rounded-full shrink-0 shadow-sm', style: { backgroundColor: s.color } }),
-            h('span', { class: 'text-gray-700 flex-1 truncate capitalize font-medium', title: s.label }, s.label),
-            h('span', { class: 'font-bold text-gray-900 ml-1' }, String(s.value)),
-            h('span', { class: 'text-gray-400 w-9 text-right font-mono text-[11px]' }, `${s.pct}%`),
+            h('span', { class: 'text-gray-700 flex-1 truncate capitalize font-medium text-[12px]', title: s.label }, s.label),
+            h('span', { class: 'font-bold text-gray-900 ml-1 text-[12px]' }, String(s.value)),
+            h('span', { class: 'text-gray-400 w-8 text-right font-mono text-[10px]' }, `${s.pct}%`),
           )
         )
       : h('p', { class: 'text-xs text-gray-400' }, 'No data recorded yet.'),
