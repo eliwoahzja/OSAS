@@ -49,7 +49,7 @@ body {
 
 /* trend line chart: cap how wide/tall it can grow on large screens, and
    draw the line + points in on load instead of just popping in at full size */
-.trend-chart-shell { max-width: 640px; }
+.trend-chart-shell { max-width: 480px; }
 .trend-line-path { transition: stroke-dashoffset 1.1s cubic-bezier(.65,0,.35,1); }
 .trend-point { transition: r .35s ease, opacity .35s ease; transition-delay: var(--pt-delay, 0s); }
 .trend-fill { transition: opacity .6s ease .5s; }

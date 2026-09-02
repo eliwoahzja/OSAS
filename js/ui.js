@@ -337,9 +337,9 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
   // Fixed, gently-proportioned canvas — capped in CSS via .trend-chart-shell
   // so it can't balloon to an oversized aspect ratio on wide desktop screens.
   const chartWidth = 640;
-  const chartHeight = 260;
-  const padTop = 34;
-  const padBottom = 34;
+  const chartHeight = 160;
+  const padTop = 28;
+  const padBottom = 28;
   const padLeft = 20;
   const padRight = 20;
   const plotW = chartWidth - padLeft - padRight;
@@ -452,12 +452,12 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
     changeText = diff > 0 ? `↑ ${pct}% from ${prev.year}` : diff < 0 ? `↓ ${pct}% from ${prev.year}` : `Same as ${prev.year}`;
   }
 
-  return h('div', { class: 'trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-6' },
-    h('div', { class: 'flex items-center justify-between mb-5' },
+  return h('div', { class: 'trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-4' },
+    h('div', { class: 'flex items-center justify-between mb-3' },
       h('div', {},
-        h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1' }, 'Year-over-Year'),
-        h('h3', { class: 'text-lg font-bold text-gray-900' }, title),
-        subtitle ? h('p', { class: 'text-[13px] text-gray-500 mt-0.5' }, subtitle) : null,
+        h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-0.5' }, 'Year-over-Year'),
+        h('h3', { class: 'text-base font-bold text-gray-900' }, title),
+        subtitle ? h('p', { class: 'text-[12px] text-gray-500 mt-0.5' }, subtitle) : null,
       ),
       changeText ? h('span', { class: 'px-3 py-1.5 bg-pink-50 text-pink-700 rounded-full text-[11px] font-bold border border-pink-200/70' }, changeText) : null,
     ),

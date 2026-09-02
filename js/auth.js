@@ -77,9 +77,9 @@ export function hasRealSession() {
 
 export async function currentAccessToken() {
   const s = session;
-  if (!s) return null;
+  if (!s) return window.OSAS.SUPABASE_ANON_KEY || null;
   if (s.provider === 'injected') return s.access_token || null;
-  if (s.provider !== 'supabase') return s.access_token || null;
+  if (s.provider !== 'supabase') return window.OSAS.SUPABASE_ANON_KEY || null;
   const sb = await getClient();
   if (!sb) return s.access_token || null;
   const { data } = await sb.auth.getSession();

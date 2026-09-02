@@ -39,7 +39,8 @@ async function restFetch(method, path, { query = {}, body = null, prefer = null 
 }
 
 async function demoMode() {
-  return !(await auth.hasRealSession());
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return true;
+  return false;
 }
 
 const MOCK_KEY = 'osas.mock.v1';
