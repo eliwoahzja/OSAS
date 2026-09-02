@@ -10,3 +10,5 @@ backend/storage/mock.json
 backend/storage/uploads/
 
 .vercel
+.freebuff
+frontend
