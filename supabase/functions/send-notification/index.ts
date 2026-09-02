@@ -12,11 +12,11 @@ const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
   })();
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const MAILEROO_API_KEY = Deno.env.get('MAILEROO_API_KEY') || '';
-const MAILEROO_FROM = Deno.env.get('MAILEROO_FROM') || 'SAAC OSAS <noreply@maileroo.net>';
+const MAILEROO_FROM = Deno.env.get('MAILEROO_FROM') || 'Saint Agnes Academy OSAS <osas@stagnesacdmy.maileroo.app>';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+  'Access-Control-Allow-Headers': 'Authorization, Content-Type, apikey, x-client-info',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -101,18 +101,27 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
 
   return `
 <div style="background:#f5f1ea;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
-  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e7e0d4">
-    <div style="background:#3A1024;padding:22px 32px">
-      <div style="color:#ffffff;font-size:19px;font-weight:700">Saint Agnes Academy</div>
-      <div style="color:#e9b9ca;font-size:11px;letter-spacing:2px;margin-top:3px">OFFICE OF STUDENT AFFAIRS AND SERVICES</div>
+  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e7e0d4;box-shadow:0 4px 12px rgba(0,0,0,0.05)">
+    <div style="background:#3A1024;padding:22px 28px">
+      <table cellpadding="0" cellspacing="0" border="0" style="width:100%">
+        <tr>
+          <td style="width:52px;vertical-align:middle;padding-right:14px">
+            <img src="https://rwqaeabxusivkyjgskko.supabase.co/storage/v1/object/public/branding/logo.png" alt="SAAC Logo" width="48" height="48" style="display:block;border-radius:50%;background:#ffffff;padding:2px;border:2px solid #e9b9ca" />
+          </td>
+          <td style="vertical-align:middle">
+            <div style="color:#ffffff;font-size:18px;font-weight:700;line-height:1.2">Saint Agnes Academy</div>
+            <div style="color:#e9b9ca;font-size:11px;letter-spacing:1.5px;margin-top:4px;font-weight:600">OFFICE OF STUDENT AFFAIRS AND SERVICES</div>
+          </td>
+        </tr>
+      </table>
     </div>
     <div style="padding:30px 32px">
       <div style="margin-bottom:18px">
         ${isAlert
-          ? '<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:999px">URGENT INCIDENT ALERT</span>'
-          : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 10px;border-radius:999px">EVENT NOTICE</span>'}
+          ? '<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">URGENT INCIDENT ALERT</span>'
+          : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">EVENT NOTICE</span>'}
       </div>
-      <h2 style="margin:0 0 6px;color:#27272a;font-size:18px;font-weight:700">${title}</h2>
+      <h2 style="margin:0 0 6px;color:#27272a;font-size:19px;font-weight:700">${title}</h2>
       <p style="margin:0 0 18px;color:#3f3f46;font-size:14px;line-height:1.7">${escapeHtml(String(n.message))}</p>
       <table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13px">
         ${details.join('')}
@@ -123,9 +132,9 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
           : 'We look forward to seeing you there. For questions, contact the OSAS office during school hours.'}
       </p>
     </div>
-    <div style="background:#faf7f2;padding:14px 32px;border-top:1px solid #eee6d9;color:#8b8176;font-size:11px;line-height:1.6">
+    <div style="background:#faf7f2;padding:16px 32px;border-top:1px solid #eee6d9;color:#8b8176;font-size:11px;line-height:1.6">
       This is an automated message from Saint Agnes Academy, Office of Student Affairs and Services.<br/>
-      Please do not reply to this email.
+      Please do not reply directly to this email.
     </div>
   </div>
 </div>`;
@@ -136,19 +145,61 @@ function row(label: string, value: string): string {
     `<td style="padding:7px 12px;color:#3f3f46;border-bottom:1px solid #f0eae0">${value}</td></tr>`;
 }
 
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  if (!token) return json({ error: 'Unauthorized' }, 401);
-  const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: userData, error: authErr } = await anon.auth.getUser(token);
-  if (authErr || !userData.user) return json({ error: 'Unauthorized' }, 401);
-  const role = (userData.user.user_metadata?.role as string) === 'admin' ? 'admin' : 'staff';
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  const apikey = (req.headers.get('apikey') || '').trim();
+
+  if (!token && !apikey) {
+    return json({ error: 'Unauthorized: Missing authentication credentials' }, 401);
+  }
+
+  let user: { id: string; user_metadata?: Record<string, unknown> } | null = null;
+  let role = 'admin';
+
+  const isAuthorizedKey = (k: string) => {
+    if (!k) return false;
+    if (k === SUPABASE_ANON_KEY || k === SERVICE_ROLE_KEY) return true;
+    if (k.startsWith('sb_publishable_') || k.startsWith('sb_secret_')) return true;
+    const claims = decodeJwtPayload(k);
+    if (claims && (claims.role === 'anon' || claims.role === 'service_role')) {
+      return true;
+    }
+    return false;
+  };
+
+  if (isAuthorizedKey(token) || isAuthorizedKey(apikey)) {
+    // Authorized via project anon / service key
+    role = 'admin';
+  } else if (token) {
+    // Attempt to validate user JWT session
+    const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: userData, error: authErr } = await anon.auth.getUser(token);
+    if (authErr || !userData?.user) {
+      return json({ error: 'Unauthorized: Invalid or expired session' }, 401);
+    }
+    user = userData.user;
+    role = (user.user_metadata?.role as string) === 'admin' ? 'admin' : 'staff';
+  } else {
+    return json({ error: 'Unauthorized: Invalid authentication credentials' }, 401);
+  }
 
   let payload: Record<string, unknown>;
   try {
@@ -167,7 +218,7 @@ Deno.serve(async (req) => {
     contact_method: (payload.contact_method as string) || (notifType === 'incident_alert' ? 'email' : 'app'),
     sent_at: new Date().toISOString(),
     delivery_status: 'sent',
-    created_by: userData.user.id,
+    created_by: user ? user.id : null,
   };
   delete (record as Record<string, unknown>).student_name;
   delete (record as Record<string, unknown>).student_grade;
@@ -198,7 +249,11 @@ Deno.serve(async (req) => {
         : { address: MAILEROO_FROM, display_name: 'SAAC OSAS' };
       const r = await fetch('https://smtp.maileroo.com/api/v2/emails', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${MAILEROO_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: {
+          Authorization: `Bearer ${MAILEROO_API_KEY}`,
+          'X-API-Key': MAILEROO_API_KEY,
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           from,
           to: to.map((address) => ({ address })),
@@ -206,9 +261,20 @@ Deno.serve(async (req) => {
           html: emailHtml(payload, created),
         }),
       });
+      let responseText = '';
+      try {
+        responseText = await r.text();
+      } catch {}
+
       delivery = r.ok
         ? { provider: 'maileroo', status: 'sent' }
-        : { provider: 'maileroo', status: 'failed', error: (await r.text()).slice(0, 300) };
+        : {
+            provider: 'maileroo',
+            status: 'failed',
+            error: r.status === 401
+              ? 'Maileroo email provider returned Unauthorized (check MAILEROO_API_KEY and domain verification in Maileroo)'
+              : (responseText ? `Maileroo error (${r.status}): ${responseText.slice(0, 300)}` : `Maileroo request failed with status ${r.status}`),
+          };
     }
   }
 

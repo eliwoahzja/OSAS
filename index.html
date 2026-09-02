@@ -47,11 +47,17 @@
     </nav>
 
     <div class="p-6 mt-auto">
-      <div class="flex items-center gap-3 mb-4">
-        <div data-user-initials class="w-10 h-10 rounded-lg bg-pink-600 flex items-center justify-center text-white font-bold shrink-0 text-sm">LA</div>
-        <div>
-          <p data-user-name class="text-white text-sm font-semibold">Local Administrator</p>
-          <p id="user-handle" class="text-xs text-gray-400">@admin</p>
+      <div id="profile-card" class="flex items-center gap-3 mb-4 p-2 rounded-2xl bg-[#2D222A]/60 border border-white/5 hover:border-pink-500/30 transition-all cursor-pointer group" title="Click to change profile picture or School ID">
+        <div data-user-avatar class="relative w-10 h-10 rounded-xl bg-pink-600/30 border border-pink-500/40 flex items-center justify-center text-white font-bold shrink-0 text-sm overflow-hidden shadow-inner">
+          <img data-user-avatar-img src="/assets/logo.png" alt="Profile" class="w-full h-full object-cover" />
+          <span data-user-initials class="hidden">LA</span>
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p data-user-name class="text-white text-sm font-semibold truncate">Local Administrator</p>
+          <p id="user-handle" class="text-xs text-gray-400 truncate">@admin</p>
         </div>
       </div>
       <button id="logout-btn"
@@ -84,11 +90,17 @@
               <p id="topbar-date" class="font-bold text-gray-900 text-xs"></p>
             </div>
           </div>
-          <div class="flex items-center gap-3 ml-4">
-            <div data-user-initials class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-sm">LA</div>
+          <div id="topbar-profile" class="flex items-center gap-3 ml-4 p-1.5 pr-3 rounded-full hover:bg-white/80 border border-transparent hover:border-gray-200 transition-all cursor-pointer group shadow-sm" title="Click to change profile picture or School ID">
+            <div data-user-avatar class="relative w-10 h-10 rounded-full bg-pink-100 border border-pink-200 flex items-center justify-center text-pink-600 font-bold text-sm overflow-hidden shrink-0 shadow-inner">
+              <img data-user-avatar-img src="/assets/logo.png" alt="Profile" class="w-full h-full object-cover" />
+              <span data-user-initials class="hidden">LA</span>
+              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white text-xs">
+                <i class="fa-solid fa-camera"></i>
+              </div>
+            </div>
             <div class="leading-tight hidden sm:block">
               <p data-user-name class="text-sm font-bold text-gray-900">Local Administrator</p>
-            <p data-user-role class="text-[11px] text-gray-500">Administrator</p>
+              <p data-user-role class="text-[11px] text-gray-500">Administrator</p>
             </div>
           </div>
         </div>

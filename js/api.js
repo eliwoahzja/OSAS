@@ -223,7 +223,11 @@ export async function sendNotification(payload) {
       try {
         res = await fetch(fnUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
+          },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });

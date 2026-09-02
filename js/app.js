@@ -1,4 +1,4 @@
-import { h, icon, statCard, donutChart, yearBarChart, skeleton, errorBanner, toast } from './ui.js';
+import { h, icon, statCard, donutChart, pieChart, yearBarChart, skeleton, errorBanner, toast } from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -83,6 +83,108 @@ function route() {
   }
 }
 
+function syncAvatarUI() {
+  const customAvatar = localStorage.getItem('osas.user.avatar') || '/assets/logo.png';
+  document.querySelectorAll('[data-user-avatar-img]').forEach((img) => {
+    img.src = customAvatar;
+    img.onerror = () => {
+      img.classList.add('hidden');
+      const span = img.parentElement.querySelector('[data-user-initials]');
+      if (span) span.classList.remove('hidden');
+    };
+    img.classList.remove('hidden');
+    const span = img.parentElement.querySelector('[data-user-initials]');
+    if (span) span.classList.add('hidden');
+  });
+}
+
+function openProfilePhotoModal() {
+  const current = localStorage.getItem('osas.user.avatar') || '/assets/logo.png';
+  let selected = current;
+
+  const previewImg = h('img', {
+    src: selected,
+    class: 'w-24 h-24 rounded-2xl object-cover border-2 border-pink-500/40 shadow-md bg-pink-50',
+    alt: 'Profile preview',
+  });
+
+  const fileInput = h('input', {
+    type: 'file',
+    accept: 'image/*',
+    class: 'hidden',
+    onchange: (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        selected = reader.result;
+        previewImg.src = selected;
+      };
+      reader.readAsDataURL(file);
+    },
+  });
+
+  const content = h('div', { class: 'p-6 sm:p-8 space-y-6' },
+    h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-4' },
+      h('div', {},
+        h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Profile Picture / School ID'),
+        h('p', { class: 'text-xs text-gray-500 mt-0.5' }, 'Choose the official school seal or upload your school ID photo.'),
+      ),
+      h('button', {
+        class: 'w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors',
+        onclick: () => modal.close(),
+      }, icon('dangerous', 'text-base')),
+    ),
+    h('div', { class: 'flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-gray-50/80 border border-gray-100' },
+      previewImg,
+      h('div', { class: 'flex-1 space-y-3 text-center sm:text-left' },
+        h('p', { class: 'text-sm font-semibold text-gray-800' }, 'Current Profile Photo'),
+        h('div', { class: 'flex flex-wrap items-center justify-center sm:justify-start gap-2.5' },
+          h('button', {
+            type: 'button',
+            class: 'px-3.5 py-2 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-semibold shadow-sm transition-colors flex items-center gap-2 clickable',
+            onclick: () => fileInput.click(),
+          }, icon('upload', 'text-xs'), 'Upload School ID / Photo'),
+          h('button', {
+            type: 'button',
+            class: 'px-3.5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors flex items-center gap-2 clickable',
+            onclick: () => {
+              selected = '/assets/logo.png';
+              previewImg.src = selected;
+            },
+          }, icon('school', 'text-xs'), 'Use School Seal'),
+          h('button', {
+            type: 'button',
+            class: 'px-3.5 py-2 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors flex items-center gap-2 clickable',
+            onclick: () => {
+              selected = '/assets/saac-logo.png';
+              previewImg.src = selected;
+            },
+          }, icon('verified_user', 'text-xs'), 'Use SAAC Crest'),
+        ),
+        fileInput,
+      ),
+    ),
+    h('div', { class: 'flex items-center justify-end gap-3 pt-4 border-t border-gray-100' },
+      h('button', {
+        class: 'px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold transition-colors clickable',
+        onclick: () => modal.close(),
+      }, 'Cancel'),
+      h('button', {
+        class: 'px-5 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold shadow-md transition-colors flex items-center gap-2 clickable',
+        onclick: () => {
+          localStorage.setItem('osas.user.avatar', selected);
+          syncAvatarUI();
+          toast('Profile photo updated successfully.');
+          modal.close();
+        },
+      }, icon('check_circle', 'text-sm'), 'Save Photo'),
+    ),
+  );
+
+  const modal = openModal(content);
+}
+
 function enterApp() {
   document.getElementById('sidebar-backdrop').classList.add('hidden');
   const user = auth.currentUser() || { name: 'Local Administrator', email: '@admin', role: 'admin' };
@@ -93,6 +195,7 @@ function enterApp() {
   document.querySelectorAll('[data-user-initials]').forEach((el) => { el.textContent = initials; });
   document.querySelectorAll('[data-user-name]').forEach((el) => { el.textContent = user.name || 'Local Administrator'; });
   document.querySelectorAll('[data-user-role]').forEach((el) => { el.textContent = isAdmin ? 'Administrator' : 'Staff'; });
+  syncAvatarUI();
   renderSidebar();
   route();
 }
@@ -106,6 +209,8 @@ function wireShell() {
     document.getElementById('sidebar').classList.add('-translate-x-full');
     document.getElementById('sidebar-backdrop').classList.add('hidden');
   });
+  document.getElementById('profile-card')?.addEventListener('click', openProfilePhotoModal);
+  document.getElementById('topbar-profile')?.addEventListener('click', openProfilePhotoModal);
   window.addEventListener('hashchange', route);
   const d = new Date();
   document.getElementById('topbar-date').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -162,14 +267,14 @@ function drawStats(box, s) {
   box.appendChild(h('section', { class: 'space-y-5' },
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
-      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident & Inspection Health'),
-      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'From the incident, inspection, and supplies modules.'),
+      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident, Inspection & Supplies Health'),
+      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'Pie chart breakdown of supplies inventory, stock health, incidents, and inspection status.'),
     ),
     h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' },
-      donutChart(s.incident_breakdown || [], { centerLabel: 'Incidents' }),
-      donutChart(s.inspection_status || [], { centerLabel: 'Inspections' }),
-      donutChart(s.supplies_breakdown || [], { centerLabel: 'Supplies' }),
-      donutChart(s.supplies_status || [], { centerLabel: 'Stock Health' }),
+      pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
+      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', centerLabel: 'Stock Health' }),
+      pieChart(s.incident_breakdown || [], { title: 'Incidents by Type', centerLabel: 'Incidents' }),
+      pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
     ),
   ));
 

@@ -253,6 +253,122 @@ export function dataTable(columns, rows) {
 
 const CHART_COLORS = ['#EC4899', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981', '#EF4444', '#14B8A6', '#F97316', '#6366F1', '#D946EF'];
 
+export function pieChart(items, { title = '', centerLabel = 'Total', size = 180, isDonut = false } = {}) {
+  const total = items.reduce((s, i) => s + (Number(i.value) || 0), 0) || 0;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 10;
+  const innerR = isDonut ? r * 0.55 : 0;
+
+  let startAngle = -Math.PI / 2;
+  const segs = items.map((it, i) => {
+    const val = Number(it.value) || 0;
+    const frac = total ? val / total : 0;
+    const angle = frac * 2 * Math.PI;
+    const endAngle = startAngle + angle;
+
+    const x1 = cx + r * Math.cos(startAngle);
+    const y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle);
+    const y2 = cy + r * Math.sin(endAngle);
+
+    const largeArc = frac > 0.5 ? 1 : 0;
+
+    let pathD = '';
+    if (frac >= 0.9999) {
+      pathD = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx - 0.001} ${cy - r} Z`;
+    } else if (frac > 0) {
+      if (isDonut) {
+        const ix1 = cx + innerR * Math.cos(endAngle);
+        const iy1 = cy + innerR * Math.sin(endAngle);
+        const ix2 = cx + innerR * Math.cos(startAngle);
+        const iy2 = cy + innerR * Math.sin(startAngle);
+        pathD = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix2} ${iy2} Z`;
+      } else {
+        pathD = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+      }
+    }
+
+    startAngle = endAngle;
+
+    return {
+      ...it,
+      value: val,
+      pct: total ? Math.round(frac * 100) : 0,
+      pathD,
+      color: it.color || CHART_COLORS[i % CHART_COLORS.length],
+    };
+  });
+
+  const svg = svgEl('svg', {
+    viewBox: `0 0 ${size} ${size}`,
+    class: 'w-full max-w-[170px] h-auto drop-shadow-sm',
+    role: 'img',
+  });
+
+  if (total === 0) {
+    svg.appendChild(svgEl('circle', {
+      cx, cy, r,
+      fill: '#F3F4F6',
+      stroke: '#E5E7EB',
+      'stroke-width': 2,
+    }));
+    const noDataText = svgEl('text', {
+      x: cx, y: cy + 4,
+      'text-anchor': 'middle',
+      class: 'fill-gray-400 text-xs font-semibold',
+    });
+    noDataText.textContent = 'No data';
+    svg.appendChild(noDataText);
+  } else {
+    segs.forEach((s) => {
+      if (!s.pathD) return;
+      const slice = svgEl('path', {
+        d: s.pathD,
+        fill: s.color,
+        stroke: '#ffffff',
+        'stroke-width': '2',
+        class: 'transition-all duration-200 hover:opacity-90 hover:brightness-105 cursor-pointer',
+      });
+      const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+      titleEl.textContent = `${s.label}: ${s.value} (${s.pct}%)`;
+      slice.appendChild(titleEl);
+      svg.appendChild(slice);
+    });
+  }
+
+  const legend = h('div', { class: 'flex-1 min-w-[140px] space-y-2' },
+    segs.length
+      ? segs.map((s) =>
+          h('div', { class: 'flex items-center gap-2 text-xs' },
+            h('span', { class: 'w-2.5 h-2.5 rounded-full shrink-0 shadow-sm', style: { backgroundColor: s.color } }),
+            h('span', { class: 'text-gray-700 flex-1 truncate capitalize font-medium', title: s.label }, s.label),
+            h('span', { class: 'font-bold text-gray-900 ml-1' }, String(s.value)),
+            h('span', { class: 'text-gray-400 w-9 text-right font-mono text-[11px]' }, `${s.pct}%`),
+          )
+        )
+      : h('p', { class: 'text-xs text-gray-400' }, 'No data recorded yet.'),
+  );
+
+  return h('div', {
+    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-shadow',
+  },
+    title
+      ? h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+          h('h4', { class: 'text-sm font-bold text-gray-900 flex items-center gap-2' },
+            h('span', { class: 'w-2 h-2 rounded-full bg-pink-500' }),
+            title,
+          ),
+          h('span', { class: 'text-[11px] font-semibold text-gray-400 uppercase tracking-wider' }, `${total} total`),
+        )
+      : null,
+    h('div', { class: 'flex flex-col sm:flex-row items-center gap-5' },
+      h('div', { class: 'shrink-0 flex items-center justify-center p-1' }, svg),
+      legend,
+    ),
+  );
+}
+
 export function donutChart(items, { centerLabel = 'Total', size = 200, stroke = 26 } = {}) {
   const total = items.reduce((s, i) => s + i.value, 0) || 0;
   const radius = (size - stroke) / 2;
