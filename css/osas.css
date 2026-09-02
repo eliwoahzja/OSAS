@@ -36,6 +36,10 @@ body {
 .btn-press { transition: transform .12s ease, background-color .15s ease, opacity .15s ease; }
 .btn-press:active { transform: scale(.97); }
 
+/* small spinner for in-flight button states (e.g. "Sending…") */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin .8s linear infinite; }
+
 /* sidebar icon nudge on hover */
 #sidebar-nav a .fa-solid { transition: transform .15s ease; }
 #sidebar-nav a:hover .fa-solid { transform: translateX(2px) scale(1.08); }
@@ -43,9 +47,17 @@ body {
 /* donut chart draw-in */
 .donut-seg { transition: stroke-dashoffset .7s ease; }
 
+/* trend line chart: cap how wide/tall it can grow on large screens, and
+   draw the line + points in on load instead of just popping in at full size */
+.trend-chart-shell { max-width: 640px; }
+.trend-line-path { transition: stroke-dashoffset 1.1s cubic-bezier(.65,0,.35,1); }
+.trend-point { transition: r .35s ease, opacity .35s ease; transition-delay: var(--pt-delay, 0s); }
+.trend-fill { transition: opacity .6s ease .5s; }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-view, .animate-row, .animate-chip, #toast-root > div,
-  .card-lift, .btn-press, .donut-seg { animation: none !important; transition: none !important; }
+  .card-lift, .btn-press, .donut-seg, .animate-spin,
+  .trend-line-path, .trend-point, .trend-fill { animation: none !important; transition: none !important; }
 }
 
 /* Slim scrollbars for the sidebar / content areas */

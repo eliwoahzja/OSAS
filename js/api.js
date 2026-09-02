@@ -133,6 +133,10 @@ function computeStats(incidents, inspections, drills, supplies, contacts) {
     supplies_low: supplies.filter((s) => Number(s.quantity) <= Number(s.reorder_threshold)).length,
     supplies_total: supplies.reduce((s, x) => s + Number(x.quantity || 0), 0),
     supplies_breakdown: supplies.map((s) => ({ label: s.item, value: Number(s.quantity || 0) })),
+    supplies_status: [
+      { label: 'OK', value: supplies.filter((s) => Number(s.quantity) > Number(s.reorder_threshold)).length },
+      { label: 'Low stock', value: supplies.filter((s) => Number(s.quantity) <= Number(s.reorder_threshold)).length },
+    ],
     emergency_contacts_total: contacts.length,
     compliance_score: Math.round((inspections.filter((i) => i.status === 'passed').length / total) * 100),
     incident_breakdown: Object.entries(typeCount).map(([label, value]) => ({ label, value })),
@@ -209,11 +213,22 @@ export async function sendNotification(payload) {
   if (fnUrl) {
     try {
       const token = await auth.currentAccessToken();
-      const res = await fetch(fnUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
+      // Guard against a hung request (paused/unreachable Edge Function, CORS
+      // block, etc.) — without this, a bad connection can leave the caller
+      // waiting indefinitely with no error and no feedback.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      let res;
+      try {
+        res = await fetch(fnUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error((data && data.error) || `Notification failed (${res.status})`);
       provider = 'api';
@@ -223,7 +238,15 @@ export async function sendNotification(payload) {
       }
       return { ok: true, channel: (data && data.channel) || payload.contact_method, ...(data || {}) };
     } catch (e) {
+      const reason = e.name === 'AbortError' ? 'Notification service timed out' : e.message;
       console.error('sendNotification via Edge Function failed:', e);
+      // If there's a real signed-in session, don't silently fall back to a
+      // direct DB insert for an email notification — that would record it
+      // as "sent" without ever actually emailing anyone. Surface the error
+      // instead so the failure is visible.
+      if (payload.contact_method === 'email' && !(await demoMode())) {
+        return { ok: false, error: reason || 'Notification service unreachable', channel: 'email' };
+      }
     }
   }
 

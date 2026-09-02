@@ -137,12 +137,12 @@ function drawStats(box, s) {
 
   const cards = h('div', { class: 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5' });
   const defs = [
-    { label: 'Total Incidents', value: s.incidents_total, sub: 'Reported safety\nincidents', iconName: 'warning', tone: 'pink', blob: 'bg-pink-50' },
-    { label: 'Pending Inspections', value: s.inspections_pending, sub: 'Scheduled safety\nchecks', iconName: 'checklist', tone: 'blue', blob: 'bg-blue-50' },
-    { label: 'Active Drills', value: s.drills_active, sub: 'Ongoing evacuation\nexercises', iconName: 'emergency', tone: 'green', blob: 'bg-emerald-50' },
-    { label: 'Low Supplies', value: s.supplies_low, sub: 'First aid items\nneeding restock', iconName: 'medical_services', tone: 'amber', blob: 'bg-amber-50' },
-    { label: 'Emergency Contacts', value: s.emergency_contacts_total, sub: 'Verified responder\nprofiles', iconName: 'contacts', tone: 'red', blob: 'bg-red-50' },
-    { label: 'Compliance Score', value: `${s.compliance_score}%`, sub: 'Overall safety\nrating', iconName: 'verified_user', tone: 'purple', blob: 'bg-purple-50' },
+    { label: 'Total Incidents', value: s.incidents_total, sub: 'Reported safety\nincidents', iconName: 'warning', tone: 'pink', blob: 'bg-pink-50', href: '#/incident-logging' },
+    { label: 'Pending Inspections', value: s.inspections_pending, sub: 'Scheduled safety\nchecks', iconName: 'checklist', tone: 'blue', blob: 'bg-blue-50', href: '#/safety-inspections' },
+    { label: 'Active Drills', value: s.drills_active, sub: 'Ongoing evacuation\nexercises', iconName: 'emergency', tone: 'green', blob: 'bg-emerald-50', href: '#/drill-scheduling' },
+    { label: 'Low Supplies', value: s.supplies_low, sub: 'First aid items\nneeding restock', iconName: 'medical_services', tone: 'amber', blob: 'bg-amber-50', href: '#/first-aid-supplies' },
+    { label: 'Emergency Contacts', value: s.emergency_contacts_total, sub: 'Verified responder\nprofiles', iconName: 'contacts', tone: 'red', blob: 'bg-red-50', href: '#/emergency-contacts' },
+    { label: 'Compliance Score', value: `${s.compliance_score}%`, sub: 'Overall safety\nrating', iconName: 'verified_user', tone: 'purple', blob: 'bg-purple-50', href: '#/safety-reports' },
   ];
   defs.forEach((d) => cards.appendChild(statCard(d)));
   box.appendChild(h('section', {},
@@ -163,12 +163,13 @@ function drawStats(box, s) {
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
       h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident & Inspection Health'),
-      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'From the incident and inspection modules.'),
+      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'From the incident, inspection, and supplies modules.'),
     ),
-    h('div', { class: 'grid lg:grid-cols-3 gap-5' },
+    h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' },
       donutChart(s.incident_breakdown || [], { centerLabel: 'Incidents' }),
       donutChart(s.inspection_status || [], { centerLabel: 'Inspections' }),
       donutChart(s.supplies_breakdown || [], { centerLabel: 'Supplies' }),
+      donutChart(s.supplies_status || [], { centerLabel: 'Stock Health' }),
     ),
   ));
 
@@ -177,7 +178,7 @@ function drawStats(box, s) {
     box.appendChild(h('section', {},
       yearBarChart(yearsData, {
         title: 'Incidents by Year',
-        subtitle: 'Compare incident volume and types across school years.',
+        subtitle: 'Compare incident volume across school years.',
       }),
     ));
   }

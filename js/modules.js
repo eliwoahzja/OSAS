@@ -634,7 +634,7 @@ function composer(el) {
     fields.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
       h('button', {
         class: 'btn-primary',
-        onclick: async () => {
+        onclick: async (e) => {
           if (isAlert && !f.studentId) { errBox.textContent = 'A student is required for incident alerts.'; errBox.classList.remove('hidden'); return; }
           if (!isAlert && (!f.audience_group || !f.event_start_at || !f.event_end_at)) {
             errBox.textContent = 'Audience group and event start/end times are required for event notices.'; errBox.classList.remove('hidden'); return;
@@ -642,6 +642,13 @@ function composer(el) {
           if (!isAlert && f.event_end_at <= f.event_start_at) { errBox.textContent = 'Event end must be after event start.'; errBox.classList.remove('hidden'); return; }
           if (!f.message.trim()) { errBox.textContent = 'Message is required.'; errBox.classList.remove('hidden'); return; }
           errBox.classList.add('hidden');
+          const btn = e.currentTarget;
+          const originalLabel = btn.innerHTML;
+          btn.disabled = true;
+          btn.classList.add('opacity-70', 'cursor-wait');
+          btn.innerHTML = '';
+          btn.appendChild(icon('schedule', 'text-base animate-spin'));
+          btn.appendChild(document.createTextNode(' Sending…'));
           try {
             const payload = isAlert
               ? { notif_type: 'incident_alert', priority: 'urgent', student_id: f.studentId, student_name: f.student_name, student_grade: f.student_grade, related_incident_id: f.related_incident_id || null, title: f.message.trim().slice(0, 60), message: f.message.trim(), contact_method: f.contact_method }
@@ -655,8 +662,12 @@ function composer(el) {
             closeModal();
             el.innerHTML = '';
             parentNotifications(el);
-          } catch (e) {
-            errBox.textContent = e.message; errBox.classList.remove('hidden');
+          } catch (e2) {
+            errBox.textContent = e2.message || 'Something went wrong sending this notification.';
+            errBox.classList.remove('hidden');
+            btn.disabled = false;
+            btn.classList.remove('opacity-70', 'cursor-wait');
+            btn.innerHTML = originalLabel;
           }
         },
       }, icon('send', 'text-base'), 'Send Notification'),
