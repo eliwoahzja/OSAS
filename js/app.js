@@ -98,6 +98,10 @@ function enterApp() {
 }
 
 function wireShell() {
+  document.getElementById('hamburger').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('-translate-x-full');
+    document.getElementById('sidebar-backdrop').classList.toggle('hidden');
+  });
   document.getElementById('sidebar-backdrop').addEventListener('click', () => {
     document.getElementById('sidebar').classList.add('-translate-x-full');
     document.getElementById('sidebar-backdrop').classList.add('hidden');
