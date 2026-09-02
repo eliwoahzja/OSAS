@@ -162,7 +162,7 @@ function drillForm(el) {
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Schedule New Drill')),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
   const grid = form.querySelector('.grid');
-  const f = { type: 'Fire', date: '', time: '09:00', building: '', personInCharge: '', notify: false, audience: 'All Parents' };
+  const f = { type: 'Fire', date: '', time: '09:00', building: '', person_in_charge: '', notify: false, audience: 'All Parents' };
 
   const sel = (label, options, val, onChange) => {
     return h('div', {}, h('label', { class: labelCls }, label),
@@ -180,7 +180,7 @@ function drillForm(el) {
     h('input', { type: 'date', class: inputCls, oninput: (e) => { f.date = e.target.value; } })));
   grid.appendChild(h('div', {}, h('label', { class: labelCls }, 'Time'),
     h('input', { type: 'time', class: inputCls, value: '09:00', oninput: (e) => { f.time = e.target.value; } })));
-  grid.appendChild(txt('Person in Charge', 'e.g. Mr. Lim', (v) => { f.personInCharge = v; }));
+  grid.appendChild(txt('Person in Charge', 'e.g. Mr. Lim', (v) => { f.person_in_charge = v; }));
 
   const notifyD = h('div', { class: 'sm:col-span-2 flex items-center gap-3' },
     h('input', { type: 'checkbox', id: 'drill-notify', class: 'w-4 h-4 accent-pink-600', onchange: (e) => { f.notify = e.target.checked; renderAudience(); } }),
@@ -206,7 +206,7 @@ function drillForm(el) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!f.date || !f.building.trim() || !f.personInCharge.trim()) {
+    if (!f.date || !f.building.trim() || !f.person_in_charge.trim()) {
       errBox.textContent = 'Date, building, and person in charge are required.';
       errBox.classList.remove('hidden');
       return;
@@ -218,7 +218,7 @@ function drillForm(el) {
     try {
       const created = await api.insertRow('drills', {
         type: f.type, date: f.date, time: f.time,
-        building: f.building.trim(), personInCharge: f.personInCharge.trim(),
+        building: f.building.trim(), person_in_charge: f.person_in_charge.trim(),
         status: 'upcoming', notes: '',
       });
       if (f.notify) {
