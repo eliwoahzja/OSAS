@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="School safety and compliance dashboard for the Office of Student Affairs and Services: emergency contacts, incident reports, inspections, drills, and parent notifications." />
+  <meta name="author" content="Office of Student Affairs and Services, Saint Agnes Academy" />
+  <meta name="theme-color" content="#241A22" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://*.functions.supabase.co" />
+  <meta property="og:title" content="SAAC - OSAS Dashboard" />
+  <meta property="og:type" content="website" />
+  <meta property="og:description" content="School safety and compliance dashboard for the Office of Student Affairs and Services." />
+  <title>SAAC - OSAS Dashboard</title>
+  <link rel="icon" href="/assets/logo.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/tailwind.css" />
+  <link rel="stylesheet" href="/css/fa.min.css" />
+  <link rel="stylesheet" href="/css/osas.css" />
+  <noscript><p style="padding:24px;font-family:sans-serif">Please enable JavaScript to use the OSAS dashboard.</p></noscript>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+  <aside id="sidebar"
+    class="bg-maroon-dark text-gray-300 flex flex-col w-72 h-full overflow-y-auto shrink-0 fixed inset-y-0 left-0 z-50 transition-transform duration-300 lg:static lg:translate-x-0 -translate-x-full lg:translate-x-0">
+    <div class="p-6 flex items-center gap-3 mt-2">
+      <img src="/assets/logo.png" alt="SAAC seal" class="w-10 h-10 object-contain" />
+      <div>
+        <p class="text-white font-bold text-lg leading-tight tracking-wide">SAAC</p>
+        <p class="text-[11px] text-gray-400">OSAS Dashboard</p>
+      </div>
+    </div>
+
+    <div class="px-6 py-2">
+      <div class="bg-[#2D222A] rounded-xl p-3">
+        <p class="text-[9px] uppercase text-gray-400 tracking-wider font-semibold">Current Workspace</p>
+        <div class="flex items-center gap-2 mt-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-pink-500"></span>
+          <span id="workspace-label" class="text-white text-sm font-semibold">Administrator</span>
+        </div>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-4 py-4 mt-2" aria-label="Main">
+      <p class="text-[10px] uppercase text-gray-500 font-bold mb-2 ml-4 tracking-wider">Menu</p>
+      <ul id="sidebar-nav" class="space-y-0.5"></ul>
+    </nav>
+
+    <div class="p-6 mt-auto">
+      <div class="flex items-center gap-3 mb-4">
+        <div data-user-initials class="w-10 h-10 rounded-lg bg-pink-600 flex items-center justify-center text-white font-bold shrink-0 text-sm">LA</div>
+        <div>
+          <p data-user-name class="text-white text-sm font-semibold">Local Administrator</p>
+          <p id="user-handle" class="text-xs text-gray-400">@admin</p>
+        </div>
+      </div>
+      <button id="logout-btn"
+        class="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-gray-600/50 text-gray-300 hover:bg-gray-800 transition-colors clickable">
+        <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
+        <span class="text-sm font-medium">Logout</span>
+      </button>
+    </div>
+  </aside>
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden" aria-hidden="true"></div>
+
+  <main class="flex-1 flex flex-col h-full overflow-hidden">
+    <header class="bg-transparent px-4 sm:px-10 py-6 shrink-0">
+      <div class="max-w-[1400px] 2xl:max-w-[1600px] mx-auto flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4 min-w-0">
+          <button id="hamburger" aria-label="Open menu" onclick="window.OSAS.toggleSidebar()"
+            class="w-10 h-10 rounded-full border border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 shadow-sm shrink-0 clickable">
+            <i class="fa-solid fa-bars text-lg"></i>
+          </button>
+          <div class="min-w-0">
+            <p class="text-[10px] text-gray-500 uppercase tracking-widest font-semibold mb-0.5">Administrator Workspace</p>
+            <h1 id="page-title" class="text-2xl font-bold text-gray-900 leading-none truncate">Admin Dashboard</h1>
+          </div>
+        </div>
+        <div class="flex items-center gap-6 shrink-0">
+          <div class="hidden md:flex items-center gap-3">
+            <i class="fa-solid fa-calendar-days text-gray-400 text-lg"></i>
+            <div class="text-sm leading-tight">
+              <p class="text-gray-500 text-[10px]">Today</p>
+              <p id="topbar-date" class="font-bold text-gray-900 text-xs"></p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 ml-4">
+            <div data-user-initials class="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center text-pink-600 font-bold text-sm">LA</div>
+            <div class="leading-tight hidden sm:block">
+              <p data-user-name class="text-sm font-bold text-gray-900">Local Administrator</p>
+            <p data-user-role class="text-[11px] text-gray-500">Administrator</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div id="view" class="flex-1 overflow-y-auto px-4 sm:px-10 pb-6"></div>
+    <footer class="px-4 sm:px-10 pb-4 shrink-0">
+      <p class="text-[11px] text-gray-400 border-t border-gray-200 pt-3">Saint Agnes Academy &middot; Office of Student Affairs and Services &mdash; &copy; 2026</p>
+    </footer>
+  </main>
+
+  <div id="toast-root" class="fixed bottom-6 right-6 z-[70] space-y-3 w-80 max-w-[90vw]"></div>
+
+  <script src="/js/config.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

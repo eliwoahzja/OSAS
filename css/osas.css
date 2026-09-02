@@ -1,0 +1,117 @@
+/* Design-system tokens + custom helpers on top of compiled Tailwind. */
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #FDF8EF; /* Light cream background */
+  color: #333;
+}
+
+/* Design tokens (ported from the React theme) */
+.bg-maroon-dark      { background-color: #241A22; }              /* Sidebar bg */
+.text-maroon-light   { color: #D81B60; }                          /* Primary pinkish-maroon */
+.bg-maroon-gradient  { background: linear-gradient(135deg, #3A1024 0%, #5B1638 50%, #762143 100%); }
+.bg-sidebar-active   { background-color: #352331; }
+
+/* Icons are Font Awesome 6 (css/fa.min.css + assets/fonts/fa). */
+
+/* Short, subtle animations that respect reduced motion. */
+
+@keyframes viewFade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.animate-view { animation: viewFade .28s ease-out; }
+
+@keyframes rowFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.animate-row { animation: rowFade .22s ease-out both; }
+
+@keyframes chipPop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+.animate-chip { animation: chipPop .18s ease-out both; }
+
+@keyframes toastIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+#toast-root > div { animation: toastIn .2s ease-out; }
+
+/* hover lift for cards */
+.card-lift { transition: transform .18s ease, box-shadow .18s ease; }
+.card-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(36, 26, 34, .08); }
+
+/* press feedback for buttons */
+.btn-press { transition: transform .12s ease, background-color .15s ease, opacity .15s ease; }
+.btn-press:active { transform: scale(.97); }
+
+/* sidebar icon nudge on hover */
+#sidebar-nav a .fa-solid { transition: transform .15s ease; }
+#sidebar-nav a:hover .fa-solid { transform: translateX(2px) scale(1.08); }
+
+/* donut chart draw-in */
+.donut-seg { transition: stroke-dashoffset .7s ease; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-view, .animate-row, .animate-chip, #toast-root > div,
+  .card-lift, .btn-press, .donut-seg { animation: none !important; transition: none !important; }
+}
+
+/* Slim scrollbars for the sidebar / content areas */
+#sidebar::-webkit-scrollbar, #view::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 999px; }
+#view::-webkit-scrollbar-thumb     { background: rgba(0,0,0,.12); border-radius: 999px; }
+#view::-webkit-scrollbar-track     { background: transparent; }
+
+.clickable { cursor: pointer; }
+
+/* Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .625rem 1.25rem;
+  border-radius: .75rem;
+  background: #DB2777;
+  color: #fff;
+  font-size: .875rem;
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+.btn-primary:hover { background: #BE185D; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .625rem 1.25rem;
+  border-radius: .75rem;
+  background: #fff;
+  color: #4B5563;
+  font-size: .875rem;
+  font-weight: 600;
+  border: 1px solid #E5E7EB;
+  cursor: pointer;
+  transition: background-color .15s ease;
+}
+.btn-ghost:hover { background: #F9FAFB; }
+
+/* Module-page building blocks */
+.osas-card {
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  border: 1px solid #f1f1ef;
+}
+.osas-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #DB2777; /* pink-600 */
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 6px;
+}
+.osas-h3 {
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -.025em;
+}
+.osas-sub {
+  font-size: 15px;
+  color: #6b7280;
+  margin-top: 4px;
+}
