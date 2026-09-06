@@ -1,0 +1,6 @@
+{
+  "name": "SAAC - OSAS Dashboard",
+  "description": "School safety and compliance dashboard for the Office of Student Affairs and Services: emergency contacts, incident reports, inspections, drills, and parent notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

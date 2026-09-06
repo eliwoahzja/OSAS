@@ -1,0 +1,23 @@
+{
+  "name": "saac-osas-dashboard",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SAAC - OSAS Dashboard. School safety and compliance dashboard for the Office of Student Affairs and Services.",
+  "scripts": {
+    "dev": "node server.js",
+    "build": "node scripts/lint.mjs",
+    "build:css": "npx --yes tailwindcss@3.4.17 -i css/tailwind.input.css -o css/tailwind.css --minify",
+    "start": "node server.js",
+    "lint": "node scripts/lint.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.9",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.14.0",
+    "tailwindcss": "^3.4.17"
+  }
+}
