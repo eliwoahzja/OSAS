@@ -359,268 +359,118 @@ function drawStats(box, s) {
 }
 
 function openStockNotifyModal(items = [], options = {}) {
-  const recipientRoles = [
-    {
-      name: 'School Nurse',
-      role: 'Clinic In-Charge & Student Health Custodian',
-      dept: 'Health & Medical Services Unit',
-      emailLabel: 'nurse@saac.edu.ph',
-      duty: 'Evaluates first-aid treatment demand, tracks medicine expiration dates, and dispenses clinic medical supplies.',
-      iconName: 'health_and_safety',
-      tone: 'pink',
-    },
-    {
-      name: 'Clinic Supply Custodian',
-      role: 'Inventory & Procurement Officer',
-      dept: 'OSAS Logistics & Custody',
-      emailLabel: 'supplies@saac.edu.ph',
-      duty: 'Coordinates restock requisitions with suppliers, handles purchase orders, and restocks clinic storage cabinets.',
-      iconName: 'inventory_2',
-      tone: 'amber',
-    },
-  ];
-
-  const modalContainer = h('div', { class: 'w-full text-left overflow-hidden rounded-3xl' });
+  const modalContainer = h('div', { class: 'w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden' });
   const modal = openModal(modalContainer);
 
   const renderComposeView = () => {
     modalContainer.innerHTML = '';
 
-    // Header with official Saint Agnes Academy Maroon branding
-    const header = h('div', { class: 'bg-[#3A1024] text-white p-5 sm:p-6 flex items-center justify-between gap-4 border-b border-[#4d1630]' },
-      h('div', { class: 'flex items-center gap-3.5' },
-        h('div', { class: 'w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0 shadow-xs' },
-          h('img', {
-            src: 'https://rwqaeabxusivkyjgskko.supabase.co/storage/v1/object/public/branding/logo.png',
-            alt: 'SAAC Logo',
-            class: 'w-8 h-8 rounded-full bg-white p-0.5 object-contain',
-          }),
-        ),
-        h('div', {},
-          h('div', { class: 'flex items-center gap-2' },
-            h('h3', { class: 'text-base sm:text-lg font-extrabold text-white tracking-tight' }, 'Restock Alert & Handler Notification'),
-            h('span', { class: 'px-2 py-0.5 rounded-full bg-red-500/20 border border-red-400/40 text-red-200 text-[10px] font-bold tracking-wider uppercase' }, 'Priority Alert'),
-          ),
-          h('p', { class: 'text-xs text-[#e9b9ca] font-medium' }, 'Saint Agnes Academy • Office of Student Affairs and Services'),
-        ),
-      ),
+    const header = h('div', { class: 'px-6 py-4 border-b border-gray-100 flex items-center justify-between' },
+      h('h3', { class: 'text-lg font-semibold text-gray-900' }, 'Dispatch Restock Alert'),
       h('button', {
-        type: 'button',
-        class: 'w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors clickable text-sm',
-        title: 'Close modal',
+        class: 'text-gray-400 hover:text-gray-600 transition-colors',
         onclick: () => modal.close(),
-      }, icon('close', 'text-sm')),
+      }, icon('close', 'text-xl'))
     );
 
-    // Body container
-    const body = h('div', { class: 'p-6 sm:p-7 space-y-6 bg-white max-h-[75vh] overflow-y-auto' });
+    const body = h('div', { class: 'p-6 space-y-6' });
 
-    // Section 1: Who the handlers of stock are
-    const handlersSection = h('div', { class: 'space-y-3' },
-      h('div', { class: 'flex items-center justify-between' },
-        h('div', { class: 'flex items-center gap-2' },
-          h('span', { class: 'w-2 h-2 rounded-full bg-pink-600' }),
-          h('h4', { class: 'text-xs font-bold uppercase tracking-wider text-gray-700' }, 'Stock & Inventory Handlers'),
+    const recipients = h('div', {},
+      h('label', { class: 'block text-sm font-medium text-gray-700 mb-2' }, 'Notifying Handlers'),
+      h('div', { class: 'bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2' },
+        h('div', { class: 'flex flex-col sm:flex-row sm:justify-between sm:items-center' },
+          h('span', { class: 'text-sm font-medium text-gray-900' }, 'School Nurse'),
+          h('span', { class: 'text-xs text-gray-500' }, 'nurse@saac.edu.ph')
         ),
-        h('span', { class: 'text-[11px] font-bold text-pink-800 bg-pink-50 border border-pink-200/70 px-2 py-0.5 rounded-md' },
-          'Authorized Personnel',
-        ),
-      ),
-      h('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-3.5' },
-        ...recipientRoles.map((r) =>
-          h('div', { class: 'p-4 rounded-2xl border border-gray-200 bg-[#faf8f5] flex flex-col justify-between space-y-2.5 transition-shadow hover:shadow-xs' },
-            h('div', { class: 'flex items-start gap-3' },
-              h('div', {
-                class: `w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base shadow-xs ${
-                  r.tone === 'pink' ? 'bg-pink-100 text-pink-700 border border-pink-200' : 'bg-amber-100 text-amber-800 border border-amber-200'
-                }`,
-              }, icon(r.iconName, 'text-base')),
-              h('div', { class: 'min-w-0 flex-1' },
-                h('div', { class: 'flex items-center gap-1.5' },
-                  h('p', { class: 'font-bold text-gray-900 text-sm truncate' }, r.name),
-                  h('span', { class: 'text-[10px] font-bold px-1.5 py-0.2 rounded bg-white text-gray-500 border border-gray-200' }, 'Handler'),
-                ),
-                h('p', { class: 'text-[11px] text-gray-600 font-medium leading-tight mt-0.5' }, r.role),
-                h('p', { class: 'text-[10px] font-semibold text-gray-400 mt-0.5 uppercase tracking-wider' }, r.dept),
-              ),
-            ),
-            h('p', { class: 'text-[11px] text-gray-600 leading-relaxed border-t border-gray-200/60 pt-2' }, r.duty),
-            h('div', { class: 'flex items-center gap-1 text-[11px] font-medium text-pink-900 bg-white px-2.5 py-1 rounded-lg border border-gray-200/80' },
-              icon('mail', 'text-xs text-pink-600'),
-              h('span', { class: 'truncate' }, r.emailLabel),
-            ),
-          )
-        ),
-      ),
+        h('div', { class: 'flex flex-col sm:flex-row sm:justify-between sm:items-center' },
+          h('span', { class: 'text-sm font-medium text-gray-900' }, 'Supply Custodian'),
+          h('span', { class: 'text-xs text-gray-500' }, 'supplies@saac.edu.ph')
+        )
+      )
     );
 
-    // Section 2: What are low on stock
-    const lowItemsSection = h('div', { class: 'space-y-3' },
-      h('div', { class: 'flex items-center justify-between' },
-        h('div', { class: 'flex items-center gap-2' },
-          h('span', { class: 'w-2 h-2 rounded-full bg-red-600' }),
-          h('h4', { class: 'text-xs font-bold uppercase tracking-wider text-gray-700' }, `Supplies Low on Stock (${items.length})`),
-        ),
-        h('span', { class: 'text-xs font-bold text-red-600 flex items-center gap-1' },
-          icon('warning', 'text-xs'),
-          'Requires Restocking',
-        ),
-      ),
-      h('div', { class: 'border border-gray-200 rounded-2xl overflow-hidden divide-y divide-gray-100 max-h-48 overflow-y-auto bg-white shadow-inner' },
-        ...items.map((it) => {
-          const deficit = Math.max(1, Number(it.reorder_threshold || 0) - Number(it.quantity || 0));
-          return h('div', { class: 'p-3.5 sm:px-4 flex items-center justify-between gap-3 hover:bg-gray-50/70 transition-colors' },
-            h('div', { class: 'min-w-0' },
-              h('p', { class: 'font-bold text-gray-900 text-sm truncate' }, it.item),
-              h('div', { class: 'flex items-center gap-2 text-xs text-gray-500 mt-1 flex-wrap' },
-                h('span', { class: 'inline-flex items-center gap-1 text-gray-600' },
-                  icon('location_on', 'text-[11px] text-gray-400'),
-                  it.location || 'Clinic Cabinet',
-                ),
-                h('span', { class: 'text-gray-300' }, '•'),
-                h('span', { class: 'text-gray-500' }, `Reorder threshold: ${it.reorder_threshold}`),
-              ),
-            ),
-            h('div', { class: 'text-right shrink-0' },
-              h('span', { class: 'inline-flex items-center px-2.5 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700 font-extrabold text-xs' },
-                `${it.quantity} left`,
-              ),
-              h('span', { class: 'block text-[11px] text-red-600 font-semibold mt-0.5' },
-                `-${deficit} units needed`,
-              ),
-            ),
-          );
-        }),
-      ),
+    const itemsList = h('div', {},
+      h('label', { class: 'block text-sm font-medium text-gray-700 mb-2' }, `Low Stock Items (${items.length})`),
+      h('div', { class: 'border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto bg-white' },
+        ...items.map(it => h('div', { class: 'px-3 py-2.5 flex justify-between items-center text-sm' },
+          h('span', { class: 'text-gray-900 truncate pr-2' }, it.item),
+          h('span', { class: 'text-red-600 font-medium whitespace-nowrap' }, `${it.quantity} left`)
+        ))
+      )
     );
 
-    // Section 3: Optional custom remarks memo
     const memoInput = h('textarea', {
-      class: `${inputCls} min-h-[64px] resize-y text-xs text-gray-800 placeholder:text-gray-400`,
-      placeholder: 'Add administrative instructions (e.g. "Restock urgently before the inter-school athletic meet on Friday")...',
+      class: 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none min-h-[80px]',
+      placeholder: 'Add an optional note (e.g., "Need these for Friday intramurals...")...'
     });
 
-    const memoSection = h('div', { class: 'space-y-1.5' },
-      h('label', { class: labelCls }, 'Restock Instructions / Urgency Note (Optional)'),
-      memoInput,
-      h('p', { class: 'text-[11px] text-gray-400' },
-        'Will be formatted into the official restock email under Administrative Remarks.',
-      ),
+    const memo = h('div', {},
+      h('label', { class: 'block text-sm font-medium text-gray-700 mb-2' }, 'Restock Notes (Optional)'),
+      memoInput
     );
 
-    // Error container
-    const errBox = h('div', { class: 'hidden p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-semibold' });
+    const errBox = h('div', { class: 'hidden text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200' });
 
-    // Footer actions
-    const footer = h('div', { class: 'flex items-center justify-between gap-3 pt-3 border-t border-gray-100' },
+    const footer = h('div', { class: 'px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3' },
       h('button', {
-        type: 'button',
-        class: 'btn-ghost text-xs py-2.5 px-4 font-semibold text-gray-600 hover:text-gray-800',
-        onclick: () => modal.close(),
+        class: 'px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors',
+        onclick: () => modal.close()
       }, 'Cancel'),
       h('button', {
-        type: 'button',
-        id: 'dispatch-alert-submit-btn',
-        class: 'btn-primary text-xs py-2.5 px-5 font-bold shadow-sm inline-flex items-center gap-2',
+        class: 'px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-black rounded-lg transition-colors flex items-center gap-2',
         onclick: async (e) => {
           const btn = e.currentTarget;
           const origHTML = btn.innerHTML;
           btn.disabled = true;
           btn.classList.add('opacity-75', 'cursor-wait');
-          btn.innerHTML = '';
-          btn.appendChild(icon('schedule', 'text-xs animate-spin'));
-          btn.appendChild(document.createTextNode(' Dispatching Email Alert…'));
+          btn.innerHTML = 'Sending...';
           errBox.classList.add('hidden');
 
           try {
-            const roleLabels = recipientRoles.map((r) => `${r.name} (${r.role})`);
-            const customMessage = memoInput.value.trim() || undefined;
             const res = await api.notifyStockHandlers(items, {
-              recipientRoles: roleLabels,
-              customMessage,
+              recipientRoles: ['School Nurse (nurse@saac.edu.ph)', 'Supply Custodian (supplies@saac.edu.ph)'],
+              customMessage: memoInput.value.trim() || undefined,
             });
 
-            toast('Restock alert email sent to School Nurse & Supply Custodian');
+            toast('Restock alert sent successfully');
             if (typeof options.onSent === 'function') {
               options.onSent(res);
             }
-            renderSuccessView(items, res);
+            renderSuccessView();
           } catch (err) {
             console.error('Failed to notify stock handlers:', err);
-            errBox.textContent = `⚠ Dispatch failed: ${err.message || 'Could not send email'}`;
+            errBox.textContent = err.message || 'Could not send email';
             errBox.classList.remove('hidden');
             btn.disabled = false;
             btn.classList.remove('opacity-75', 'cursor-wait');
             btn.innerHTML = origHTML;
           }
-        },
-      }, icon('send', 'text-xs'), 'Notify Handlers via Email'),
+        }
+      }, 'Send Alert')
     );
 
-    body.appendChild(handlersSection);
-    body.appendChild(lowItemsSection);
-    body.appendChild(memoSection);
-    body.appendChild(errBox);
-    body.appendChild(footer);
-
-    modalContainer.appendChild(header);
-    modalContainer.appendChild(body);
+    body.append(recipients, itemsList, memo, errBox);
+    modalContainer.append(header, body, footer);
   };
 
-  const renderSuccessView = (sentItems, res = {}) => {
+  const renderSuccessView = () => {
     modalContainer.innerHTML = '';
 
-    const sentTime = res.sent_date_formatted || new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-
-    const successView = h('div', { class: 'p-8 sm:p-10 text-center space-y-6 bg-white' },
-      h('div', { class: 'w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto text-3xl shadow-xs animate-chip' },
-        icon('check_circle', 'text-3xl text-emerald-600'),
+    const view = h('div', { class: 'p-8 text-center space-y-4 bg-white rounded-2xl' },
+      h('div', { class: 'w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl' },
+        icon('check', 'text-2xl')
       ),
-      h('div', { class: 'space-y-1.5' },
-        h('h3', { class: 'text-2xl font-black text-gray-900 tracking-tight' }, 'Restock Alert Dispatched!'),
-        h('p', { class: 'text-sm text-gray-600 max-w-md mx-auto leading-relaxed' },
-          'An official priority alert email has been delivered to the designated clinic and supplies custody personnel.',
-        ),
-      ),
-
-      // Summary audit receipt
-      h('div', { class: 'bg-[#faf8f5] border border-gray-200/90 rounded-2xl p-4 sm:p-5 text-left space-y-3 text-xs' },
-        h('div', { class: 'flex items-start justify-between pb-2.5 border-b border-gray-200/70 gap-2' },
-          h('span', { class: 'font-bold text-gray-700' }, 'Who was notified:'),
-          h('span', { class: 'font-bold text-pink-900 text-right' }, 'School Nurse & Clinic Supply Custodian'),
-        ),
-        h('div', { class: 'flex items-start justify-between pb-2.5 border-b border-gray-200/70 gap-2' },
-          h('span', { class: 'font-bold text-gray-700' }, 'Supplies Listed:'),
-          h('span', { class: 'font-semibold text-gray-800' }, `${sentItems.length} low inventory items requiring restock`),
-        ),
-        h('div', { class: 'flex items-start justify-between pb-2.5 border-b border-gray-200/70 gap-2' },
-          h('span', { class: 'font-bold text-gray-700' }, 'Dispatched At:'),
-          h('span', { class: 'text-gray-700' }, `${sentTime}`),
-        ),
-        h('div', { class: 'flex items-start justify-between gap-2' },
-          h('span', { class: 'font-bold text-gray-700' }, 'Transmission Channel:'),
-          h('span', { class: 'inline-flex items-center gap-1 font-bold text-emerald-700' },
-            icon('verified', 'text-xs text-emerald-600'),
-            'Institutional Email Alert (SAAC Mailer)',
-          ),
-        ),
-      ),
-
-      h('div', { class: 'flex items-center justify-center gap-3 pt-2' },
-        h('a', {
-          href: '#/first-aid-supplies',
-          class: 'btn-primary text-xs py-2.5 px-4 font-semibold inline-flex items-center gap-1.5',
-          onclick: () => modal.close(),
-        }, icon('medical_services', 'text-xs'), 'Manage Supplies Inventory'),
+      h('h3', { class: 'text-xl font-semibold text-gray-900' }, 'Alert Sent'),
+      h('p', { class: 'text-sm text-gray-500' }, 'The restock notification has been emailed to the clinic and supply custodians.'),
+      h('div', { class: 'pt-4' },
         h('button', {
-          type: 'button',
-          class: 'btn-ghost text-xs py-2.5 px-5 font-semibold text-gray-600 hover:text-gray-800',
-          onclick: () => modal.close(),
-        }, 'Done'),
-      ),
+          class: 'px-5 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-black rounded-lg transition-colors',
+          onclick: () => modal.close()
+        }, 'Done')
+      )
     );
 
-    modalContainer.appendChild(successView);
+    modalContainer.appendChild(view);
   };
 
   renderComposeView();
