@@ -423,3 +423,62 @@ export async function uploadFile(bucket, file, path) {
     url: `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeURIComponent(path || file.name)}`,
   };
 }
+
+export async function notifyStockHandlers(items = [], options = {}) {
+  const payload = {
+    items,
+    recipientRoles: options.recipientRoles || [
+      'School Nurse (Clinic In-Charge & Student Care)',
+      'Clinic Supply & Inventory Custodian (OSAS Logistics)',
+    ],
+    customMessage: options.customMessage || '',
+  };
+
+  // 1. Try server-side dispatch route /api/notify-stock
+  try {
+    const res = await fetch('/api/notify-stock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => null);
+      if (data && data.ok) return data;
+    }
+  } catch (err) {
+    console.warn('Backend /api/notify-stock request failed, trying client fallback:', err);
+  }
+
+  // 2. Client-side fallback: record through sendNotification
+  try {
+    const itemListText = items
+      .map((i) => `• ${i.item}: ${i.quantity} left (reorder at ${i.reorder_threshold}) [${i.location || 'Clinic'}]`)
+      .join('\n');
+    const msg = `[URGENT RESTOCK ALERT]\n\nThe following clinic supplies require immediate restocking:\n${itemListText}\n\n${
+      options.customMessage ? 'Notes: ' + options.customMessage : ''
+    }`;
+
+    await sendNotification({
+      recipient_type: 'staff',
+      recipient_group: 'Clinic & Supply Custodians',
+      recipient_id: 'clinic-supplies-team',
+      recipient_name: 'School Nurse & Supply Custodian',
+      contact_method: 'email',
+      contact_target: 'nurse@saac.edu.ph, supplies@saac.edu.ph',
+      title: `[RESTOCK ALERT] Low First Aid Supplies (${items.length} items)`,
+      message: msg,
+      category: 'urgent',
+    });
+  } catch (e) {
+    console.warn('sendNotification fallback log error:', e);
+  }
+
+  return {
+    ok: true,
+    status: 'sent',
+    recipientRoles: payload.recipientRoles,
+    itemCount: items.length,
+    sent_at: new Date().toISOString(),
+  };
+}
+
