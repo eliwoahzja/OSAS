@@ -1,0 +1,490 @@
+import * as auth from './auth.js';
+import { MOCK, mockNextId } from './mock.js';
+
+const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.OSAS;
+const REST = `${SUPABASE_URL}/rest/v1`;
+let provider = 'mock';
+
+async function restFetch(method, path, { query = {}, body = null, prefer = null } = {}) {
+  const token = await auth.currentAccessToken();
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(query)) {
+    if (v === null || v === undefined || v === '') continue;
+    qs.set(k, v);
+  }
+  const url = `${REST}/${path}${qs.toString() ? `?${qs}` : ''}`;
+  const headers = {
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  };
+  if (prefer) headers.Prefer = prefer;
+  const res = await fetch(url, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const j = await res.json();
+      if (j.message) detail = j.message;
+      if (res.status === 401) detail = 'Sign-in required — no valid session for this data.';
+      if (res.status === 403 || j.code === '42501') detail = 'Permission denied for this account.';
+    } catch {}
+    throw new Error(detail);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+let supabaseAvailable = null;
+
+// FIXME: High-latency campus Wi-Fi (especially Annex building) causes 2s ping to timeout early.
+// Might need 3500ms threshold during school drill events when 800+ devices connect at once.
+async function demoMode() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return true;
+  if (supabaseAvailable === false) return true;
+  if (supabaseAvailable === true) return false;
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`${REST}/incidents?select=id&limit=1`, {
+      headers: { apikey: SUPABASE_ANON_KEY },
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeout));
+    if (res.ok) {
+      supabaseAvailable = true;
+      return false;
+    }
+    supabaseAvailable = false;
+    console.warn('[OSAS] Remote Supabase unavailable, running in local mock storage mode.');
+    return true;
+  } catch {
+    supabaseAvailable = false;
+    console.warn('[OSAS] Remote Supabase unreachable, running in local mock storage mode.');
+    return true;
+  }
+}
+
+/*
+ * NOTE(eli): Experimental offline sync queue for field marshals during campus evacuation drills.
+ * Field marshals stationed at the sports complex lose Wi-Fi signal when students evacuate.
+ * Plan: Buffer incident records in localStorage/IndexedDB and replay when 'online' event fires.
+ *
+ * async function flushOfflineQueue() {
+ *   const queue = JSON.parse(localStorage.getItem('osas.offline_incident_queue') || '[]');
+ *   if (!queue.length) return;
+ *   console.info(`[OSAS] Attempting to replay ${queue.length} offline incident report(s)...`);
+ *   for (const item of [...queue]) {
+ *     try {
+ *       await insertRow('incidents', item);
+ *       queue.shift();
+ *     } catch (e) {
+ *       console.warn('[OSAS] Offline replay stalled:', e.message);
+ *       break; // Network still unstable, try next cycle
+ *     }
+ *   }
+ *   localStorage.setItem('osas.offline_incident_queue', JSON.stringify(queue));
+ * }
+ * window.addEventListener('online', flushOfflineQueue);
+ */
+
+const MOCK_KEY = 'osas.mock.v1';
+
+function loadMock() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(MOCK_KEY) || '{}');
+    for (const [table, rows] of Object.entries(saved)) {
+      if (!Array.isArray(rows)) continue;
+      const defaults = MOCK[table] || [];
+      // WHY: Build a Set of existing IDs to turn the deduplication from O(N * M)
+      // into O(N + M). On mobile devices with large stored incident logs,
+      // avoiding nested loops prevents UI stutter on initial dashboard load.
+      const existingIds = new Set(rows.map((r) => r.id));
+      const missingDefaults = defaults.filter((d) => !existingIds.has(d.id));
+      MOCK[table] = [...rows, ...missingDefaults];
+    }
+  } catch {}
+}
+
+function persistMock() {
+  try { localStorage.setItem(MOCK_KEY, JSON.stringify(MOCK)); } catch {}
+}
+
+loadMock();
+
+function snapshot(table) {
+  return JSON.parse(JSON.stringify(MOCK[table] || []));
+}
+
+function insertMock(table, payload) {
+  const row = { id: mockNextId(table), ...payload };
+  MOCK[table] = MOCK[table] || [];
+  MOCK[table].unshift(row);
+  persistMock();
+  return row;
+}
+
+function updateMock(table, id, patch) {
+  const rows = MOCK[table] || [];
+  const i = rows.findIndex((r) => r.id === id);
+  if (i < 0) throw new Error('Record not found');
+  rows[i] = { ...rows[i], ...patch };
+  persistMock();
+  return rows[i];
+}
+
+function deleteMock(table, id) {
+  const rows = MOCK[table] || [];
+  const i = rows.findIndex((r) => r.id === id);
+  if (i >= 0) rows.splice(i, 1);
+  persistMock();
+}
+
+function listMock(table, filters = {}) {
+  let rows = snapshot(table);
+  if (table === 'emergency_contacts') {
+    rows = rows.map((r) => ({
+      ...r,
+      students: r.student_id ? MOCK.students.find((s) => s.id === r.student_id) || null : null,
+    }));
+  }
+  for (const [k, v] of Object.entries(filters)) {
+    if (v === null || v === undefined || v === '') continue;
+    rows = rows.filter((r) => String(r[k] ?? '').toLowerCase().includes(String(v).toLowerCase()));
+  }
+  return rows;
+}
+
+function computeStats(incidents, inspections, drills, supplies, contacts) {
+  const typeCount = {};
+  incidents.forEach((i) => { typeCount[i.type] = (typeCount[i.type] || 0) + 1; });
+  const statusCount = {};
+  inspections.forEach((i) => { statusCount[i.status] = (statusCount[i.status] || 0) + 1; });
+  const total = inspections.length || 1;
+
+  const yearMap = {};
+  incidents.forEach((i) => {
+    const d = String(i.date || '');
+    const year = parseInt(d.slice(0, 4), 10);
+    if (!year) return;
+    if (!yearMap[year]) yearMap[year] = { year, incidents: 0, byType: {} };
+    yearMap[year].incidents++;
+    yearMap[year].byType[i.type] = (yearMap[year].byType[i.type] || 0) + 1;
+  });
+  const years_by_year = Object.values(yearMap).sort((a, b) => a.year - b.year);
+
+  const supplies_low_items = supplies
+    .filter((s) => Number(s.quantity) <= Number(s.reorder_threshold))
+    .map((s) => ({
+      item: s.item,
+      quantity: Number(s.quantity),
+      reorder_threshold: Number(s.reorder_threshold),
+      location: s.location || '',
+    }))
+    .sort((a, b) => (b.reorder_threshold - b.quantity) - (a.reorder_threshold - a.quantity));
+
+  // WHY: Single-pass accumulation instead of 5 separate array traversals.
+  // Reduces garbage collection pressure during the 15-second dashboard refresh cycle.
+  let inspections_pending = 0, inspections_passed = 0, inspections_overdue = 0;
+  for (const ins of inspections) {
+    if (ins.status === 'passed') inspections_passed++;
+    else if (ins.status === 'pending') inspections_pending++;
+    else if (ins.status === 'overdue') inspections_overdue++;
+  }
+
+  let drills_active = 0, drills_completed = 0;
+  for (const d of drills) {
+    if (d.status === 'upcoming') drills_active++;
+    else if (d.status === 'completed') drills_completed++;
+  }
+
+  const openIncidents = incidents.filter((i) => i.status === 'open').length;
+
+  return {
+    incidents_total: incidents.length,
+    incidents_open: openIncidents,
+    inspections_pending,
+    inspections_passed,
+    inspections_overdue,
+    drills_active,
+    drills_completed,
+    supplies_low: supplies_low_items.length,
+    supplies_low_items,
+    supplies_total: supplies.reduce((s, x) => s + Number(x.quantity || 0), 0),
+    supplies_breakdown: supplies.map((s) => ({ label: s.item, value: Number(s.quantity || 0) })),
+    supplies_status: [
+      { label: 'OK', value: supplies.length - supplies_low_items.length },
+      { label: 'Low stock', value: supplies_low_items.length },
+    ],
+    emergency_contacts_total: contacts.length,
+    compliance_score: Math.round((inspections_passed / total) * 100),
+    incident_breakdown: Object.entries(typeCount).map(([label, value]) => ({ label, value })),
+    inspection_status: Object.entries(statusCount).map(([label, value]) => ({ label, value })),
+    years_by_year,
+  };
+}
+
+export function dataMode() {
+  return provider;
+}
+
+export async function listRows(table, filters = {}) {
+  if (await demoMode()) {
+    provider = 'mock';
+    return listMock(table, filters);
+  }
+  // TODO(scaling): Add cursor/keyset pagination for large tables like incidents and audit logs.
+  // Currently loads up to default Supabase row cap (1000 items).
+  const query = { select: table === 'emergency_contacts' ? '*,students(name,grade)' : '*' };
+  for (const [k, v] of Object.entries(filters)) {
+    if (v) query[k] = `ilike.*${v}*`;
+  }
+  let rows;
+  try {
+    try {
+      rows = await restFetch('GET', table, { query });
+    } catch (e) {
+      if (table !== 'emergency_contacts') throw e;
+      rows = await restFetch('GET', table, { query: { ...query, select: '*' } });
+    }
+    provider = 'api';
+    return rows || [];
+  } catch (err) {
+    console.warn(`API call for ${table} failed, falling back to mock:`, err);
+    provider = 'mock';
+    return listMock(table, filters);
+  }
+}
+
+export async function insertRow(table, payload) {
+  // FIXME: Add client-side validation for Philippine mobile phone numbers (+63 / 09xx)
+  // before persisting to emergency_contacts or sending via SMS gateway.
+  if (await demoMode()) {
+    provider = 'mock';
+    return insertMock(table, payload);
+  }
+  try {
+    const rows = await restFetch('POST', table, {
+      body: payload,
+      prefer: 'return=representation',
+    });
+    provider = 'api';
+    return (rows && rows[0]) || payload;
+  } catch (err) {
+    console.warn(`API insert for ${table} failed, using local mock:`, err);
+    provider = 'mock';
+    return insertMock(table, payload);
+  }
+}
+
+export async function updateRow(table, id, patch) {
+  if (await demoMode()) {
+    provider = 'mock';
+    return updateMock(table, id, patch);
+  }
+  try {
+    const rows = await restFetch('PATCH', table, {
+      query: { id: `eq.${id}` },
+      body: patch,
+      prefer: 'return=representation',
+    });
+    provider = 'api';
+    if (!rows || !rows[0]) throw new Error('Record not found');
+    return rows[0];
+  } catch (err) {
+    console.warn(`API update for ${table} failed, using local mock:`, err);
+    provider = 'mock';
+    return updateMock(table, id, patch);
+  }
+}
+
+export async function deleteRow(table, id) {
+  if (await demoMode()) {
+    provider = 'mock';
+    deleteMock(table, id);
+    return { ok: true };
+  }
+  try {
+    await restFetch('DELETE', table, { query: { id: `eq.${id}` } });
+    provider = 'api';
+    return { ok: true };
+  } catch (err) {
+    console.warn(`API delete for ${table} failed, using local mock:`, err);
+    provider = 'mock';
+    deleteMock(table, id);
+    return { ok: true };
+  }
+}
+
+export async function sendNotification(rawPayload = {}) {
+  // Normalize payload to strictly conform to Supabase schema and Edge Function validator
+  const notifType = (rawPayload.notif_type === 'incident_alert' || (!rawPayload.notif_type && (rawPayload.student_id || rawPayload.related_incident_id)))
+    ? 'incident_alert'
+    : 'event_notice';
+
+  let contactMethod = rawPayload.contact_method === 'in_app' ? 'app' : rawPayload.contact_method;
+  if (contactMethod !== 'email' && contactMethod !== 'app') {
+    contactMethod = notifType === 'incident_alert' ? 'email' : 'app';
+  }
+
+  const priority = notifType === 'incident_alert' ? 'urgent' : 'informational';
+
+  let eventStartAt = rawPayload.event_start_at ? new Date(rawPayload.event_start_at).toISOString() : null;
+  let eventEndAt = rawPayload.event_end_at ? new Date(rawPayload.event_end_at).toISOString() : null;
+
+  if (notifType === 'event_notice') {
+    if (!eventStartAt || isNaN(new Date(eventStartAt).getTime())) {
+      eventStartAt = new Date().toISOString();
+    }
+    if (!eventEndAt || isNaN(new Date(eventEndAt).getTime()) || new Date(eventEndAt) <= new Date(eventStartAt)) {
+      eventEndAt = new Date(new Date(eventStartAt).getTime() + 60 * 60 * 1000).toISOString();
+    }
+  }
+
+  const payload = {
+    notif_type: notifType,
+    priority,
+    contact_method: contactMethod,
+    title: String(rawPayload.title || (notifType === 'incident_alert' ? 'Incident Alert' : 'Safety Notice')).trim().slice(0, 255),
+    message: String(rawPayload.message || '').trim(),
+  };
+
+  if (notifType === 'incident_alert') {
+    if (rawPayload.student_id) payload.student_id = rawPayload.student_id;
+    if (rawPayload.related_incident_id) payload.related_incident_id = rawPayload.related_incident_id;
+    if (rawPayload.student_name) payload.student_name = rawPayload.student_name;
+    if (rawPayload.student_grade) payload.student_grade = rawPayload.student_grade;
+  } else {
+    payload.audience_group = String(rawPayload.audience_group || rawPayload.recipient_role || rawPayload.recipient_name || 'All Staff').slice(0, 100);
+    payload.event_start_at = eventStartAt;
+    payload.event_end_at = eventEndAt;
+  }
+
+  const fnUrl = window.OSAS.NOTIFY_FN_URL;
+  if (fnUrl) {
+    try {
+      const token = await auth.currentAccessToken();
+      // Guard against a hung request (paused/unreachable Edge Function, CORS
+      // block, etc.) — without this, a bad connection can leave the caller
+      // waiting indefinitely with no error and no feedback.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      let res;
+      try {
+        res = await fetch(fnUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${token || SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error((data && data.error) || `Notification failed (${res.status})`);
+      provider = 'api';
+      const delivery = data.delivery || {};
+      if (payload.contact_method === 'email' && delivery.status === 'failed') {
+        return { ok: false, error: delivery.error || 'Email delivery failed', channel: 'email', ...(data || {}) };
+      }
+      return { ok: true, channel: (data && data.channel) || payload.contact_method, ...(data || {}) };
+    } catch (e) {
+      const reason = e.name === 'AbortError' ? 'Notification service timed out' : e.message;
+      console.error('sendNotification via Edge Function failed:', e);
+      // If there's a real signed-in session, don't silently fall back to a
+      // direct DB insert for an email notification — that would record it
+      // as "sent" without ever actually emailing anyone. Surface the error
+      // instead so the failure is visible.
+      if (payload.contact_method === 'email' && !(await demoMode())) {
+        return { ok: false, error: reason || 'Notification service unreachable', channel: 'email' };
+      }
+    }
+  }
+
+  if (await demoMode()) {
+    provider = 'mock';
+    insertMock('notifications', {
+      ...payload,
+      sent_at: new Date().toISOString(),
+      delivery_status: 'sent',
+      created_by: 'admin',
+    });
+    return { ok: true, provider: 'direct', channel: payload.contact_method || 'app', id: mockNextId('notifications') };
+  }
+
+  const record = { ...payload };
+  delete record.student_name;
+  delete record.student_grade;
+  const row = await insertRow('notifications', {
+    ...record,
+    sent_at: new Date().toISOString(),
+    delivery_status: 'sent',
+  });
+  return { ok: true, provider: 'direct', channel: row.contact_method || payload.contact_method || 'app', id: row.id };
+}
+
+export async function getDashboardStats() {
+  if (await demoMode()) {
+    provider = 'mock';
+    return computeStats(
+      listMock('incidents'), listMock('inspections'), listMock('drills'),
+      listMock('supplies'), listMock('emergency_contacts'),
+    );
+  }
+  try {
+    const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
+      restFetch('GET', 'incidents', { query: { select: '*' } }),
+      restFetch('GET', 'inspections', { query: { select: '*' } }),
+      restFetch('GET', 'drills', { query: { select: '*' } }),
+      restFetch('GET', 'supplies', { query: { select: '*' } }),
+      restFetch('GET', 'emergency_contacts', { query: { select: '*' } }),
+    ]);
+    provider = 'api';
+    return computeStats(incidents || [], inspections || [], drills || [], supplies || [], contacts || []);
+  } catch (err) {
+    console.warn('API dashboard fetch failed, falling back to mock:', err);
+    provider = 'mock';
+    return computeStats(
+      listMock('incidents'), listMock('inspections'), listMock('drills'),
+      listMock('supplies'), listMock('emergency_contacts'),
+    );
+  }
+}
+
+export async function uploadFile(bucket, file, path) {
+  if (await demoMode()) {
+    provider = 'mock';
+    return { path: `mock://${bucket}/${path || file.name}`, url: null, mock: true };
+  }
+  const token = await auth.currentAccessToken();
+  const url = `${SUPABASE_URL}/storage/v1/object/${bucket}/${encodeURIComponent(path || file.name)}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type || 'application/octet-stream',
+      'x-upsert': 'true',
+    },
+    body: file,
+  });
+  if (!res.ok) {
+    let detail = `Upload failed (${res.status})`;
+    try {
+      const j = await res.json();
+      if (j.message) detail = j.message;
+    } catch {}
+    throw new Error(detail);
+  }
+  provider = 'api';
+  return {
+    path: `${bucket}/${path || file.name}`,
+    url: `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${encodeURIComponent(path || file.name)}`,
+  };
+}
