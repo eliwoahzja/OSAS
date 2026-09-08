@@ -1,4 +1,4 @@
-import { h, icon, statCard, donutChart, pieChart, yearBarChart, skeleton, errorBanner, toast, openModal } from './ui.js';
+import { h, icon, statCard, donutChart, pieChart, yearBarChart, barChart, skeleton, errorBanner, toast, openModal } from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -364,8 +364,8 @@ function drawStats(box, s) {
     ),
     h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' },
       pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
-      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', centerLabel: 'Stock Health' }),
-      pieChart(s.incident_breakdown || [], { title: 'Incidents by Type', centerLabel: 'Incidents' }),
+      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', isDonut: true }),
+      barChart(s.incident_breakdown || [], { title: 'Incidents by Type' }),
       pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
     ),
   ));

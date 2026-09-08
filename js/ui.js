@@ -23,7 +23,7 @@ export function append(el, children) {
 }
 
 export { openModal } from './modal.js';
-export { pieChart, donutChart, yearBarChart } from './charts.js';
+export { pieChart, donutChart, yearBarChart, barChart } from './charts.js';
 
 function svgEl(tag, attrs = {}) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);

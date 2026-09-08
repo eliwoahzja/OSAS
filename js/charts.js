@@ -351,3 +351,60 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
     svg,
   );
 }
+
+export function barChart(items, { title = '', subtitle = '' } = {}) {
+  const total = items.reduce((s, i) => s + (Number(i.value) || 0), 0) || 0;
+  const maxVal = Math.max(...items.map(i => Number(i.value) || 0), 1);
+
+  const list = h('div', { class: 'space-y-3.5 mt-2' },
+    ...items.map((it, i) => {
+      const val = Number(it.value) || 0;
+      const pctMax = Math.round((val / maxVal) * 100);
+      const pctTotal = total ? Math.round((val / total) * 100) : 0;
+      const color = it.color || CHART_COLORS[i % CHART_COLORS.length];
+      
+      return h('div', { class: 'group relative' },
+        h('div', { class: 'flex justify-between text-[11px] mb-1.5' },
+          h('span', { class: 'font-bold text-gray-700 uppercase tracking-wide truncate pr-2' }, it.label),
+          h('div', { class: 'flex items-center gap-2' },
+            h('span', { class: 'font-extrabold text-gray-900 text-xs' }, String(val)),
+            h('span', { class: 'text-gray-400 w-8 text-right font-mono' }, `${pctTotal}%`)
+          )
+        ),
+        h('div', { class: 'h-2.5 w-full bg-gray-100 rounded-full overflow-hidden' },
+          h('div', {
+            class: 'h-full rounded-full transition-all duration-1000 ease-out',
+            style: { width: '0%', backgroundColor: color }
+          })
+        )
+      );
+    })
+  );
+
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const bars = list.querySelectorAll('.bg-gray-100 > div');
+    items.forEach((it, i) => {
+      if (bars[i]) {
+        const val = Number(it.value) || 0;
+        const pctMax = Math.round((val / maxVal) * 100);
+        bars[i].style.width = `${pctMax}%`;
+      }
+    });
+  }));
+
+  return h('div', {
+    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow',
+  },
+    title
+      ? h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-2' },
+          h('h4', { class: 'text-sm font-bold text-gray-900 flex items-center gap-2' },
+            h('span', { class: 'w-2 h-2 rounded-full bg-pink-500' }),
+            title,
+          ),
+          h('span', { class: 'text-[11px] font-semibold text-gray-400 uppercase tracking-wider' }, `${total} total`),
+        )
+      : null,
+    subtitle ? h('p', { class: 'text-[12px] text-gray-500 mb-2' }, subtitle) : null,
+    items.length > 0 ? list : h('p', { class: 'text-xs text-gray-400 mt-4' }, 'No data recorded yet.')
+  );
+}
