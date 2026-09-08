@@ -6,6 +6,8 @@ export const MOCK = {
     { id: 'stu-12', name: 'Reyes, Althea Jane', grade: 7, phone: '0917 555 1107' },
     { id: 'stu-18', name: 'Yap, Lorenzo Miguel', grade: 10, phone: '0917 555 1402' },
     { id: 'stu-23', name: 'Espino, Trisha Anne', grade: 12, phone: '0917 555 1601' },
+    { id: 'stu-24', name: 'Valmoria, Ethan James', grade: 8, phone: '0917 555 3101' },
+    { id: 'stu-25', name: 'Manaron, Christian Dave Jr.', grade: 9, phone: '0917 555 3201' },
   ],
 
   incidents: [
@@ -55,6 +57,8 @@ export const MOCK = {
   emergency_contacts: [
     { id: 'GC-1001', category: 'student', name: 'Marco Dela Cruz', relationship: 'Father', phone: '0917 555 2001', email: 'yoboieliii@gmail.com', priority: 1, student_id: 'stu-05' },
     { id: 'GC-1002', category: 'student', name: 'Ramon Reyes', relationship: 'Father', phone: '0917 555 2002', email: 'yoboieliii@gmail.com', priority: 1, student_id: 'stu-12' },
+    { id: 'GC-1003', category: 'student', name: 'Marlon Valmoria', relationship: 'Father / Guardian', phone: '0917 555 3102', email: 'marlonvalmoria89@gmail.com', priority: 1, student_id: 'stu-24' },
+    { id: 'GC-1004', category: 'student', name: 'Christian D. Manaron', relationship: 'Father / Guardian', phone: '0917 555 3202', email: 'ymanaronchristiand@gmail.com', priority: 1, student_id: 'stu-25' },
     { id: 'SC-1', category: 'school', role: 'School Nurse', name: 'Ms. Corazon Dela Peña', phone: '0917 555 0001', email: 'yoboieliii@gmail.com', priority: null },
     { id: 'SC-3', category: 'school', role: 'Nearest Police Station', name: 'Caloocan City Police Station 1', phone: '(02) 8-364-1234', email: 'cpd1@ncrpo.pnp.gov.ph', priority: null },
   ],

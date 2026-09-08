@@ -65,20 +65,39 @@ async function renderNotifications(el, currentType = 'all') {
     shell.appendChild(realHolder);
 
     const filterRow = h('div', { class: 'flex flex-wrap items-center gap-2' },
-      ['all', 'incident_alert', 'event_notice'].map((k) =>
+      [
+        { key: 'all', label: 'All' },
+        { key: 'incident_alert', label: 'Urgent Incident Alerts' },
+        { key: 'event_notice', label: 'Event Notices & Drills' },
+      ].map((k) =>
         h('button', {
-          class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k === currentType ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
-          onclick: () => renderNotifications(el, k),
-        }, k === 'all' ? 'All' : k === 'incident_alert' ? 'Incident Alerts' : 'Event Notices')));
+          class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k.key === currentType ? (k.key === 'incident_alert' ? 'bg-red-600 text-white border-red-600' : 'bg-pink-600 text-white border-pink-600') : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
+          onclick: () => renderNotifications(el, k.key),
+        }, k.label)));
     realHolder.appendChild(filterRow);
 
-    const filteredRows = currentType === 'all' ? rows : rows.filter(r => r.notif_type === currentType);
+    const filteredRows = rows
+      .filter((r) => {
+        const rawTitle = String(r.title || '');
+        const rawMsg = String(r.message || '');
+        const rawAudience = String(r.audience_group || '');
+        const isStock = r.notif_type === 'alert' ||
+          /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+          /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
+          /clinic|custodian/i.test(rawAudience);
+        return !isStock;
+      })
+      .filter((r) => {
+        if (currentType === 'incident_alert') return r.notif_type === 'incident_alert';
+        if (currentType === 'event_notice') return r.notif_type === 'event_notice';
+        return true;
+      });
 
     const realTableWrap = h('div');
     realHolder.appendChild(realTableWrap);
 
     if (!filteredRows.length) {
-      realTableWrap.appendChild(emptyBanner({ icon: 'notifications', title: 'No notifications sent yet', text: 'Use "New Notification" to send the first incident alert or event notice.' }));
+      realTableWrap.appendChild(emptyBanner({ icon: 'notifications', title: 'No notifications found', text: 'Use "New Notification" to send an incident alert or event notice to parents.' }));
       return;
     }
     const columns = [
@@ -100,15 +119,40 @@ async function renderNotifications(el, currentType = 'all') {
 }
 
 function notifBadge(r) {
-  const isAlert = r.notif_type === 'incident_alert';
+  const rawTitle = String(r.title || '');
+  const rawMsg = String(r.message || '');
+  const rawAudience = String(r.audience_group || '');
+  const isStock = r.notif_type === 'alert' ||
+    /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+    /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
+    /clinic|custodian/i.test(rawAudience);
+  const isParentAlert = !isStock && (r.notif_type === 'incident_alert' || Boolean(r.student_name) || Boolean(r.student_id && r.student_id !== '11111111-1111-4111-8111-111111111111') || Boolean(r.related_incident_id));
+
+  if (isStock) {
+    return h('span', {
+      class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap bg-red-50 text-red-700 border-red-300',
+      style: { borderLeft: '3px solid #DC2626' },
+    },
+      icon('warning', 'text-[12px] text-red-600'),
+      'Alert',
+    );
+  }
+
+  if (isParentAlert) {
+    return h('span', {
+      class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap bg-red-50 text-red-700 border-red-200',
+      style: { borderLeft: '3px solid #EF4444' },
+    },
+      icon('priority_high', 'text-[12px] text-red-600'),
+      'Urgent Incident Alert',
+    );
+  }
+
   return h('span', {
-    class: `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap ${isAlert
-      ? 'bg-red-50 text-red-700 border-red-200'
-      : 'bg-pink-50 text-pink-700 border-pink-200'}`,
-    style: isAlert ? { borderLeft: '3px solid #EF4444' } : {},
+    class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap bg-pink-50 text-pink-700 border-pink-200',
   },
-    icon(isAlert ? 'priority_high' : 'event', 'text-[12px]'),
-    isAlert ? 'Incident Alert' : 'Event Notice',
+    icon('event', 'text-[12px] text-pink-600'),
+    'Event Notice',
   );
 }
 
@@ -119,9 +163,17 @@ function composer(el) {
   card.appendChild(tabs);
 
   const f = {
-    notif_type: 'incident_alert', studentId: '', student_name: '', student_grade: null,
-    related_incident_id: '', title: '', message: '', contact_method: 'email',
-    audience_group: 'All Parents', event_start_at: '', event_end_at: '',
+    notif_type: 'incident_alert',
+    studentId: '',
+    student_name: '',
+    student_grade: null,
+    related_incident_id: '',
+    title: '',
+    message: '',
+    contact_method: 'email',
+    audience_group: 'All Parents & Guardians',
+    event_start_at: '',
+    event_end_at: '',
   };
 
   const fields = h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' });
@@ -133,62 +185,52 @@ function composer(el) {
 
   const students = awaitP('students');
   const incidents = awaitP('incidents');
-  const contacts = awaitP('emergency_contacts');
 
   const renderFields = async () => {
     fields.innerHTML = '';
-    const isAlert = f.notif_type === 'incident_alert';
+    const isIncident = f.notif_type === 'incident_alert';
+    const isEvent = f.notif_type === 'event_notice';
     const st = await students;
     const inc = await incidents;
-    const cts = await contacts;
 
-    if (isAlert) {
+    if (isIncident) {
       fields.appendChild(h('div', { class: 'sm:col-span-2' },
         h('span', { class: 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200 animate-pulse' },
-          icon('priority_high', 'text-[12px]'), 'URGENT — email parents immediately')));
-      const parentHint = h('div', { class: 'sm:col-span-2 hidden rounded-xl bg-emerald-50 border border-emerald-200/70 px-3.5 py-2.5 text-[12px] text-emerald-800' });
+          icon('emergency', 'text-[12px]'), 'URGENT INCIDENT ALERT — Direct email notification to all registered parents')));
+
       const studentSel = h('select', { class: inputCls, onchange: (e) => {
         const s = st.find((x) => x.id === e.target.value);
-        f.studentId = e.target.value; f.student_name = s?.name || ''; f.student_grade = s?.grade || null;
-        const linked = (s ? cts : []).filter((c) => c.student_id === s?.id);
-        parentHint.classList.toggle('hidden', false);
-        const contactEmails = linked.map((c) => `${c.name} (${c.relationship}) - ${c.email}`);
-        if (!contactEmails.some((eStr) => eStr.includes('yoboieliii@gmail.com'))) {
-          contactEmails.push('Test Recipient (yoboieliii@gmail.com)');
-        }
-        parentHint.textContent = `Emails go to: ${contactEmails.join(', ')}`;
+        f.studentId = e.target.value;
+        f.student_name = s?.name || '';
+        f.student_grade = s?.grade || null;
       } },
-        h('option', { value: '' }, 'Select student…'),
-        st.map((s) => h('option', { value: s.id }, `${s.name} — Grade ${s.grade}`)));
-      fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Student (required)'), studentSel));
-      fields.appendChild(parentHint);
+        h('option', { value: '' }, 'Select student involved…'),
+        st.map((s) => h('option', { value: s.id, selected: s.id === f.studentId }, `${s.name} — Grade ${s.grade}${s.section ? ` (${s.section})` : ''}`)));
+      fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Student Involved (required)'), studentSel));
 
       const incSel = h('select', { class: inputCls, onchange: (e) => { f.related_incident_id = e.target.value; } },
-        h('option', { value: '' }, 'No related incident'),
-        inc.map((i) => h('option', { value: i.id }, `${i.id} · ${capitalize(i.type)} — ${i.location}`)));
-      fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Related Incident (optional)'), incSel));
+        h('option', { value: '' }, 'No related incident log'),
+        inc.map((i) => h('option', { value: i.id, selected: i.id === f.related_incident_id }, `${i.id} · ${capitalize(i.type)} — ${i.location}`)));
+      fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Related Incident Log (optional)'), incSel));
     } else {
       fields.appendChild(h('div', { class: 'sm:col-span-2' },
         h('span', { class: 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold bg-pink-50 text-pink-700 border border-pink-200' },
-          icon('event', 'text-[12px]'), 'INFORMATIONAL — app/email notice')));
+          icon('event', 'text-[12px]'), 'EVENT NOTICE — Send campus event notice, drills schedule, or advisories to parents')));
       const audSel = h('select', { class: inputCls, onchange: (e) => { f.audience_group = e.target.value; } },
-        AUDIENCES.map((g) => h('option', { value: g, selected: g === f.audience_group }, g)));
+        ['All Parents & Guardians', 'All Parents & Faculty', 'Grade 7-10 Parents', 'Senior High Parents'].map((g) =>
+          h('option', { value: g, selected: g === f.audience_group }, g)));
       fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Audience Group (required)'), audSel));
       fields.appendChild(h('div', {}, h('label', { class: labelCls }, 'Event Start'), h('input', { type: 'datetime-local', class: inputCls, oninput: (e) => { f.event_start_at = e.target.value; } })));
       fields.appendChild(h('div', {}, h('label', { class: labelCls }, 'Event End'), h('input', { type: 'datetime-local', class: inputCls, oninput: (e) => { f.event_end_at = e.target.value; } })));
     }
 
-    fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Message'),
-      h('textarea', { class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'What should parents know?', oninput: (e) => { f.message = e.target.value; } })));
-
-    const methods = isAlert ? ['email'] : ['email', 'app'];
-    const emailHint = h('p', { class: `text-[11px] text-emerald-700 mt-1.5 ${f.contact_method === 'email' ? '' : 'hidden'}` }, 'Notice will be delivered to: yoboieliii@gmail.com');
-    const methodSel = h('select', { class: inputCls, onchange: (e) => {
-      f.contact_method = e.target.value;
-      emailHint.classList.toggle('hidden', f.contact_method !== 'email');
-    } },
-      methods.map((m) => h('option', { value: m, selected: m === f.contact_method }, capitalize(m))));
-    fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Contact Method'), methodSel, emailHint));
+    fields.appendChild(h('div', { class: 'sm:col-span-2' },
+      h('label', { class: labelCls }, 'Message Details'),
+      h('textarea', {
+        class: `${inputCls} min-h-[85px] resize-y`,
+        placeholder: isIncident ? 'Detail the incident, immediate care given, and instructions for parents…' : 'Details for parents regarding the upcoming event, drill, or advisory…',
+        oninput: (e) => { f.message = e.target.value; },
+      })));
 
     const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
     fields.appendChild(errBox);
@@ -196,11 +238,11 @@ function composer(el) {
       h('button', {
         class: 'btn-primary',
         onclick: async (e) => {
-          if (isAlert && !f.studentId) { errBox.textContent = 'A student is required for incident alerts.'; errBox.classList.remove('hidden'); return; }
-          if (!isAlert && (!f.audience_group || !f.event_start_at || !f.event_end_at)) {
+          if (isIncident && !f.studentId) { errBox.textContent = 'A student is required for incident alerts.'; errBox.classList.remove('hidden'); return; }
+          if (isEvent && (!f.audience_group || !f.event_start_at || !f.event_end_at)) {
             errBox.textContent = 'Audience group and event start/end times are required for event notices.'; errBox.classList.remove('hidden'); return;
           }
-          if (!isAlert && f.event_end_at <= f.event_start_at) { errBox.textContent = 'Event end must be after event start.'; errBox.classList.remove('hidden'); return; }
+          if (isEvent && f.event_end_at <= f.event_start_at) { errBox.textContent = 'Event end must be after event start.'; errBox.classList.remove('hidden'); return; }
           if (!f.message.trim()) { errBox.textContent = 'Message is required.'; errBox.classList.remove('hidden'); return; }
           errBox.classList.add('hidden');
           const btn = e.currentTarget;
@@ -211,12 +253,15 @@ function composer(el) {
           btn.appendChild(icon('schedule', 'text-base animate-spin'));
           btn.appendChild(document.createTextNode(' Sending…'));
           try {
-            const payload = isAlert
-              ? { notif_type: 'incident_alert', priority: 'urgent', student_id: f.studentId, student_name: f.student_name, student_grade: f.student_grade, related_incident_id: f.related_incident_id || null, title: f.message.trim().slice(0, 60), message: f.message.trim(), contact_method: f.contact_method }
-              : { notif_type: 'event_notice', priority: 'informational', audience_group: f.audience_group, title: f.message.trim().slice(0, 60), message: f.message.trim(), event_start_at: f.event_start_at, event_end_at: f.event_end_at, contact_method: f.contact_method };
+            let payload;
+            if (isIncident) {
+              payload = { notif_type: 'incident_alert', priority: 'urgent', student_id: f.studentId, student_name: f.student_name, student_grade: f.student_grade, related_incident_id: f.related_incident_id || null, title: f.message.trim().slice(0, 60), message: f.message.trim(), contact_method: 'email' };
+            } else {
+              payload = { notif_type: 'event_notice', priority: 'informational', audience_group: f.audience_group, title: f.message.trim().slice(0, 60), message: f.message.trim(), event_start_at: f.event_start_at, event_end_at: f.event_end_at, contact_method: 'email' };
+            }
             const res = await api.sendNotification(payload);
             if (res.ok) {
-              toast(`Notification sent via ${res.channel || f.contact_method}.`);
+              toast(`Notification successfully emailed to all parents.`);
             } else {
               toast(`⚠ ${res.error || 'Notification queued but email delivery failed.'}`);
             }
@@ -231,15 +276,15 @@ function composer(el) {
             btn.innerHTML = originalLabel;
           }
         },
-      }, icon('send', 'text-base'), 'Send Notification'),
+      }, icon('send', 'text-base'), 'Send Notification to Parents'),
       h('button', { class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
   };
 
   const mkTab = (label, type) => h('button', {
-    class: `py-2.5 rounded-xl text-sm font-bold transition-colors clickable ${f.notif_type === type ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`,
+    class: `py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors clickable ${f.notif_type === type ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`,
     onclick: (e) => {
       f.notif_type = type;
-      f.contact_method = type === 'incident_alert' ? 'email' : 'app';
+      f.contact_method = 'email';
       tabs.querySelectorAll('button').forEach((b) => {
         b.classList.remove('bg-white', 'text-pink-600', 'shadow-sm');
         if (b === e.currentTarget) b.classList.add('bg-white', 'text-pink-600', 'shadow-sm');
@@ -248,7 +293,7 @@ function composer(el) {
     },
   }, label);
 
-  tabs.appendChild(mkTab('Incident Alert', 'incident_alert'));
+  tabs.appendChild(mkTab('Urgent Incident Alert', 'incident_alert'));
   tabs.appendChild(mkTab('Event Notice', 'event_notice'));
   renderFields();
   closeModal = openModal(card).close;

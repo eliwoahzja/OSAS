@@ -285,18 +285,23 @@ export async function deleteRow(table, id) {
 }
 
 export async function sendNotification(rawPayload = {}) {
-  const notifType = (rawPayload.notif_type === 'incident_alert' || (!rawPayload.notif_type && (rawPayload.student_id || rawPayload.related_incident_id)))
-    ? 'incident_alert'
-    : 'event_notice';
+  const requestedType = rawPayload.notif_type;
+  const isStockAlert = requestedType === 'alert' ||
+    /restock|supplies|stock|inventory|shortage/i.test(String(rawPayload.title || '')) ||
+    /restock|supplies|depleted/i.test(String(rawPayload.message || ''));
+  const isParentAlert = requestedType === 'incident_alert' ||
+    (!requestedType && !isStockAlert && (rawPayload.student_id || rawPayload.related_incident_id));
+
+  const notifType = (isParentAlert || isStockAlert) ? 'incident_alert' : 'event_notice';
 
   let contactMethod = rawPayload.contact_method === 'in_app' ? 'app' : rawPayload.contact_method;
-  if (notifType === 'incident_alert') {
-    contactMethod = 'email';
+  if (isParentAlert || isStockAlert) {
+    contactMethod = rawPayload.contact_method || 'email';
   } else if (contactMethod !== 'email' && contactMethod !== 'app') {
     contactMethod = 'app';
   }
 
-  const priority = notifType === 'incident_alert' ? 'urgent' : 'informational';
+  const priority = (isParentAlert || isStockAlert) ? 'urgent' : 'informational';
 
   let eventStartAt = rawPayload.event_start_at ? new Date(rawPayload.event_start_at).toISOString() : null;
   let eventEndAt = rawPayload.event_end_at ? new Date(rawPayload.event_end_at).toISOString() : null;
@@ -310,21 +315,23 @@ export async function sendNotification(rawPayload = {}) {
     }
   }
 
+  const defaultTitle = isParentAlert ? 'Incident Alert' : (isStockAlert ? 'Alert: Low Supplies Restock Required' : 'Campus Notice');
   const payload = {
     notif_type: notifType,
     priority,
     contact_method: contactMethod,
-    title: String(rawPayload.title || (notifType === 'incident_alert' ? 'Incident Alert' : 'Safety Notice')).trim().slice(0, 255),
+    title: String(rawPayload.title || defaultTitle).trim().slice(0, 255),
     message: String(rawPayload.message || '').trim(),
+    student_id: rawPayload.student_id || '11111111-1111-4111-8111-111111111111',
   };
 
-  if (notifType === 'incident_alert') {
-    payload.student_id = rawPayload.student_id || '11111111-1111-4111-8111-111111111111';
+  if (isParentAlert) {
     if (rawPayload.related_incident_id) payload.related_incident_id = rawPayload.related_incident_id;
     if (rawPayload.student_name) payload.student_name = rawPayload.student_name;
     if (rawPayload.student_grade) payload.student_grade = rawPayload.student_grade;
+  } else if (isStockAlert) {
+    payload.audience_group = String(rawPayload.audience_group || 'Clinic Staff / Stock Custodians').slice(0, 100);
   } else {
-    payload.student_id = rawPayload.student_id || '11111111-1111-4111-8111-111111111111';
     payload.audience_group = String(rawPayload.audience_group || rawPayload.recipient_role || rawPayload.recipient_name || 'All Staff').slice(0, 100);
     payload.event_start_at = eventStartAt;
     payload.event_end_at = eventEndAt;
@@ -382,6 +389,9 @@ export async function sendNotification(rawPayload = {}) {
   const record = { ...payload };
   delete record.student_name;
   delete record.student_grade;
+  if (record.notif_type === 'alert') {
+    record.notif_type = 'incident_alert';
+  }
   const row = await insertRow('notifications', {
     ...record,
     sent_at: new Date().toISOString(),

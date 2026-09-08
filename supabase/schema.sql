@@ -175,7 +175,7 @@ CREATE TABLE reports (
 -- ---------- 12. notifications (business-rule CHECK constraints) ----------
 CREATE TABLE notifications (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    notif_type VARCHAR(20) NOT NULL CHECK (notif_type IN ('incident_alert', 'event_notice')),
+    notif_type VARCHAR(20) NOT NULL CHECK (notif_type IN ('incident_alert', 'event_notice', 'alert')),
     priority VARCHAR(20) NOT NULL CHECK (priority IN ('urgent', 'informational')),
     student_id UUID REFERENCES students(id),
     related_incident_id UUID REFERENCES incidents(id),
@@ -190,12 +190,17 @@ CREATE TABLE notifications (
     created_by UUID REFERENCES auth.users(id),
     created_at TIMESTAMPTZ DEFAULT NOW(),
 
-    -- incident_alert ⇒ student required, urgent, emailed
+    -- incident_alert ⇒ student required, urgent, emailed (parent notification system)
     CONSTRAINT chk_incident_alert CHECK (
         notif_type <> 'incident_alert'
         OR (student_id IS NOT NULL AND priority = 'urgent' AND contact_method = 'email')
     ),
-    -- event_notice ⇒ audience + event window required, informational, app/email
+    -- alert ⇒ urgent, emailed (low on stocks, clinic, operational)
+    CONSTRAINT chk_alert CHECK (
+        notif_type <> 'alert'
+        OR (priority = 'urgent' AND contact_method = 'email')
+    ),
+    -- event_notice ⇒ audience + event window required, informational, app/email (drills & event notices)
     CONSTRAINT chk_event_notice CHECK (
         notif_type <> 'event_notice'
         OR (audience_group IS NOT NULL AND event_start_at IS NOT NULL AND event_end_at IS NOT NULL

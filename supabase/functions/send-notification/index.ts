@@ -30,8 +30,8 @@ function json(data: unknown, status = 200): Response {
 function validate(p: Record<string, unknown>): string[] {
   const errors: string[] = [];
   const type = p.notif_type as string;
-  if (!['incident_alert', 'event_notice'].includes(type)) {
-    errors.push('notif_type must be incident_alert or event_notice');
+  if (!['incident_alert', 'event_notice', 'alert'].includes(type)) {
+    errors.push('notif_type must be incident_alert, event_notice, or alert');
   }
   if (type === 'incident_alert') {
     if (!p.student_id) errors.push('student_id is required for incident alerts');
@@ -56,56 +56,72 @@ function escapeHtml(s: string): string {
   );
 }
 
-async function parentEmails(svc: ReturnType<typeof createClient>, studentId?: string): Promise<string[]> {
-  const TEST_EMAIL = 'yoboieliii@gmail.com';
-  if (studentId) {
-    const { data } = await svc
-      .from('emergency_contacts')
-      .select('email')
-      .eq('category', 'student')
-      .eq('student_id', studentId)
-      .not('email', 'is', null);
-    const found = (data || []).map((r) => (r.email || '').trim()).filter(Boolean);
-    if (found.includes(TEST_EMAIL)) return [TEST_EMAIL];
-    if (found.length) return [TEST_EMAIL];
-  }
-  return [TEST_EMAIL];
+async function allParentEmails(svc: ReturnType<typeof createClient>): Promise<string[]> {
+  const { data } = await svc
+    .from('emergency_contacts')
+    .select('email')
+    .eq('category', 'student')
+    .not('email', 'is', null);
+  const found = (data || []).map((r) => (r.email || '').trim().toLowerCase()).filter(Boolean);
+  const unique = Array.from(new Set(found));
+  if (unique.length) return unique;
+  return [
+    'marlonvalmoria89@gmail.com',
+    'ymanaronchristiand@gmail.com',
+    'tropanggala87@gmail.com',
+    'yoboieliii@gmail.com',
+  ];
+}
+
+async function stockRecipientEmails(svc: ReturnType<typeof createClient>): Promise<string[]> {
+  const { data } = await svc
+    .from('emergency_contacts')
+    .select('email')
+    .eq('category', 'school')
+    .not('email', 'is', null);
+  const found = (data || []).map((r) => (r.email || '').trim().toLowerCase()).filter(Boolean);
+  return found.length ? Array.from(new Set(found)) : ['yoboieliii@gmail.com'];
 }
 
 const fmt = (iso?: string) =>
   iso ? new Date(iso).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }) : '';
 
 function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): string {
-  const isAlert = n.notif_type === 'incident_alert';
   const rawTitle = String(n.title || '');
-  const isRestock = /restock|supplies|stock|inventory/i.test(rawTitle) || /clinic/i.test(String(p.audience_group || ''));
+  const isStockAlert = n.notif_type === 'alert' ||
+    /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+    /clinic|custodian/i.test(String(p.audience_group || '')) ||
+    (n.notif_type === 'incident_alert' && !p.related_incident_id && !p.student_name);
+  const isParentAlert = !isStockAlert && (n.notif_type === 'incident_alert' || Boolean(p.related_incident_id) || Boolean(p.student_name));
   const student = p.student_name as string | undefined;
 
   const details: string[] = [];
   if (student) {
     details.push(row('Student', `${escapeHtml(student)}${p.student_grade ? ` (Grade ${p.student_grade})` : ''}`));
   }
-  if (isAlert) {
+  if (isParentAlert) {
     details.push(row('Priority', 'URGENT - please contact the school as soon as possible'));
-  } else if (isRestock) {
-    details.push(row('Priority', 'HIGH - Clinic Restock Required'));
+  } else if (isStockAlert) {
+    details.push(row('Priority', 'HIGH - Low Stock Restock Required'));
   }
   if (p.audience_group) details.push(row('Audience', escapeHtml(String(p.audience_group))));
-  if (p.event_start_at && !isRestock) {
+  if (p.event_start_at && !isStockAlert) {
     details.push(row('Event', `${fmt(p.event_start_at as string)} - ${fmt(p.event_end_at as string)}`));
   }
   details.push(row('Sent', fmt(n.sent_at as string)));
-  const title = n.title ? escapeHtml(String(n.title)) : (isAlert ? 'Incident Alert' : (isRestock ? 'Clinic Restock Alert' : 'Campus Notice'));
+  const title = n.title
+    ? escapeHtml(String(n.title))
+    : (isParentAlert ? 'Incident Alert' : (isStockAlert ? 'Alert' : 'Event Notice'));
 
-  const badgeHtml = isAlert
+  const badgeHtml = isParentAlert
     ? '<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">URGENT INCIDENT ALERT</span>'
-    : isRestock
-      ? '<span style="display:inline-block;background:#fff1f2;color:#be123c;border:1px solid #fecdd3;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">CLINIC RESTOCK ALERT</span>'
-      : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">CAMPUS NOTICE</span>';
+    : isStockAlert
+      ? '<span style="display:inline-block;background:#fee2e2;color:#dc2626;border:1px solid #f87171;font-size:12px;font-weight:800;letter-spacing:1.5px;padding:4px 14px;border-radius:999px">ALERT</span>'
+      : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">EVENT NOTICE</span>';
 
-  const footerText = isAlert
+  const footerText = isParentAlert
     ? 'If you have any questions or need more information, please call the OSAS office or reply through the school\'s official channels.'
-    : isRestock
+    : isStockAlert
       ? 'This is an official administrative health & safety alert. Please replenish and update supplies inventory upon receipt.'
       : 'For questions, contact the OSAS office during school hours.';
 
@@ -215,11 +231,19 @@ Deno.serve(async (req) => {
   if (errors.length) return json({ error: errors.join('; ') }, 400);
 
   const notifType = payload.notif_type as string;
-  const isAlert = notifType === 'incident_alert';
+  const rawTitle = String(payload.title || '');
+  const isStockAlert = notifType === 'alert' ||
+    /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+    /clinic|custodian/i.test(String(payload.audience_group || '')) ||
+    (notifType === 'incident_alert' && !payload.related_incident_id && !payload.student_name);
+  const isParentAlert = !isStockAlert && (notifType === 'incident_alert' || Boolean(payload.related_incident_id) || Boolean(payload.student_name));
+
   const record = {
     ...payload,
-    priority: notifType === 'incident_alert' ? 'urgent' : 'informational',
-    contact_method: (payload.contact_method as string) || (notifType === 'incident_alert' ? 'email' : 'app'),
+    notif_type: notifType === 'alert' ? 'incident_alert' : notifType,
+    priority: (isParentAlert || isStockAlert) ? 'urgent' : 'informational',
+    contact_method: (payload.contact_method as string) || ((isParentAlert || isStockAlert) ? 'email' : 'app'),
+    student_id: (payload.student_id as string) || (notifType === 'alert' || isStockAlert ? '11111111-1111-4111-8111-111111111111' : (payload.student_id as string | undefined)),
     sent_at: new Date().toISOString(),
     delivery_status: 'sent',
     created_by: user ? user.id : null,
@@ -241,7 +265,9 @@ Deno.serve(async (req) => {
   let delivery: Record<string, unknown> = { provider: 'recorded', status: 'queued' };
 
   if (channel === 'email') {
-    const to = await parentEmails(svc, created.student_id || undefined);
+    const to = isStockAlert
+      ? await stockRecipientEmails(svc)
+      : await allParentEmails(svc);
     if (!to.length) {
       delivery = { provider: 'email', status: 'failed', error: 'No parent emails found in emergency_contacts (category=student).' };
     } else if (!MAILEROO_API_KEY) {
@@ -261,7 +287,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           from,
           to: to.map((address) => ({ address })),
-          subject: `${isAlert ? '[URGENT] ' : ''}${created.title || (isAlert ? 'Incident Alert' : 'Event Notice')} - Saint Agnes Academy`,
+          subject: `${isParentAlert ? '[URGENT INCIDENT ALERT] ' : (isStockAlert ? '[ALERT] ' : '[NOTICE] ')}${created.title || (isParentAlert ? 'Urgent Incident Alert' : (isStockAlert ? 'Alert' : 'Event Notice'))} - Saint Agnes Academy`,
           html: emailHtml(payload, created),
         }),
       });
