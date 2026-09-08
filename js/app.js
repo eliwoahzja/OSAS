@@ -58,28 +58,29 @@ function highlightSidebar(route) {
     const active = a.getAttribute('href') === `#/${route}`;
     const indicator = a.querySelector('.nav-indicator');
     const bg = a.querySelector('.nav-bg');
+    const iconEl = a.querySelector('.material-symbols-outlined');
     
     if (active) {
-      a.classList.add('text-white', 'font-semibold');
-      a.classList.remove('text-gray-400');
+      a.className = 'group relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-white font-semibold transition-all duration-200 clickable overflow-hidden outline-none';
       if (indicator) {
-        indicator.classList.add('!h-2/3', '!opacity-100');
-        indicator.classList.remove('h-0', 'opacity-0');
+        indicator.className = 'nav-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-2/3 bg-pink-500 rounded-r-md transition-all duration-300 opacity-100';
       }
       if (bg) {
-        bg.classList.add('!opacity-100', 'bg-white/10');
-        bg.classList.remove('opacity-0', 'bg-white/5');
+        bg.className = 'nav-bg absolute inset-0 bg-white/10 opacity-100 transition-opacity duration-200 rounded-xl';
+      }
+      if (iconEl) {
+        iconEl.classList.add('text-pink-500');
       }
     } else {
-      a.classList.add('text-gray-400');
-      a.classList.remove('text-white', 'font-semibold');
+      a.className = 'group relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:text-white transition-all duration-200 clickable overflow-hidden outline-none';
       if (indicator) {
-        indicator.classList.remove('!h-2/3', '!opacity-100');
-        indicator.classList.add('h-0', 'opacity-0');
+        indicator.className = 'nav-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-pink-500 rounded-r-md transition-all duration-300 opacity-0 group-hover:h-1/2 group-hover:opacity-50';
       }
       if (bg) {
-        bg.classList.remove('!opacity-100', 'bg-white/10');
-        bg.classList.add('opacity-0', 'bg-white/5');
+        bg.className = 'nav-bg absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl';
+      }
+      if (iconEl) {
+        iconEl.classList.remove('text-pink-500');
       }
     }
   });
