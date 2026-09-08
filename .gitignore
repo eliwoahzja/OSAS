@@ -9,3 +9,4 @@ coverage/
 .freebuff/
 .vercel/
 bun.lock
+node-compile-cache/

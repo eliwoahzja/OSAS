@@ -1,4 +1,3 @@
--- Fix RLS: allow anon role to read all tables (dashboard needs public read access)
 DO $$
 DECLARE t text;
 BEGIN
@@ -9,7 +8,6 @@ BEGIN
     END LOOP;
 END $$;
 
--- Users table: keep own-profile read, add anon read
 DROP POLICY IF EXISTS "read_own" ON users;
 CREATE POLICY "read_own" ON users FOR SELECT USING (auth.uid() = id);
 DROP POLICY IF EXISTS "read_anon" ON users;

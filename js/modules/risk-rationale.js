@@ -91,6 +91,77 @@ export function generateLegacyRationale(likelihood, impact, riskLevel) {
   return { recall, description, action };
 }
 
+export function getRiskDriverSummary(r) {
+  if (!r) {
+    return {
+      isElevated: false,
+      level: 'Low',
+      score: null,
+      drivers: [],
+      reasons: [],
+      shortSummary: 'Baseline Limits',
+      fullSummary: 'Baseline Operational Limits',
+    };
+  }
+
+  const isQuant = hasFactorData(r);
+  const score = r.risk_score != null ? Number(r.risk_score) : (isQuant ? computeRiskScore(r) : null);
+  const rawLevel = r.risk_level || (score != null ? scoreToLevel(score) : 'Medium');
+  const level = String(rawLevel || 'Medium').trim();
+  const isElevated = level === 'High' || level === 'Critical';
+
+  const drivers = [];
+
+  if (isQuant) {
+    const t = Number(r.threat) || 0;
+    const v = Number(r.vulnerability) || 0;
+    const el = Number(r.exploit_likelihood) || 0;
+    const ei = Number(r.exploit_impact) || 0;
+    const av = Number(r.asset_value) || 0;
+    const sc = Number(r.security_controls) || 0;
+
+    if (t >= 4) drivers.push({ label: 'Severe Threat Source', detail: `Intensity rating: ${t}/5 (Active physical/environmental hazard)` });
+    if (v >= 4) drivers.push({ label: 'High Vulnerability', detail: `Exposure rating: ${v}/5 (Significant structural or protocol weakness)` });
+    if (el >= 4 && ei >= 4) drivers.push({ label: 'Critical Exploit Multiplier', detail: `Likelihood ${el}/5 paired with Severe Impact ${ei}/5` });
+    else if (el >= 4) drivers.push({ label: 'High Exploit Likelihood', detail: `Probability rating: ${el}/5 (Frequent opportunity for incident occurrence)` });
+    else if (ei >= 4) drivers.push({ label: 'Severe Exploit Impact', detail: `Severity rating: ${ei}/5 (Heavy injury or facility destruction potential)` });
+    if (av >= 4) drivers.push({ label: 'Critical Asset / Life Safety', detail: `Asset rating: ${av}/5 (Involves student well-being or core school infrastructure)` });
+    if (sc <= 2) drivers.push({ label: 'Deficient Safeguards', detail: `Control rating: ${sc}/5 (Insufficient existing defenses to suppress hazard)` });
+
+    if (!drivers.length) {
+      if (level === 'Critical') drivers.push({ label: 'Compounding Exposure', detail: `Multiplied factor score (${score}) exceeds critical threshold (751+)` });
+      else if (level === 'High') drivers.push({ label: 'Elevated Exposure', detail: `Multiplied factor score (${score}) exceeds high threshold (501–750)` });
+      else drivers.push({ label: 'Balanced Baseline', detail: `Risk score (${score}) within manageable operational limits` });
+    }
+  } else {
+    const l = String(r.likelihood || 'Medium').toLowerCase();
+    const i = String(r.impact || 'Medium').toLowerCase();
+
+    if (l === 'high' && i === 'high') {
+      drivers.push({ label: 'Dual Peak Hazard', detail: 'High probability of occurrence combined with Severe impact consequences' });
+    } else if (l === 'high') {
+      drivers.push({ label: 'Frequent Occurrence', detail: 'High likelihood of incident happening during standard school sessions' });
+    } else if (i === 'high') {
+      drivers.push({ label: 'Severe Potential Impact', detail: 'Severe potential damage to student safety or educational operations' });
+    } else if (l === 'medium' && i === 'medium') {
+      drivers.push({ label: 'Moderate Operational Risk', detail: 'Medium likelihood balanced with manageable impact' });
+    } else {
+      drivers.push({ label: 'Low Residual Hazard', detail: 'Low likelihood with minor operational impact' });
+    }
+  }
+
+  const reasons = drivers.map((d) => d.label);
+  return {
+    isElevated,
+    level,
+    score,
+    drivers,
+    reasons,
+    shortSummary: reasons.slice(0, 2).join(' • '),
+    fullSummary: drivers.map((d) => `${d.label}: ${d.detail}`).join('; '),
+  };
+}
+
 export function hasFactorData(r) {
   return r &&
     r.threat != null &&
@@ -121,6 +192,32 @@ export function showRiskExplanationModal(r) {
   );
 
   const body = card.querySelector('.space-y-5');
+  const driverSummary = getRiskDriverSummary(r);
+
+  if (driverSummary.isElevated) {
+    const elevatedBanner = h('div', { class: 'bg-red-50/90 border border-red-200 rounded-2xl p-4 space-y-2.5 shadow-xs' },
+      h('div', { class: 'flex items-center justify-between' },
+        h('div', { class: 'flex items-center gap-2' },
+          icon('dangerous', 'text-red-600 text-lg'),
+          h('h4', { class: 'text-sm font-bold text-red-900 tracking-tight' }, `Primary Reasons Why This Assessment is ${driverSummary.level}`),
+        ),
+        pill(driverSummary.level, 'red'),
+      ),
+      h('p', { class: 'text-xs text-red-800/90 font-medium' },
+        'This hazard exceeded the safe operational thresholds due to the following specific contributing risk factors:'
+      ),
+      h('div', { class: 'space-y-2 pt-1' },
+        driverSummary.drivers.map((d) => h('div', { class: 'flex items-start gap-2 text-xs bg-white/80 p-2.5 rounded-xl border border-red-100' },
+          icon('warning', 'text-red-500 text-sm shrink-0 mt-0.5'),
+          h('div', {},
+            h('span', { class: 'font-bold text-red-950 block' }, d.label),
+            h('span', { class: 'text-red-800/90 text-[11px] block mt-0.5' }, d.detail),
+          ),
+        )),
+      ),
+    );
+    body.appendChild(elevatedBanner);
+  }
 
   if (isQuantitative) {
     const t = Number(r.threat);

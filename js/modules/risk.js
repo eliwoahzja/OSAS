@@ -6,12 +6,12 @@ import * as api from '../api.js';
 import { loadTable } from './table-loader.js';
 import {
   generateRiskRationale, generateLegacyRationale,
-  showRiskExplanationModal,
+  showRiskExplanationModal, getRiskDriverSummary,
 } from './risk-rationale.js';
 
 export {
   generateRiskRationale, generateLegacyRationale,
-  showRiskExplanationModal,
+  showRiskExplanationModal, getRiskDriverSummary,
 };
 
 export function computeRiskScore(factors) {
@@ -134,6 +134,27 @@ function riskForm(el) {
     const rationale = generateRiskRationale(f, score, level);
     recallEl.textContent = `Recall: ${rationale.recall}`;
     descriptionEl.textContent = rationale.description;
+
+    const isHighOrCritical = level === 'High' || level === 'Critical';
+    if (isHighOrCritical) {
+      const driverInfo = getRiskDriverSummary(f);
+      whyHighAlertEl.innerHTML = '';
+      whyHighAlertEl.appendChild(h('div', { class: 'flex items-center gap-1.5 font-bold text-red-900 mb-1' },
+        icon('warning', 'text-red-600 text-sm'),
+        h('span', {}, `Why this hazard is classified as ${level}:`),
+      ));
+      const list = h('ul', { class: 'space-y-1 text-[11px] text-red-800' });
+      driverInfo.drivers.forEach((d) => {
+        list.appendChild(h('li', { class: 'flex items-start gap-1.5' },
+          icon('arrow_right', 'text-red-500 text-xs shrink-0 mt-0.5'),
+          h('span', {}, h('strong', { class: 'font-bold text-red-950' }, d.label), ` — ${d.detail}`),
+        ));
+      });
+      whyHighAlertEl.appendChild(list);
+      whyHighAlertEl.classList.remove('hidden');
+    } else {
+      whyHighAlertEl.classList.add('hidden');
+    }
   };
 
   FACTOR_DEFS.forEach((def) => {
@@ -169,6 +190,7 @@ function riskForm(el) {
   const legacyDerivationEl = h('p', { class: 'text-[11px] text-gray-500 mt-0.5' });
   const recallEl = h('p', { class: 'text-xs font-semibold text-gray-800 leading-snug' });
   const descriptionEl = h('p', { class: 'text-xs text-gray-600 mt-1 leading-relaxed' });
+  const whyHighAlertEl = h('div', { class: 'hidden mt-2.5 p-3 rounded-xl bg-red-50/90 border border-red-200/80 text-xs text-red-800 shadow-xs' });
 
   const previewCard = h('div', { class: 'rounded-2xl bg-gradient-to-br from-pink-50/70 to-purple-50/40 border border-pink-100 p-4' },
     h('div', { class: 'flex items-center justify-between gap-2' },
@@ -190,6 +212,7 @@ function riskForm(el) {
       recallEl,
       descriptionEl,
     ),
+    whyHighAlertEl,
   );
   body.appendChild(previewCard);
 
@@ -298,7 +321,7 @@ export async function riskAssessment(el) {
         return h('button', {
           type: 'button',
           class: 'inline-flex items-center gap-1.5 focus:outline-none hover:opacity-85 transition-opacity cursor-pointer text-left group',
-          title: 'Click to view risk explanation & simple recall',
+          title: 'Click to view risk explanation & calculation',
           onclick: (e) => {
             e.stopPropagation();
             showRiskExplanationModal(r);
@@ -308,6 +331,34 @@ export async function riskAssessment(el) {
         r.risk_score != null ? h('span', { class: 'text-xs text-gray-400 font-mono font-medium group-hover:text-gray-600' }, `(${r.risk_score})`) : null,
         icon('info', 'text-gray-300 group-hover:text-pink-600 text-xs transition-colors'),
         );
+      },
+    },
+    {
+      key: 'risk_rationale',
+      label: 'Why It Is Rated / Driver',
+      render: (r) => {
+        const driverInfo = getRiskDriverSummary(r);
+        const isElevated = r.risk_level === 'Critical' || r.risk_level === 'High';
+
+        if (isElevated) {
+          return h('button', {
+            type: 'button',
+            class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition-colors clickable text-left group max-w-[240px]',
+            title: `Click to view why this is ${r.risk_level}:\n${driverInfo.fullSummary}`,
+            onclick: (e) => {
+              e.stopPropagation();
+              showRiskExplanationModal(r);
+            },
+          },
+          icon('warning', 'text-red-500 text-sm shrink-0'),
+          h('span', { class: 'truncate' }, `Why ${r.risk_level}: ${driverInfo.reasons[0] || 'Elevated Factors'}`),
+          );
+        }
+
+        return h('span', {
+          class: 'text-xs text-gray-500 block max-w-[220px] truncate',
+          title: driverInfo.fullSummary || 'Baseline Operational Limits',
+        }, driverInfo.shortSummary || 'Baseline Limits');
       },
     },
     { key: 'mitigation', label: 'Mitigation Plan', render: (r) => h('span', { class: 'block max-w-[320px] text-gray-600' }, r.mitigation || '—') },

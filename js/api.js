@@ -290,8 +290,10 @@ export async function sendNotification(rawPayload = {}) {
     : 'event_notice';
 
   let contactMethod = rawPayload.contact_method === 'in_app' ? 'app' : rawPayload.contact_method;
-  if (contactMethod !== 'email' && contactMethod !== 'app') {
-    contactMethod = notifType === 'incident_alert' ? 'email' : 'app';
+  if (notifType === 'incident_alert') {
+    contactMethod = 'email';
+  } else if (contactMethod !== 'email' && contactMethod !== 'app') {
+    contactMethod = 'app';
   }
 
   const priority = notifType === 'incident_alert' ? 'urgent' : 'informational';

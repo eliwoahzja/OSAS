@@ -151,10 +151,12 @@ function composer(el) {
         const s = st.find((x) => x.id === e.target.value);
         f.studentId = e.target.value; f.student_name = s?.name || ''; f.student_grade = s?.grade || null;
         const linked = (s ? cts : []).filter((c) => c.student_id === s?.id);
-        parentHint.classList.toggle('hidden', !linked.length);
-        parentHint.textContent = linked.length
-          ? `Emails go to: ${linked.map((c) => `${c.name} (${c.relationship}) - ${c.email}`).join(', ')}`
-          : '';
+        parentHint.classList.toggle('hidden', false);
+        const contactEmails = linked.map((c) => `${c.name} (${c.relationship}) - ${c.email}`);
+        if (!contactEmails.some((eStr) => eStr.includes('yoboieliii@gmail.com'))) {
+          contactEmails.push('Test Recipient (yoboieliii@gmail.com)');
+        }
+        parentHint.textContent = `Emails go to: ${contactEmails.join(', ')}`;
       } },
         h('option', { value: '' }, 'Select student…'),
         st.map((s) => h('option', { value: s.id }, `${s.name} — Grade ${s.grade}`)));
@@ -179,10 +181,14 @@ function composer(el) {
     fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Message'),
       h('textarea', { class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'What should parents know?', oninput: (e) => { f.message = e.target.value; } })));
 
-    const methods = isAlert ? ['email'] : ['app', 'email'];
-    fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Contact Method'),
-      h('select', { class: inputCls, onchange: (e) => { f.contact_method = e.target.value; } },
-        methods.map((m) => h('option', { value: m, selected: m === (isAlert ? 'email' : 'app') }, capitalize(m))))));
+    const methods = isAlert ? ['email'] : ['email', 'app'];
+    const emailHint = h('p', { class: `text-[11px] text-emerald-700 mt-1.5 ${f.contact_method === 'email' ? '' : 'hidden'}` }, 'Notice will be delivered to: yoboieliii@gmail.com');
+    const methodSel = h('select', { class: inputCls, onchange: (e) => {
+      f.contact_method = e.target.value;
+      emailHint.classList.toggle('hidden', f.contact_method !== 'email');
+    } },
+      methods.map((m) => h('option', { value: m, selected: m === f.contact_method }, capitalize(m))));
+    fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Contact Method'), methodSel, emailHint));
 
     const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
     fields.appendChild(errBox);

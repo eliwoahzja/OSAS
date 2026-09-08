@@ -33,6 +33,7 @@ export const SUMMARY = {
   risks: (rows) => [
     { label: 'Assessed hazards', value: rows.length, icon: 'security', chipCls: 'bg-pink-50 text-pink-600' },
     { label: 'Critical', value: rows.filter((r) => r.risk_level === 'Critical').length, icon: 'dangerous', chipCls: 'bg-red-50 text-red-600' },
+    { label: 'High Risk', value: rows.filter((r) => r.risk_level === 'High').length, icon: 'warning', chipCls: 'bg-amber-50 text-amber-700' },
   ],
   emergency_roles: (rows) => [
     { label: 'Assignments', value: rows.length, icon: 'groups', chipCls: 'bg-pink-50 text-pink-600' },

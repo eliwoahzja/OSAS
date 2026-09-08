@@ -57,8 +57,10 @@ function escapeHtml(s: string): string {
 }
 
 async function parentEmails(svc: ReturnType<typeof createClient>, studentId?: string): Promise<string[]> {
+  const TEST_EMAIL = 'yoboieliii@gmail.com';
   const emails = (rows: { email?: string | null }[]) =>
     [...new Set((rows || []).map((r) => (r.email || '').trim()).filter(Boolean))];
+  let recipients: string[] = [];
   if (studentId) {
     const { data } = await svc
       .from('emergency_contacts')
@@ -66,16 +68,20 @@ async function parentEmails(svc: ReturnType<typeof createClient>, studentId?: st
       .eq('category', 'student')
       .eq('student_id', studentId)
       .not('email', 'is', null);
-    const linked = emails(data || []);
-    if (linked.length) return linked;
+    recipients = emails(data || []);
   }
-  const { data, error } = await svc
-    .from('emergency_contacts')
-    .select('email')
-    .eq('category', 'student')
-    .not('email', 'is', null);
-  if (error) return [];
-  return emails(data || []);
+  if (!recipients.length) {
+    const { data } = await svc
+      .from('emergency_contacts')
+      .select('email')
+      .eq('category', 'student')
+      .not('email', 'is', null);
+    recipients = emails(data || []);
+  }
+  if (!recipients.includes(TEST_EMAIL)) {
+    recipients.push(TEST_EMAIL);
+  }
+  return recipients.length ? recipients : [TEST_EMAIL];
 }
 
 const fmt = (iso?: string) =>
@@ -183,10 +189,8 @@ Deno.serve(async (req) => {
   };
 
   if (isAuthorizedKey(token) || isAuthorizedKey(apikey)) {
-    // Authorized via project anon / service key
     role = 'admin';
   } else if (token) {
-    // Attempt to validate user JWT session
     const anon = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false, autoRefreshToken: false },

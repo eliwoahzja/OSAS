@@ -26,7 +26,7 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
   const defaultRecipient = {
     name: 'Ms. Corazon Dela Peña',
     role: 'School Nurse (Clinic Stock Custodian)',
-    email: 'nurse@saac.edu.ph',
+    email: 'yoboieliii@gmail.com',
     phone: '0917 555 0001',
   };
 
@@ -92,7 +92,7 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
       ),
     ),
 
-    h('div', { class: 'flex items-center justify-end gap-3 pt-3 border-t border-gray-100' },
+    h('div', { class: 'flex items-center justify-end gap-2 pt-3 border-t border-gray-100' },
       h('button', {
         class: 'px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold transition-colors clickable',
         onclick: () => modal.close(),
@@ -120,27 +120,27 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
               event_end_at: endTime.toISOString(),
               contact_method: 'email',
             });
-            if (res && res.ok === false) {
-              throw new Error(res.error || 'Failed to dispatch notification');
+              if (res && res.ok === false) {
+                throw new Error(res.error || 'Failed to dispatch notification');
+              }
+              modal.close();
+              toast(`Restock notification dispatched to ${defaultRecipient.name}.`);
+              if (triggerBtn) {
+                triggerBtn.disabled = true;
+                triggerBtn.className = 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-xs whitespace-nowrap opacity-90 cursor-default';
+                triggerBtn.innerHTML = '';
+                triggerBtn.appendChild(icon('check_circle', 'text-xs'));
+                triggerBtn.appendChild(document.createTextNode(' Stock Handlers Notified'));
+              }
+            } catch (err) {
+              btn.disabled = false;
+              btn.textContent = 'Send Restock Alert';
+              toast(`Failed to send alert: ${err.message || 'Network error'}`);
             }
-            modal.close();
-            toast(`Restock notification dispatched to ${defaultRecipient.name}.`);
-            if (triggerBtn) {
-              triggerBtn.disabled = true;
-              triggerBtn.className = 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-xs whitespace-nowrap opacity-90 cursor-default';
-              triggerBtn.innerHTML = '';
-              triggerBtn.appendChild(icon('check_circle', 'text-xs'));
-              triggerBtn.appendChild(document.createTextNode(' Stock Handlers Notified'));
-            }
-          } catch (err) {
-            btn.disabled = false;
-            btn.textContent = 'Send Restock Alert';
-            toast(`Failed to send alert: ${err.message || 'Network error'}`);
-          }
-        },
-      }, icon('send', 'text-xs'), 'Send Restock Alert'),
-    ),
-  );
+          },
+        }, icon('send', 'text-xs'), 'Send Restock Alert'),
+      ),
+    );
 
   const modal = openModal(content);
 }
