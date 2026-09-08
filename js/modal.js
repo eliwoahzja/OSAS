@@ -12,9 +12,9 @@ export function openModal(content) {
     class: 'osas-modal-card',
   });
 
-  // Blur content during loading period
-  content.style.filter = 'blur(6px)';
-  content.style.transition = 'filter 0.35s ease-out';
+  // Blur content during loading period with deep iOS frosted blur
+  content.style.filter = 'blur(10px)';
+  content.style.transition = 'filter 0.4s cubic-bezier(0.32, 0.72, 0, 1)';
   card.appendChild(content);
 
   // Transparent blur loader with white spinner and white text
