@@ -1,6 +1,6 @@
 import {
   h, icon, dataTable, moduleShell, moduleStats,
-  skeletonTable, emptyBanner, errorBanner, inputCls,
+  skeletonTable, skeletonModulePage, emptyBanner, errorBanner, inputCls,
 } from '../ui.js';
 import * as api from '../api.js';
 
@@ -62,10 +62,7 @@ export async function loadTable(el, {
   actionLabel, actionIcon, actionClass, onAction, filters = {}, searchKeys = [],
   searchPlaceholder, selectFilters = [],
 }) {
-  el.appendChild(moduleShell({ icon: iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction }));
-  const holder = h('div', { class: 'space-y-5' });
-  el.appendChild(holder);
-  holder.appendChild(skeletonTable(5, columns.length));
+  el.appendChild(skeletonModulePage({ columns: columns.length, hasAction: !!actionLabel }));
 
   let rows;
   try {
@@ -75,12 +72,18 @@ export async function loadTable(el, {
     ]);
     rows = fetchedRows;
   } catch (e) {
-    holder.replaceChildren(errorBanner(e.message, () => {
+    el.innerHTML = '';
+    el.appendChild(errorBanner(e.message, () => {
       el.innerHTML = '';
       loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters, searchKeys, searchPlaceholder, selectFilters });
     }));
     return;
   }
+
+  el.innerHTML = '';
+  el.appendChild(moduleShell({ icon: iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction }));
+  const holder = h('div', { class: 'space-y-5' });
+  el.appendChild(holder);
 
   if (!rows.length) {
     holder.replaceChildren(emptyBanner({ icon: empty?.icon || iconName, title: empty?.title || 'No records yet', text: empty?.text }));

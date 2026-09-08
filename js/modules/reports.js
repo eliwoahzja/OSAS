@@ -1,16 +1,14 @@
 import {
-  h, icon, moduleShell, skeletonGrid, statCard, toast, errorBanner,
+  h, icon, moduleShell, skeletonGrid, skeletonHeader, skeletonCard, statCard, toast, errorBanner,
 } from '../ui.js';
 import * as api from '../api.js';
 
 export async function complianceReports(el) {
-  el.appendChild(moduleShell({
-    icon: 'assessment', title: 'Safety Compliance Reports',
-    subtitle: 'Auto-generated summaries pulled from inspections, drills, and incidents — exportable as CSV or PDF.',
-  }));
-  const holder = h('div', { class: 'space-y-5' });
-  el.appendChild(holder);
-  holder.appendChild(skeletonGrid(4));
+  const skeletonWrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6 animate-pulse' });
+  skeletonWrap.appendChild(skeletonHeader({ hasAction: false, hasIcon: true }));
+  skeletonWrap.appendChild(skeletonGrid(4));
+  skeletonWrap.appendChild(skeletonCard({ title: true, lines: 4 }));
+  el.appendChild(skeletonWrap);
 
   try {
     const [s, logs] = await Promise.all([
@@ -18,7 +16,16 @@ export async function complianceReports(el) {
       api.listRows('incidents'),
       new Promise(r => setTimeout(r, 3000)),
     ]);
-    holder.innerHTML = '';
+
+    el.innerHTML = '';
+    el.appendChild(moduleShell({
+      icon: 'assessment', title: 'Safety Compliance Reports',
+      subtitle: 'Auto-generated summaries pulled from inspections, drills, and incidents — exportable as CSV or PDF.',
+    }));
+
+    const holder = h('div', { class: 'space-y-5' });
+    el.appendChild(holder);
+
     const grid = h('div', { class: 'grid grid-cols-2 lg:grid-cols-4 gap-5' });
     const items = [
       { label: 'Inspections Passed', value: s.inspections_passed, sub: 'of total checklist items', iconName: 'checklist', tone: 'green', blob: 'bg-emerald-50' },
@@ -47,6 +54,7 @@ export async function complianceReports(el) {
       });
     }
   } catch (e) {
-    holder.replaceChildren(errorBanner(e.message));
+    el.innerHTML = '';
+    el.appendChild(errorBanner(e.message, () => complianceReports(el)));
   }
 }

@@ -1,42 +1,46 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal, moduleShell, skeletonTable,
+  capitalize, toast, openModal, moduleShell, skeletonTable, skeletonModulePage,
   dataTable, emptyBanner, errorBanner,
 } from '../ui.js';
 import * as api from '../api.js';
 import { AUDIENCES } from './drills.js';
 
 export async function parentNotifications(el) {
-  el.appendChild(moduleShell({
-    icon: 'notifications',
-    title: 'Parent Notification System',
-    subtitle: 'Send urgent incident alerts or informational event notices to parents.',
-    actionLabel: 'New Notification',
-    onAction: () => composer(el),
-  }));
-  const holder = h('div', { class: 'space-y-5' });
-  el.appendChild(holder);
-  return renderNotifications(el, holder);
+  el.appendChild(skeletonModulePage({ columns: 7, hasAction: true }));
+  return renderNotifications(el);
 }
 
-async function renderNotifications(el, holder) {
-  holder.innerHTML = '';
-  const filterRow = h('div', { class: 'flex flex-wrap items-center gap-2' },
-    ['all', 'incident_alert', 'event_notice'].map((k) =>
-      h('button', {
-        class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k === 'all' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
-        onclick: () => renderNotifications(el, holder),
-      }, k === 'all' ? 'All' : k === 'incident_alert' ? 'Incident Alerts' : 'Event Notices')));
-  holder.appendChild(filterRow);
-  holder.appendChild(skeletonTable(4, 7));
+async function renderNotifications(el, currentType = 'all') {
   try {
     const [rows] = await Promise.all([
       api.listRows('notifications'),
       new Promise(r => setTimeout(r, 3000)),
     ]);
-    holder.innerHTML = '';
+
+    el.innerHTML = '';
+    el.appendChild(moduleShell({
+      icon: 'notifications',
+      title: 'Parent Notification System',
+      subtitle: 'Send urgent incident alerts or informational event notices to parents.',
+      actionLabel: 'New Notification',
+      onAction: () => composer(el),
+    }));
+
+    const holder = h('div', { class: 'space-y-5' });
+    el.appendChild(holder);
+
+    const filterRow = h('div', { class: 'flex flex-wrap items-center gap-2' },
+      ['all', 'incident_alert', 'event_notice'].map((k) =>
+        h('button', {
+          class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k === currentType ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
+          onclick: () => renderNotifications(el, k),
+        }, k === 'all' ? 'All' : k === 'incident_alert' ? 'Incident Alerts' : 'Event Notices')));
     holder.appendChild(filterRow);
-    if (!rows.length) {
+
+    const filteredRows = currentType === 'all' ? rows : rows.filter(r => r.notif_type === currentType);
+
+    if (!filteredRows.length) {
       holder.appendChild(emptyBanner({ icon: 'notifications', title: 'No notifications sent yet', text: 'Use "New Notification" to send the first incident alert or event notice.' }));
       return;
     }
@@ -51,9 +55,10 @@ async function renderNotifications(el, holder) {
       { key: 'sent_at', label: 'Sent', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.sent_at)) },
       { key: 'delivery_status', label: 'Delivery', render: (r) => pill(r.delivery_status) },
     ];
-    holder.appendChild(dataTable(columns, rows));
+    holder.appendChild(dataTable(columns, filteredRows));
   } catch (e) {
-    holder.replaceChildren(filterRow, errorBanner(e.message));
+    el.innerHTML = '';
+    el.appendChild(errorBanner(e.message, () => parentNotifications(el)));
   }
 }
 

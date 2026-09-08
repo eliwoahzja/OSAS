@@ -154,6 +154,162 @@ export function skeleton(rows = 5, cols = 5) {
   return skeletonTable(rows, cols);
 }
 
+export function skeletonHeader({ hasAction = true, hasIcon = true } = {}) {
+  const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4 pb-1 animate-pulse' });
+  const left = h('div', { class: 'space-y-2.5' });
+  if (hasIcon) {
+    left.appendChild(h('div', { class: 'w-10 h-10 rounded-xl bg-gray-200/80 mb-2' }));
+  }
+  left.appendChild(h('div', { class: 'h-8 w-64 sm:w-80 bg-gray-200/90 rounded-xl' }));
+  left.appendChild(h('div', { class: 'h-4 w-48 sm:w-96 bg-gray-100 rounded-full' }));
+  head.appendChild(left);
+  if (hasAction) {
+    head.appendChild(h('div', { class: 'h-10 w-36 sm:w-44 bg-gray-200/80 rounded-2xl shrink-0' }));
+  }
+  return head;
+}
+
+export function skeletonCard({ title = true, lines = 3, height = 'auto' } = {}) {
+  const card = h('div', {
+    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse',
+    style: height !== 'auto' ? { minHeight: height } : {},
+  });
+  if (title) {
+    card.appendChild(h('div', { class: 'flex items-center justify-between pb-3 border-b border-gray-100' },
+      h('div', { class: 'h-5 w-40 bg-gray-200/80 rounded-lg' }),
+      h('div', { class: 'h-4 w-16 bg-gray-100 rounded-full' }),
+    ));
+  }
+  for (let i = 0; i < lines; i++) {
+    card.appendChild(h('div', {
+      class: 'h-4 rounded-full bg-gray-100',
+      style: { width: `${80 - ((i * 19) % 35)}%`, animationDelay: `${i * 100}ms` },
+    }));
+  }
+  return card;
+}
+
+export function skeletonCharts() {
+  const wrap = h('div', { class: 'grid grid-cols-1 lg:grid-cols-2 gap-6' });
+  
+  // Donut/pie chart card skeleton
+  const c1 = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse' },
+    h('div', { class: 'flex items-center justify-between pb-3 border-b border-gray-100' },
+      h('div', { class: 'h-5 w-44 bg-gray-200/80 rounded-lg' }),
+      h('div', { class: 'h-4 w-20 bg-gray-100 rounded-full' }),
+    ),
+    h('div', { class: 'w-44 h-44 rounded-full border-[18px] border-gray-100 mx-auto my-6 flex items-center justify-center' },
+      h('div', { class: 'h-6 w-16 bg-gray-100 rounded-md' }),
+    ),
+    h('div', { class: 'grid grid-cols-3 gap-3 pt-2' },
+      h('div', { class: 'h-4 bg-gray-100 rounded-full' }),
+      h('div', { class: 'h-4 bg-gray-100 rounded-full' }),
+      h('div', { class: 'h-4 bg-gray-100 rounded-full' }),
+    ),
+  );
+  
+  // Bar chart card skeleton
+  const c2 = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse' },
+    h('div', { class: 'flex items-center justify-between pb-3 border-b border-gray-100' },
+      h('div', { class: 'h-5 w-48 bg-gray-200/80 rounded-lg' }),
+      h('div', { class: 'h-4 w-20 bg-gray-100 rounded-full' }),
+    ),
+    h('div', { class: 'flex items-end justify-between h-48 px-4 gap-3 pt-4 border-b border-gray-100 pb-2' },
+      [45, 75, 35, 90, 60, 80, 50, 65].map((val) =>
+        h('div', { class: 'w-full bg-gray-100 rounded-t-lg', style: { height: `${val}%` } })
+      ),
+    ),
+    h('div', { class: 'flex justify-between px-2 pt-1' },
+      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
+      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
+      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
+      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
+    ),
+  );
+  
+  wrap.appendChild(c1);
+  wrap.appendChild(c2);
+  return wrap;
+}
+
+export function skeletonDashboard() {
+  const wrap = h('div', { class: 'space-y-8 max-w-[1400px] 2xl:max-w-[1600px] mx-auto animate-pulse' });
+  
+  // Top header skeleton with title & action text pills
+  wrap.appendChild(
+    h('div', { class: 'flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100' },
+      h('div', { class: 'space-y-2' },
+        h('div', { class: 'h-8 w-64 bg-gray-200/90 rounded-xl' }),
+        h('div', { class: 'h-4 w-80 sm:w-96 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'flex items-center gap-2' },
+        h('div', { class: 'h-9 w-28 bg-gray-200/80 rounded-xl' }),
+        h('div', { class: 'h-9 w-32 bg-gray-200/80 rounded-xl' }),
+      ),
+    ),
+  );
+  
+  // Hero banner skeleton
+  wrap.appendChild(
+    h('div', { class: 'bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6' },
+      h('div', { class: 'space-y-3 flex-1' },
+        h('div', { class: 'h-6 w-36 bg-gray-100 rounded-full' }),
+        h('div', { class: 'h-9 w-72 sm:w-96 bg-gray-200/80 rounded-xl' }),
+        h('div', { class: 'h-4 w-60 sm:w-80 bg-gray-100 rounded-full' }),
+        h('div', { class: 'h-4 w-44 bg-gray-100/70 rounded-full pt-1' }),
+      ),
+      h('div', { class: 'hidden md:block pr-8' },
+        h('div', { class: 'w-36 h-36 rounded-full bg-gray-100' }),
+      ),
+    ),
+  );
+  
+  // 4 Stat Cards
+  wrap.appendChild(skeletonGrid(4));
+  
+  // 2 Chart Cards
+  wrap.appendChild(skeletonCharts());
+  
+  // Alert banner skeleton
+  wrap.appendChild(
+    h('div', { class: 'bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between gap-4' },
+      h('div', { class: 'flex items-center gap-3.5 flex-1' },
+        h('div', { class: 'w-9 h-9 rounded-full bg-gray-100 shrink-0' }),
+        h('div', { class: 'space-y-2 flex-1' },
+          h('div', { class: 'h-4 w-48 bg-gray-200/80 rounded-md' }),
+          h('div', { class: 'h-3 w-80 bg-gray-100 rounded-full' }),
+        ),
+      ),
+      h('div', { class: 'h-9 w-36 bg-gray-200/70 rounded-xl shrink-0' }),
+    ),
+  );
+  
+  return wrap;
+}
+
+export function skeletonModulePage({ columns = 5, hasAction = true } = {}) {
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6 animate-pulse' });
+  
+  // Header skeleton
+  wrap.appendChild(skeletonHeader({ hasAction, hasIcon: true }));
+  
+  // Search and filter controls skeleton
+  wrap.appendChild(
+    h('div', { class: 'flex flex-wrap items-center justify-between gap-3' },
+      h('div', { class: 'h-11 w-full sm:w-72 bg-white rounded-2xl border border-gray-100 shadow-xs' }),
+      h('div', { class: 'flex gap-2' },
+        h('div', { class: 'h-10 w-24 bg-white rounded-xl border border-gray-100 shadow-xs' }),
+        h('div', { class: 'h-10 w-28 bg-white rounded-xl border border-gray-100 shadow-xs' }),
+      ),
+    ),
+  );
+  
+  // Table card skeleton
+  wrap.appendChild(skeletonTable(5, columns));
+  
+  return wrap;
+}
+
 export function skeletonTable(rows = 5, cols = 5) {
   const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4' });
   

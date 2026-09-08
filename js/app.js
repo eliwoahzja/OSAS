@@ -1,4 +1,4 @@
-import { h, icon, statCard, donutChart, pieChart, yearBarChart, barChart, skeletonGrid, errorBanner, toast, openModal } from './ui.js';
+import { h, icon, statCard, donutChart, pieChart, yearBarChart, barChart, skeletonGrid, skeletonDashboard, errorBanner, toast, openModal } from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -454,43 +454,9 @@ function drawStats(box, s) {
 }
 
 async function renderDashboard(el) {
-  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' });
+  el.appendChild(skeletonDashboard());
 
-  wrap.appendChild(
-    h('section', {
-      class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm',
-    },
-      h('div', {
-        class: 'absolute right-0 top-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50',
-      }),
-      h('div', { class: 'relative z-10 flex justify-between items-center h-full gap-8' },
-        h('div', { class: 'max-w-2xl' },
-          h('div', { class: 'flex items-center gap-3 mb-6' },
-            h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
-            h('p', { class: 'text-[11px] font-bold tracking-[0.2em] text-pink-100 uppercase' }, 'OSAS Overview'),
-          ),
-          h('h2', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, `${greeting()},`),
-          h('p', { class: 'text-[15px] text-gray-200 mb-8 max-w-xl font-light' },
-            'Here\'s what\'s happening across campus safety today.'),
-          h('p', { class: 'text-[13px] text-pink-100/80' }, new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })),
-        ),
-        h('div', { class: 'hidden md:block pr-8' },
-          h('div', { class: 'w-44 h-44 rounded-full border border-white/10 flex items-center justify-center p-2 bg-black/5 relative' },
-            h('div', { class: 'absolute inset-0 rounded-full border border-dashed border-pink-300/30' }),
-            h('img', { src: '/assets/logo.png', alt: 'SAAC Seal', class: 'w-32 h-32 object-contain relative z-10' }),
-          ),
-        ),
-      ),
-    ),
-  );
-
-  const statsWrap = h('div', { class: 'space-y-8' });
-  wrap.appendChild(statsWrap);
-  el.appendChild(wrap);
-
-  const box = h('div', { class: 'space-y-8' });
-  statsWrap.appendChild(box);
-  box.appendChild(skeletonGrid(4));
+  let statsBox = null;
 
   const refresh = async (isInitial = false) => {
     try {
@@ -498,10 +464,55 @@ async function renderDashboard(el) {
         api.getDashboardStats(),
         isInitial ? new Promise(r => setTimeout(r, 3000)) : Promise.resolve(),
       ]);
-      drawStats(box, s);
+
+      if (isInitial) {
+        el.innerHTML = '';
+        const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' });
+
+        wrap.appendChild(
+          h('section', {
+            class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm',
+          },
+            h('div', {
+              class: 'absolute right-0 top-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50',
+            }),
+            h('div', { class: 'relative z-10 flex justify-between items-center h-full gap-8' },
+              h('div', { class: 'max-w-2xl' },
+                h('div', { class: 'flex items-center gap-3 mb-6' },
+                  h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
+                  h('p', { class: 'text-[11px] font-bold tracking-[0.2em] text-pink-100 uppercase' }, 'OSAS Overview'),
+                ),
+                h('h2', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, `${greeting()},`),
+                h('p', { class: 'text-[15px] text-gray-200 mb-8 max-w-xl font-light' },
+                  'Here\'s what\'s happening across campus safety today.'),
+                h('p', { class: 'text-[13px] text-pink-100/80' }, new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })),
+              ),
+              h('div', { class: 'hidden md:block pr-8' },
+                h('div', { class: 'w-44 h-44 rounded-full border border-white/10 flex items-center justify-center p-2 bg-black/5 relative' },
+                  h('div', { class: 'absolute inset-0 rounded-full border border-dashed border-pink-300/30' }),
+                  h('img', { src: '/assets/logo.png', alt: 'SAAC Seal', class: 'w-32 h-32 object-contain relative z-10' }),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        const statsWrap = h('div', { class: 'space-y-8' });
+        wrap.appendChild(statsWrap);
+        el.appendChild(wrap);
+
+        statsBox = h('div', { class: 'space-y-8' });
+        statsWrap.appendChild(statsBox);
+        drawStats(statsBox, s);
+      } else if (statsBox) {
+        drawStats(statsBox, s);
+      }
     } catch (e) {
-      if (!box.querySelector('.bg-red-50')) {
-        box.appendChild(errorBanner(e.message, refresh));
+      if (isInitial) {
+        el.innerHTML = '';
+        el.appendChild(errorBanner(e.message, () => renderDashboard(el)));
+      } else if (statsBox && !statsBox.querySelector('.bg-red-50')) {
+        statsBox.appendChild(errorBanner(e.message, refresh));
       }
       console.error(e);
     }
