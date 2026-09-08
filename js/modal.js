@@ -14,16 +14,17 @@ export function openModal(content) {
     class: 'bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-2xl opacity-0 scale-95 transition-all duration-300 relative',
   });
 
-  const loader = h('div', { class: 'flex flex-col items-center justify-center py-24 px-8 text-center transition-opacity duration-300' },
-    h('div', { class: 'w-10 h-10 rounded-full border-2 border-pink-100 border-t-pink-500 animate-spin mb-4 shadow-[0_0_10px_rgba(236,72,153,0.2)]' }),
-    h('span', { class: 'text-[10px] font-bold tracking-[0.2em] text-pink-500 uppercase mb-2' }, 'Please Wait'),
-    h('p', { class: 'text-sm text-gray-500' }, 'Content is loading...')
+  const loader = h('div', { class: 'absolute inset-0 z-50 rounded-3xl flex flex-col items-center justify-center bg-black/30 backdrop-blur-md transition-opacity duration-300 text-center' },
+    h('div', { class: 'w-12 h-12 rounded-full border-[3px] border-white/40 border-t-white animate-spin mb-4 drop-shadow-md' }),
+    h('span', { class: 'text-[11px] font-bold tracking-[0.2em] text-white uppercase mb-2 drop-shadow-md' }, 'Please Wait'),
+    h('p', { class: 'text-sm text-white font-medium drop-shadow-md' }, 'Content is loading...')
   );
 
   spacer.appendChild(card);
   overlay.appendChild(spacer);
   
-  // Start with loader
+  // Start with content immediately, but overlaid with blur loader
+  card.appendChild(content);
   card.appendChild(loader);
   
   document.body.appendChild(overlay);
@@ -42,16 +43,7 @@ export function openModal(content) {
     loader.classList.add('opacity-0');
     setTimeout(() => {
       if (isClosing) return;
-      card.removeChild(loader);
-      
-      // Make content fade in smoothly
-      content.style.opacity = '0';
-      content.style.transition = 'opacity 300ms ease-in';
-      card.appendChild(content);
-      
-      // Force reflow
-      void content.offsetWidth;
-      content.style.opacity = '1';
+      if (loader.parentNode === card) card.removeChild(loader);
     }, 300);
   }, 1200);
 
