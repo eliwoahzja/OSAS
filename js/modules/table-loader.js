@@ -71,7 +71,7 @@ export async function loadTable(el, {
   try {
     const [fetchedRows] = await Promise.all([
       api.listRows(table, filters),
-      new Promise(res => setTimeout(res, 850)),
+      new Promise(res => setTimeout(res, 3000)),
     ]);
     rows = fetchedRows;
   } catch (e) {

@@ -32,7 +32,7 @@ async function renderNotifications(el, holder) {
   try {
     const [rows] = await Promise.all([
       api.listRows('notifications'),
-      new Promise(r => setTimeout(r, 850)),
+      new Promise(r => setTimeout(r, 3000)),
     ]);
     holder.innerHTML = '';
     holder.appendChild(filterRow);

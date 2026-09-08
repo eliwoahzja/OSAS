@@ -107,11 +107,11 @@ function startProgress() {
   // force reflow
   void nprogress.offsetWidth;
   
-  nprogress.style.transition = 'width 300ms ease-out, opacity 300ms ease-out';
-  nprogress.style.width = '25%';
-  pTimer1 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '55%'; }, 200);
-  pTimer2 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '80%'; }, 500);
-  pTimer3 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '92%'; }, 750);
+  nprogress.style.transition = 'width 400ms ease-out, opacity 300ms ease-out';
+  nprogress.style.width = '30%';
+  pTimer1 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '60%'; }, 700);
+  pTimer2 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '85%'; }, 1800);
+  pTimer3 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '94%'; }, 2600);
 }
 
 function stopProgress() {
@@ -140,14 +140,9 @@ async function route() {
   const el = viewEl();
   
   startProgress();
-  el.style.transition = 'opacity 150ms ease-out';
-  el.style.opacity = '0.4';
-  
-  // allow fade out to start
-  await new Promise(res => setTimeout(res, 50));
-  
   el.innerHTML = '';
   el.scrollTop = 0;
+  el.style.opacity = '1';
   
   try {
     const res = view(el);
@@ -158,7 +153,6 @@ async function route() {
   }
   
   stopProgress();
-  el.style.opacity = '1';
 }
 
 function syncAvatarUI() {
@@ -502,7 +496,7 @@ async function renderDashboard(el) {
     try {
       const [s] = await Promise.all([
         api.getDashboardStats(),
-        isInitial ? new Promise(r => setTimeout(r, 850)) : Promise.resolve(),
+        isInitial ? new Promise(r => setTimeout(r, 3000)) : Promise.resolve(),
       ]);
       drawStats(box, s);
     } catch (e) {

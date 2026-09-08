@@ -150,6 +150,10 @@ export function moduleStats(chips) {
   );
 }
 
+export function skeleton(rows = 5, cols = 5) {
+  return skeletonTable(rows, cols);
+}
+
 export function skeletonTable(rows = 5, cols = 5) {
   const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4' });
   

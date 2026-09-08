@@ -16,7 +16,7 @@ export async function complianceReports(el) {
     const [s, logs] = await Promise.all([
       api.getDashboardStats(),
       api.listRows('incidents'),
-      new Promise(r => setTimeout(r, 850)),
+      new Promise(r => setTimeout(r, 3000)),
     ]);
     holder.innerHTML = '';
     const grid = h('div', { class: 'grid grid-cols-2 lg:grid-cols-4 gap-5' });
