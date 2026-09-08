@@ -273,7 +273,9 @@ export function dataTable(columns, rows) {
   });
   table.appendChild(tbody);
 
-  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-x-auto' }, table);
+  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
+    h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
+  );
 }
 
 const STAT_TONES = {

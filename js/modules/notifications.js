@@ -74,7 +74,7 @@ function composer(el) {
   // FIXME: When sending SMS broadcasts via external gateway (Semaphore / Twilio),
   // throttle in batches of 25 numbers with 400ms delay to avoid carrier-level rate-limiting (HTTP 429).
   let closeModal = () => {};
-  const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden' });
+  const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' });
   const tabs = h('div', { class: 'grid grid-cols-2 gap-1 p-2 bg-gray-50 border-b border-gray-100' });
   card.appendChild(tabs);
 

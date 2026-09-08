@@ -113,7 +113,7 @@ export function showRiskExplanationModal(r) {
   let closeModal = () => {};
   const isQuantitative = hasFactorData(r);
 
-  const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden max-w-xl w-full' },
+  const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible max-w-xl w-full' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between' },
       h('div', {},
         h('h3', { class: 'text-base font-bold text-gray-900' }, isQuantitative ? 'Quantitative Risk Calculation' : 'Qualitative Risk Evaluation'),

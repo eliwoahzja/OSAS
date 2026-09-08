@@ -63,7 +63,7 @@ export function factorTo3Scale(val) {
 
 function riskForm(el) {
   let closeModal = () => {};
-  const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden max-w-2xl w-full' },
+  const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible max-w-2xl w-full' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between' },
       h('div', {},
         h('h3', { class: 'text-base font-bold text-gray-900' }, 'New Risk Assessment'),

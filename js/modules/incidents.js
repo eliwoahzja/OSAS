@@ -64,7 +64,7 @@ export async function incidentLogging(el) {
 
 function incidentForm(el) {
   let closeModal = () => {};
-  const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden' },
+  const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Log New Incident')),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
   const grid = form.querySelector('.grid');
