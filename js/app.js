@@ -87,12 +87,17 @@ function highlightSidebar(route) {
 }
 
 let nprogress = null;
+let pTimer1 = null;
+let pTimer2 = null;
 function startProgress() {
   if (!nprogress) {
     nprogress = document.createElement('div');
     nprogress.className = 'fixed top-0 left-0 h-[3px] bg-pink-500 z-50 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(236,72,153,0.7)]';
     document.body.appendChild(nprogress);
   }
+  clearTimeout(pTimer1);
+  clearTimeout(pTimer2);
+  
   nprogress.style.transition = 'none';
   nprogress.style.width = '0%';
   nprogress.style.opacity = '1';
@@ -102,12 +107,15 @@ function startProgress() {
   
   nprogress.style.transition = 'width 200ms ease-out, opacity 300ms ease-out';
   nprogress.style.width = '20%';
-  setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '40%'; }, 100);
-  setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '70%'; }, 300);
+  pTimer1 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '40%'; }, 100);
+  pTimer2 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '70%'; }, 300);
 }
 
 function stopProgress() {
   if (!nprogress) return;
+  clearTimeout(pTimer1);
+  clearTimeout(pTimer2);
+  
   nprogress.style.width = '100%';
   setTimeout(() => {
     nprogress.style.opacity = '0';
