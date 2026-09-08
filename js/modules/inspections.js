@@ -111,13 +111,11 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
             const startTime = new Date();
             const endTime = new Date(startTime.getTime() + 2 * 60 * 60 * 1000);
             const res = await api.sendNotification({
-              notif_type: 'event_notice',
-              priority: 'informational',
-              audience_group: 'Clinic Staff / Stock Custodians',
+              notif_type: 'incident_alert',
+              priority: 'urgent',
+              student_id: '11111111-1111-4111-8111-111111111111',
               title: hasDepleted ? 'Urgent: Low First Aid Supplies Restock Alert' : 'Routine First Aid Supplies Status Check',
               message: `Attention ${defaultRecipient.name} (${defaultRecipient.role}): ${hasDepleted ? `The following medical items are depleted and require immediate restocking: ${summaryText}` : 'All clinic supplies verified in good standing.'}`,
-              event_start_at: startTime.toISOString(),
-              event_end_at: endTime.toISOString(),
               contact_method: 'email',
             });
               if (res && res.ok === false) {
