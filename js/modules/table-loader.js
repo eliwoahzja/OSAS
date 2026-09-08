@@ -69,11 +69,7 @@ export async function loadTable(el, {
 
   let rows;
   try {
-    const [fetchedRows] = await Promise.all([
-      api.listRows(table, filters),
-      new Promise(res => setTimeout(res, 3000))
-    ]);
-    rows = fetchedRows;
+    rows = await api.listRows(table, filters);
   } catch (e) {
     holder.replaceChildren(errorBanner(e.message, () => {
       el.innerHTML = '';

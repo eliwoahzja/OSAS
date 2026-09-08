@@ -495,10 +495,7 @@ async function renderDashboard(el) {
 
   const refresh = async () => {
     try {
-      const [s] = await Promise.all([
-        api.getDashboardStats(),
-        new Promise(r => setTimeout(r, 3000))
-      ]);
+      const s = await api.getDashboardStats();
       drawStats(box, s);
     } catch (e) {
       if (!box.querySelector('.bg-red-50')) {
