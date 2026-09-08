@@ -87,55 +87,18 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
 
   const details: string[] = [];
   if (student) {
-    details.push(row('Student', `${escapeHtml(student)}${p.student_grade ? ` (Grade ${p.student_grade})` : ''}`, isAlert));
+    details.push(row('Student', `${escapeHtml(student)}${p.student_grade ? ` (Grade ${p.student_grade})` : ''}`));
   }
-  if (p.audience_group) details.push(row('Audience', escapeHtml(String(p.audience_group)), isAlert));
+  if (isAlert) {
+    details.push(row('Priority', 'URGENT - please contact the school as soon as possible'));
+  }
+  if (p.audience_group) details.push(row('Audience', escapeHtml(String(p.audience_group))));
   if (p.event_start_at) {
-    details.push(row('Event', `${fmt(p.event_start_at as string)} - ${fmt(p.event_end_at as string)}`, isAlert));
+    details.push(row('Event', `${fmt(p.event_start_at as string)} - ${fmt(p.event_end_at as string)}`));
   }
-  details.push(row('Sent', fmt(n.sent_at as string), isAlert));
+  details.push(row('Sent', fmt(n.sent_at as string)));
   const title = n.title ? escapeHtml(String(n.title)) : (isAlert ? 'Incident Alert' : 'Event Notice');
 
-  if (isAlert) {
-    // Distinctive URGENT / ALERT template (Red / High contrast warning)
-    return `
-<div style="background:#fef2f2;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
-  <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:2px solid #ef4444;box-shadow:0 8px 16px rgba(220,38,38,0.15)">
-    <div style="background:#dc2626;padding:24px 32px">
-      <table cellpadding="0" cellspacing="0" border="0" style="width:100%">
-        <tr>
-          <td style="width:48px;vertical-align:middle;padding-right:16px">
-            <div style="background:#ffffff;width:40px;height:40px;border-radius:50%;display:inline-block;text-align:center;line-height:40px;color:#dc2626;font-size:24px;font-weight:bold;">!</div>
-          </td>
-          <td style="vertical-align:middle">
-            <div style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px">URGENT INCIDENT ALERT</div>
-            <div style="color:#fecaca;font-size:12px;letter-spacing:1px;margin-top:4px;font-weight:600">SAINT AGNES ACADEMY OSAS</div>
-          </td>
-        </tr>
-      </table>
-    </div>
-    <div style="padding:32px">
-      <h2 style="margin:0 0 12px;color:#991b1b;font-size:20px;font-weight:700">${title}</h2>
-      <p style="margin:0 0 24px;color:#171717;font-size:15px;line-height:1.6;font-weight:500;padding:16px;background:#fff5f5;border-left:4px solid #dc2626;border-radius:4px">${escapeHtml(String(n.message))}</p>
-      
-      <h3 style="margin:0 0 10px;color:#991b1b;font-size:13px;text-transform:uppercase;letter-spacing:1px">Incident Details</h3>
-      <table style="width:100%;border-collapse:collapse;margin:0 0 24px;font-size:14px">
-        ${details.join('')}
-      </table>
-      
-      <p style="margin:0 0 0;color:#171717;font-size:15px;line-height:1.6;font-weight:bold">
-        Please contact the school administration or OSAS office as soon as possible.
-      </p>
-    </div>
-    <div style="background:#fef2f2;padding:16px 32px;border-top:1px solid #fecaca;color:#991b1b;font-size:11px;line-height:1.6;text-align:center">
-      This is an automated emergency message from Saint Agnes Academy.<br/>
-      For immediate assistance, please call the school hotline.
-    </div>
-  </div>
-</div>`;
-  }
-
-  // Distinctive EVENT / STANDARD template (Maroon / Gentle / Professional)
   return `
 <div style="background:#f5f1ea;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e7e0d4;box-shadow:0 4px 12px rgba(0,0,0,0.05)">
@@ -154,15 +117,19 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
     </div>
     <div style="padding:30px 32px">
       <div style="margin-bottom:18px">
-        <span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">EVENT NOTICE</span>
+        ${isAlert
+          ? '<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">URGENT INCIDENT ALERT</span>'
+          : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">EVENT NOTICE</span>'}
       </div>
-      <h2 style="margin:0 0 12px;color:#27272a;font-size:19px;font-weight:700">${title}</h2>
-      <p style="margin:0 0 20px;color:#3f3f46;font-size:14px;line-height:1.7">${escapeHtml(String(n.message))}</p>
+      <h2 style="margin:0 0 6px;color:#27272a;font-size:19px;font-weight:700">${title}</h2>
+      <p style="margin:0 0 18px;color:#3f3f46;font-size:14px;line-height:1.7">${escapeHtml(String(n.message))}</p>
       <table style="width:100%;border-collapse:collapse;margin:0 0 20px;font-size:13px">
         ${details.join('')}
       </table>
       <p style="margin:0 0 4px;color:#3f3f46;font-size:14px;line-height:1.7">
-        We look forward to seeing you there. For questions, contact the OSAS office during school hours.
+        ${isAlert
+          ? 'If you have any questions or need more information, please call the OSAS office or reply through the school\'s official channels.'
+          : 'We look forward to seeing you there. For questions, contact the OSAS office during school hours.'}
       </p>
     </div>
     <div style="background:#faf7f2;padding:16px 32px;border-top:1px solid #eee6d9;color:#8b8176;font-size:11px;line-height:1.6">
@@ -173,13 +140,9 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
 </div>`;
 }
 
-function row(label: string, value: string, isAlert = false): string {
-  const bg = isAlert ? '#fef2f2' : '#faf7f2';
-  const text = isAlert ? '#991b1b' : '#8b8176';
-  const border = isAlert ? '#fecaca' : '#f0eae0';
-  const valueColor = isAlert ? '#171717' : '#3f3f46';
-  return `<tr><td style="padding:8px 12px;background:${bg};color:${text};font-weight:600;width:110px;border-bottom:1px solid ${border}">${label}</td>` +
-    `<td style="padding:8px 12px;color:${valueColor};border-bottom:1px solid ${border}">${value}</td></tr>`;
+function row(label: string, value: string): string {
+  return `<tr><td style="padding:7px 12px;background:#faf7f2;color:#8b8176;font-weight:600;width:110px;border-bottom:1px solid #f0eae0">${label}</td>` +
+    `<td style="padding:7px 12px;color:#3f3f46;border-bottom:1px solid #f0eae0">${value}</td></tr>`;
 }
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {
