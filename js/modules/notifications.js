@@ -30,7 +30,10 @@ async function renderNotifications(el, holder) {
   holder.appendChild(filterRow);
   holder.appendChild(skeletonTable(4, 7));
   try {
-    const rows = await api.listRows('notifications');
+    const [rows] = await Promise.all([
+      api.listRows('notifications'),
+      new Promise(r => setTimeout(r, 850)),
+    ]);
     holder.innerHTML = '';
     holder.appendChild(filterRow);
     if (!rows.length) {

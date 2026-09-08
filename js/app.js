@@ -89,6 +89,7 @@ function highlightSidebar(route) {
 let nprogress = null;
 let pTimer1 = null;
 let pTimer2 = null;
+let pTimer3 = null;
 function startProgress() {
   if (!nprogress) {
     nprogress = document.createElement('div');
@@ -97,6 +98,7 @@ function startProgress() {
   }
   clearTimeout(pTimer1);
   clearTimeout(pTimer2);
+  clearTimeout(pTimer3);
   
   nprogress.style.transition = 'none';
   nprogress.style.width = '0%';
@@ -105,22 +107,25 @@ function startProgress() {
   // force reflow
   void nprogress.offsetWidth;
   
-  nprogress.style.transition = 'width 200ms ease-out, opacity 300ms ease-out';
-  nprogress.style.width = '20%';
-  pTimer1 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '40%'; }, 100);
-  pTimer2 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '70%'; }, 300);
+  nprogress.style.transition = 'width 300ms ease-out, opacity 300ms ease-out';
+  nprogress.style.width = '25%';
+  pTimer1 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '55%'; }, 200);
+  pTimer2 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '80%'; }, 500);
+  pTimer3 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '92%'; }, 750);
 }
 
 function stopProgress() {
   if (!nprogress) return;
   clearTimeout(pTimer1);
   clearTimeout(pTimer2);
+  clearTimeout(pTimer3);
   
+  nprogress.style.transition = 'width 250ms ease-out, opacity 300ms ease-out';
   nprogress.style.width = '100%';
   setTimeout(() => {
     nprogress.style.opacity = '0';
     setTimeout(() => { nprogress.style.width = '0%'; }, 300);
-  }, 200);
+  }, 250);
 }
 
 async function route() {
@@ -493,9 +498,12 @@ async function renderDashboard(el) {
   statsWrap.appendChild(box);
   box.appendChild(skeletonGrid(4));
 
-  const refresh = async () => {
+  const refresh = async (isInitial = false) => {
     try {
-      const s = await api.getDashboardStats();
+      const [s] = await Promise.all([
+        api.getDashboardStats(),
+        isInitial ? new Promise(r => setTimeout(r, 850)) : Promise.resolve(),
+      ]);
       drawStats(box, s);
     } catch (e) {
       if (!box.querySelector('.bg-red-50')) {
@@ -505,7 +513,7 @@ async function renderDashboard(el) {
     }
   };
 
-  await refresh();
+  await refresh(true);
   clearInterval(statsTimer);
   statsTimer = setInterval(refresh, 15000);
 }
