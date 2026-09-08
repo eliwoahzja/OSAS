@@ -33,7 +33,7 @@ feat(drills): add evacuation timing countdown and marshal checklist
 - Record designated assembly point marshal sign-offs
 
 Co-authored-by: Campus Safety Officer <safety-lead@saac.ph>
-Signed-off-by: Eli <markelijah562@gmail.com>
+Signed-off-by: eliwoahzja <shinazutempest@gmail.com>
 Reviewed-by: Lead Administrator <admin@saac.ph>
 ```
 
