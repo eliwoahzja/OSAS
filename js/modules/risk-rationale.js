@@ -5,14 +5,6 @@ import {
   computeRiskScore, scoreToLevel, levelBandRange,
 } from './risk.js';
 
-/**
- * Human-readable recall rules and contextual driver narratives for campus hazards.
- * 
- * WHY:
- * Quantitative risk scores (e.g. 820) are mathematically rigorous, but school principals,
- * security wardens, and DepEd inspectors need immediate, clear plain-language rationale
- * detailing WHY an area is dangerous and what specific mitigation must happen first.
- */
 export function generateRiskRationale(factors, score, level) {
   const t = Number(factors.threat) || 0;
   const v = Number(factors.vulnerability) || 0;

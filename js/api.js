@@ -40,8 +40,6 @@ async function restFetch(method, path, { query = {}, body = null, prefer = null 
 
 let supabaseAvailable = null;
 
-// FIXME: High-latency campus Wi-Fi (especially Annex building) causes 2s ping to timeout early.
-// Might need 3500ms threshold during school drill events when 800+ devices connect at once.
 async function demoMode() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return true;
   if (supabaseAvailable === false) return true;
@@ -67,29 +65,6 @@ async function demoMode() {
   }
 }
 
-/*
- * NOTE(eli): Experimental offline sync queue for field marshals during campus evacuation drills.
- * Field marshals stationed at the sports complex lose Wi-Fi signal when students evacuate.
- * Plan: Buffer incident records in localStorage/IndexedDB and replay when 'online' event fires.
- *
- * async function flushOfflineQueue() {
- *   const queue = JSON.parse(localStorage.getItem('osas.offline_incident_queue') || '[]');
- *   if (!queue.length) return;
- *   console.info(`[OSAS] Attempting to replay ${queue.length} offline incident report(s)...`);
- *   for (const item of [...queue]) {
- *     try {
- *       await insertRow('incidents', item);
- *       queue.shift();
- *     } catch (e) {
- *       console.warn('[OSAS] Offline replay stalled:', e.message);
- *       break; // Network still unstable, try next cycle
- *     }
- *   }
- *   localStorage.setItem('osas.offline_incident_queue', JSON.stringify(queue));
- * }
- * window.addEventListener('online', flushOfflineQueue);
- */
-
 const MOCK_KEY = 'osas.mock.v1';
 
 function loadMock() {
@@ -98,9 +73,6 @@ function loadMock() {
     for (const [table, rows] of Object.entries(saved)) {
       if (!Array.isArray(rows)) continue;
       const defaults = MOCK[table] || [];
-      // WHY: Build a Set of existing IDs to turn the deduplication from O(N * M)
-      // into O(N + M). On mobile devices with large stored incident logs,
-      // avoiding nested loops prevents UI stutter on initial dashboard load.
       const existingIds = new Set(rows.map((r) => r.id));
       const missingDefaults = defaults.filter((d) => !existingIds.has(d.id));
       MOCK[table] = [...rows, ...missingDefaults];
@@ -185,8 +157,6 @@ function computeStats(incidents, inspections, drills, supplies, contacts) {
     }))
     .sort((a, b) => (b.reorder_threshold - b.quantity) - (a.reorder_threshold - a.quantity));
 
-  // WHY: Single-pass accumulation instead of 5 separate array traversals.
-  // Reduces garbage collection pressure during the 15-second dashboard refresh cycle.
   let inspections_pending = 0, inspections_passed = 0, inspections_overdue = 0;
   for (const ins of inspections) {
     if (ins.status === 'passed') inspections_passed++;
@@ -235,8 +205,6 @@ export async function listRows(table, filters = {}) {
     provider = 'mock';
     return listMock(table, filters);
   }
-  // TODO(scaling): Add cursor/keyset pagination for large tables like incidents and audit logs.
-  // Currently loads up to default Supabase row cap (1000 items).
   const query = { select: table === 'emergency_contacts' ? '*,students(name,grade)' : '*' };
   for (const [k, v] of Object.entries(filters)) {
     if (v) query[k] = `ilike.*${v}*`;
@@ -259,8 +227,6 @@ export async function listRows(table, filters = {}) {
 }
 
 export async function insertRow(table, payload) {
-  // FIXME: Add client-side validation for Philippine mobile phone numbers (+63 / 09xx)
-  // before persisting to emergency_contacts or sending via SMS gateway.
   if (await demoMode()) {
     provider = 'mock';
     return insertMock(table, payload);
@@ -319,7 +285,6 @@ export async function deleteRow(table, id) {
 }
 
 export async function sendNotification(rawPayload = {}) {
-  // Normalize payload to strictly conform to Supabase schema and Edge Function validator
   const notifType = (rawPayload.notif_type === 'incident_alert' || (!rawPayload.notif_type && (rawPayload.student_id || rawPayload.related_incident_id)))
     ? 'incident_alert'
     : 'event_notice';
@@ -366,9 +331,6 @@ export async function sendNotification(rawPayload = {}) {
   if (fnUrl) {
     try {
       const token = await auth.currentAccessToken();
-      // Guard against a hung request (paused/unreachable Edge Function, CORS
-      // block, etc.) — without this, a bad connection can leave the caller
-      // waiting indefinitely with no error and no feedback.
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
       let res;
@@ -397,10 +359,6 @@ export async function sendNotification(rawPayload = {}) {
     } catch (e) {
       const reason = e.name === 'AbortError' ? 'Notification service timed out' : e.message;
       console.error('sendNotification via Edge Function failed:', e);
-      // If there's a real signed-in session, don't silently fall back to a
-      // direct DB insert for an email notification — that would record it
-      // as "sent" without ever actually emailing anyone. Surface the error
-      // instead so the failure is visible.
       if (payload.contact_method === 'email' && !(await demoMode())) {
         return { ok: false, error: reason || 'Notification service unreachable', channel: 'email' };
       }

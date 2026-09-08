@@ -14,17 +14,6 @@ export {
   showRiskExplanationModal,
 };
 
-/**
- * Quantitative Campus Risk Scoring Formula.
- * 
- * WHY:
- * Formula: (Threat × Vulnerability × (Exploit Likelihood × Exploit Impact) × Asset Value) − Security Controls
- * Calibrated against maximum possible score (5^5) - 1 = 3,124 vs normal distribution of campus hazards:
- * - Low: 1-250
- * - Moderate: 251-500
- * - High: 501-750
- * - Critical: 751+
- */
 export function computeRiskScore(factors) {
   const threat = Number(factors.threat) || 0;
   const vulnerability = Number(factors.vulnerability) || 0;

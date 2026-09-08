@@ -1,4 +1,9 @@
-import { h, icon, statCard, donutChart, pieChart, yearBarChart, barChart, skeletonGrid, skeletonDashboard, errorBanner, toast, openModal } from './ui.js';
+import {
+  h, icon, statCard, donutChart, pieChart, yearBarChart, barChart,
+  skeletonGrid, skeletonDashboard, skeletonHeroBanner, skeletonSupplyAlert, skeletonStatCards,
+  skeletonAnalyticsGrid, skeletonTrendChart,
+  errorBanner, toast, openModal,
+} from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -104,7 +109,6 @@ function startProgress() {
   nprogress.style.width = '0%';
   nprogress.style.opacity = '1';
   
-  // force reflow
   void nprogress.offsetWidth;
   
   nprogress.style.transition = 'width 400ms ease-out, opacity 300ms ease-out';
@@ -454,9 +458,42 @@ function drawStats(box, s) {
 }
 
 async function renderDashboard(el) {
-  el.appendChild(skeletonDashboard());
+  el.innerHTML = '';
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' });
+  el.appendChild(wrap);
 
-  let statsBox = null;
+  const heroWrap = h('div');
+  heroWrap.appendChild(skeletonHeroBanner());
+  wrap.appendChild(heroWrap);
+
+  const statsWrap = h('div', { class: 'space-y-8' });
+  wrap.appendChild(statsWrap);
+
+  const skeletonBox = h('div', { class: 'space-y-8' });
+  skeletonBox.appendChild(skeletonSupplyAlert());
+  skeletonBox.appendChild(h('section', {},
+    h('div', { class: 'mb-6 animate-pulse' },
+      h('div', { class: 'h-2.5 w-20 bg-pink-200/80 rounded-full mb-2' }),
+      h('div', { class: 'flex items-center justify-between' },
+        h('div', { class: 'space-y-1.5' },
+          h('div', { class: 'h-7 w-60 bg-gray-200/90 rounded-xl' }),
+          h('div', { class: 'h-4 w-52 bg-gray-100 rounded-full' }),
+        ),
+        h('div', { class: 'h-7 w-28 bg-gray-100 rounded-full' }),
+      ),
+    ),
+    skeletonStatCards(6, 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5'),
+  ));
+  skeletonBox.appendChild(h('section', { class: 'space-y-5' },
+    h('div', { class: 'animate-pulse space-y-1.5' },
+      h('div', { class: 'h-2.5 w-28 bg-pink-200/80 rounded-full mb-2' }),
+      h('div', { class: 'h-7 w-80 bg-gray-200/90 rounded-xl' }),
+      h('div', { class: 'h-4 w-96 max-w-full bg-gray-100 rounded-full' }),
+    ),
+    skeletonAnalyticsGrid(),
+  ));
+  skeletonBox.appendChild(skeletonTrendChart());
+  statsWrap.appendChild(skeletonBox);
 
   const refresh = async (isInitial = false) => {
     try {
@@ -466,10 +503,8 @@ async function renderDashboard(el) {
       ]);
 
       if (isInitial) {
-        el.innerHTML = '';
-        const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' });
-
-        wrap.appendChild(
+        heroWrap.innerHTML = '';
+        heroWrap.appendChild(
           h('section', {
             class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm',
           },
@@ -494,25 +529,18 @@ async function renderDashboard(el) {
                 ),
               ),
             ),
-          ),
+          )
         );
-
-        const statsWrap = h('div', { class: 'space-y-8' });
-        wrap.appendChild(statsWrap);
-        el.appendChild(wrap);
-
-        statsBox = h('div', { class: 'space-y-8' });
-        statsWrap.appendChild(statsBox);
-        drawStats(statsBox, s);
-      } else if (statsBox) {
-        drawStats(statsBox, s);
       }
+
+      statsWrap.innerHTML = '';
+      drawStats(statsWrap, s);
     } catch (e) {
       if (isInitial) {
-        el.innerHTML = '';
-        el.appendChild(errorBanner(e.message, () => renderDashboard(el)));
-      } else if (statsBox && !statsBox.querySelector('.bg-red-50')) {
-        statsBox.appendChild(errorBanner(e.message, refresh));
+        statsWrap.innerHTML = '';
+        statsWrap.appendChild(errorBanner(e.message, () => renderDashboard(el)));
+      } else if (!statsWrap.querySelector('.bg-red-50')) {
+        statsWrap.appendChild(errorBanner(e.message, refresh));
       }
       console.error(e);
     }

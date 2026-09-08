@@ -129,10 +129,6 @@ function incidentForm(el) {
     btn.disabled = true;
     btn.textContent = 'Saving…';
     try {
-      // WHY: Under Philippine RA 10173, student medical remarks & disciplinary records
-      // must remain confidential and segregated from public bulletin exports.
-      // FIXME: When multiple emergency contacts exist, dispatch priority goes to primary guardian;
-      // secondary emergency contact is notified if primary remains unacknowledged after 15 min.
       const created = await api.insertRow('incidents', {
         date: new Date().toISOString().slice(0, 10),
         time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),

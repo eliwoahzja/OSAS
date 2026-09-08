@@ -1,17 +1,10 @@
 import {
   h, icon, dataTable, moduleShell, moduleStats,
-  skeletonTable, skeletonModulePage, emptyBanner, errorBanner, inputCls,
+  skeletonHeader, skeletonTableWithColumns, skeletonModuleStats, skeletonSearchBar,
+  emptyBanner, errorBanner, inputCls,
 } from '../ui.js';
 import * as api from '../api.js';
 
-/**
- * Summary badge metrics configuration for OSAS domain tables.
- * 
- * WHY:
- * Pre-calculating quick summary chips at the top of each view provides staff with
- * instantaneous situational awareness (e.g. # of unaddressed incidents, overdue inspections)
- * without requiring manual table sorting or SQL aggregations.
- */
 export const SUMMARY = {
   emergency_contacts: (rows) => [
     { label: 'Total contacts', value: rows.length, icon: 'contacts', chipCls: 'bg-pink-50 text-pink-600' },
@@ -54,15 +47,33 @@ export const SUMMARY = {
   ],
 };
 
-/**
- * Generic asynchronous data table view loader with skeleton and search filters.
- */
 export async function loadTable(el, {
   table, columns, empty, iconName, title, subtitle,
   actionLabel, actionIcon, actionClass, onAction, filters = {}, searchKeys = [],
   searchPlaceholder, selectFilters = [],
 }) {
-  el.appendChild(skeletonModulePage({ columns: columns.length, hasAction: !!actionLabel }));
+  el.innerHTML = '';
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
+  el.appendChild(wrap);
+
+  wrap.appendChild(skeletonHeader({
+    hasAction: !!actionLabel,
+    hasIcon: !!iconName,
+    titleWidth: 'w-64 sm:w-80',
+    subtitleWidth: 'w-80 sm:w-[480px]',
+  }));
+
+  const holder = h('div', { class: 'space-y-5' });
+  wrap.appendChild(holder);
+
+  if (SUMMARY[table]) {
+    const chipCount = SUMMARY[table]([]).length;
+    holder.appendChild(skeletonModuleStats(chipCount));
+  }
+  if (searchKeys.length || selectFilters.length) {
+    holder.appendChild(skeletonSearchBar({ hasFilters: selectFilters.length > 0, count: selectFilters.length }));
+  }
+  holder.appendChild(skeletonTableWithColumns(columns, 5));
 
   let rows;
   try {
@@ -72,21 +83,21 @@ export async function loadTable(el, {
     ]);
     rows = fetchedRows;
   } catch (e) {
-    el.innerHTML = '';
-    el.appendChild(errorBanner(e.message, () => {
-      el.innerHTML = '';
+    holder.replaceChildren(errorBanner(e.message, () => {
       loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters, searchKeys, searchPlaceholder, selectFilters });
     }));
     return;
   }
 
   el.innerHTML = '';
-  el.appendChild(moduleShell({ icon: iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction }));
-  const holder = h('div', { class: 'space-y-5' });
-  el.appendChild(holder);
+  const realShell = moduleShell({ icon: iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction });
+  el.appendChild(realShell);
+
+  const realHolder = h('div', { class: 'space-y-5' });
+  realShell.appendChild(realHolder);
 
   if (!rows.length) {
-    holder.replaceChildren(emptyBanner({ icon: empty?.icon || iconName, title: empty?.title || 'No records yet', text: empty?.text }));
+    realHolder.replaceChildren(emptyBanner({ icon: empty?.icon || iconName, title: empty?.title || 'No records yet', text: empty?.text }));
     return;
   }
 
@@ -119,7 +130,7 @@ export async function loadTable(el, {
 
   const tableWrap = h('div');
   parts.push(tableWrap);
-  holder.replaceChildren(...parts);
+  realHolder.replaceChildren(...parts);
 
   const renderTable = () => {
     const filtered = rows.filter(matches);

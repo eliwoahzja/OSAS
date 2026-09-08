@@ -145,14 +145,6 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
   const modal = openModal(content);
 }
 
-/**
- * Routine school safety inspections checklist.
- * 
- * WHY:
- * BFP and DepEd mandate minimum inspection intervals (e.g. fire extinguishers checked
- * every 6 months, exit routes inspected monthly). Flagging items as 'overdue' prevents
- * lapses before regional DepEd accreditation audits.
- */
 export async function safetyInspections(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },

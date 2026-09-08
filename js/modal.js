@@ -12,12 +12,10 @@ export function openModal(content) {
     class: 'osas-modal-card',
   });
 
-  // Blur content during loading period
   content.style.filter = 'blur(6px)';
   content.style.transition = 'filter 0.35s ease-out';
   card.appendChild(content);
 
-  // Transparent blur loader with white spinner and white text
   const loader = h('div', { class: 'osas-modal-loader' },
     h('div', { class: 'osas-spinner-white' }),
     h('span', { class: 'text-[11px] font-bold tracking-[0.2em] text-white uppercase mb-1.5 drop-shadow' }, 'Please Wait'),
@@ -28,12 +26,10 @@ export function openModal(content) {
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 
-  // Trigger enter transition smoothly
   requestAnimationFrame(() => {
     overlay.classList.add('active');
   });
 
-  // Rate-limiting / grace period delay: 3s before revealing content
   let isClosing = false;
   let fadeTimer = null;
   const loadTimer = setTimeout(() => {

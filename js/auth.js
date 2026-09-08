@@ -73,7 +73,6 @@ function injectedSession() {
 }
 
 function devSession() {
-  // Developer/demo fallback session when running standalone without live Supabase
   return {
     provider: 'dev',
     user: { email: 'admin@saac.ph', role: 'admin', name: 'Local Administrator' },
@@ -81,8 +80,6 @@ function devSession() {
   };
 }
 
-// TODO: Integrate Google Workspace / MS 365 OAuth with domain lock for @saac.edu.ph institutional faculty accounts
-// FIXME: If session expires during an active incident form entry, save draft to sessionStorage so marshal doesn't lose field inputs.
 export function onAuthChange(fn) {
   listeners.push(fn);
   return () => { listeners = listeners.filter((f) => f !== fn); };

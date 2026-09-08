@@ -154,17 +154,253 @@ export function skeleton(rows = 5, cols = 5) {
   return skeletonTable(rows, cols);
 }
 
-export function skeletonHeader({ hasAction = true, hasIcon = true } = {}) {
-  const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4 pb-1 animate-pulse' });
-  const left = h('div', { class: 'space-y-2.5' });
-  if (hasIcon) {
-    left.appendChild(h('div', { class: 'w-10 h-10 rounded-xl bg-gray-200/80 mb-2' }));
+export function skeletonStatCards(count = 6, gridCls = 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5') {
+  const grid = h('div', { class: gridCls });
+  for (let i = 0; i < count; i++) {
+    grid.appendChild(
+      h('div', {
+        class: 'card-lift bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden animate-pulse',
+      },
+        h('div', { class: 'w-8 h-8 rounded-xl bg-gray-100 mb-4' }),
+        h('div', { class: 'h-2.5 w-20 bg-gray-200/80 rounded-full mb-2' }),
+        h('div', { class: 'h-8 w-14 bg-gray-300/70 rounded-lg my-1' }),
+        h('div', { class: 'h-2.5 w-24 bg-gray-100 rounded-full mt-4' }),
+      )
+    );
   }
-  left.appendChild(h('div', { class: 'h-8 w-64 sm:w-80 bg-gray-200/90 rounded-xl' }));
-  left.appendChild(h('div', { class: 'h-4 w-48 sm:w-96 bg-gray-100 rounded-full' }));
+  return grid;
+}
+
+export function skeletonSupplyAlert() {
+  return h('div', {
+    class: 'bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs animate-pulse',
+  },
+    h('div', { class: 'flex items-center gap-3.5 flex-1 min-w-0' },
+      h('div', { class: 'w-9 h-9 rounded-full bg-gray-100 shrink-0' }),
+      h('div', { class: 'flex-1 min-w-0 space-y-2' },
+        h('div', { class: 'flex items-center gap-2' },
+          h('div', { class: 'h-4 w-44 bg-gray-200/90 rounded-md' }),
+          h('div', { class: 'h-4 w-28 bg-gray-100 rounded-full' }),
+        ),
+        h('div', { class: 'h-3 w-80 max-w-full bg-gray-100 rounded-full' }),
+      ),
+    ),
+    h('div', { class: 'shrink-0 flex items-center gap-2.5' },
+      h('div', { class: 'h-9 w-36 bg-gray-200/80 rounded-xl' }),
+      h('div', { class: 'h-9 w-32 bg-gray-100 rounded-xl' }),
+    ),
+  );
+}
+
+export function skeletonAnalyticsGrid() {
+  const grid = h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' });
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'flex flex-col sm:flex-row items-center gap-4 justify-between my-auto py-2' },
+        h('div', { class: 'w-[130px] h-[130px] rounded-full border-[14px] border-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 min-w-[120px] space-y-2' },
+          h('div', { class: 'h-3 w-full bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-5/6 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-4/6 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-3/4 bg-gray-100 rounded-full' }),
+        ),
+      ),
+    )
+  );
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'flex flex-col sm:flex-row items-center gap-4 justify-between my-auto py-2' },
+        h('div', { class: 'w-[130px] h-[130px] rounded-full border-[20px] border-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 min-w-[120px] space-y-2' },
+          h('div', { class: 'h-3 w-full bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-4/5 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-3/5 bg-gray-100 rounded-full' }),
+        ),
+      ),
+    )
+  );
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'space-y-3.5 my-auto py-2' },
+        [80, 55, 40, 25].map((w) =>
+          h('div', { class: 'space-y-1.5' },
+            h('div', { class: 'flex justify-between' },
+              h('div', { class: 'h-2.5 w-20 bg-gray-200/70 rounded-full' }),
+              h('div', { class: 'h-2.5 w-8 bg-gray-100 rounded-full' }),
+            ),
+            h('div', { class: 'h-2.5 w-full bg-gray-100 rounded-full overflow-hidden' },
+              h('div', { class: 'h-full bg-gray-200/80 rounded-full', style: { width: `${w}%` } })
+            ),
+          )
+        ),
+      ),
+    )
+  );
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'flex flex-col sm:flex-row items-center gap-4 justify-between my-auto py-2' },
+        h('div', { class: 'w-[130px] h-[130px] rounded-full border-[14px] border-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 min-w-[120px] space-y-2' },
+          h('div', { class: 'h-3 w-full bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-4/5 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-3/5 bg-gray-100 rounded-full' }),
+        ),
+      ),
+    )
+  );
+
+  return grid;
+}
+
+export function skeletonTrendChart() {
+  return h('div', { class: 'trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-4 animate-pulse' },
+    h('div', { class: 'flex items-center justify-between mb-4' },
+      h('div', { class: 'space-y-1' },
+        h('div', { class: 'h-2.5 w-24 bg-pink-100 rounded-full' }),
+        h('div', { class: 'h-4 w-40 bg-gray-200/80 rounded-md' }),
+      ),
+      h('div', { class: 'h-6 w-24 bg-gray-100 rounded-full' }),
+    ),
+    h('div', { class: 'h-36 w-full bg-gray-50/80 rounded-2xl border border-gray-100/80 flex items-end justify-between px-6 pb-3 pt-6 gap-4' },
+      [30, 55, 45, 80, 60].map((hVal) =>
+        h('div', { class: 'flex-1 flex flex-col items-center gap-2' },
+          h('div', { class: 'w-full bg-gray-200/60 rounded-t-lg', style: { height: `${hVal}%` } }),
+          h('div', { class: 'h-2.5 w-10 bg-gray-100 rounded-full' }),
+        )
+      ),
+    ),
+  );
+}
+
+export function skeletonTableWithColumns(columns = [], rowCount = 5) {
+  const table = h('table', { class: 'w-full text-left border-collapse' });
+  const thead = h('thead');
+  const tr = h('tr', { class: 'border-b border-gray-100' });
+
+  columns.forEach((col) => {
+    const label = typeof col === 'string' ? col : col.label || '';
+    tr.appendChild(h('th', {
+      class: 'px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap',
+    }, label));
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+
+  const tbody = h('tbody');
+  for (let r = 0; r < rowCount; r++) {
+    const row = h('tr', { class: `border-b border-gray-50 ${r % 2 ? 'bg-gray-50/40' : ''}` });
+    columns.forEach((col, c) => {
+      const key = typeof col === 'string' ? col.toLowerCase() : String(col.key || col.label || '').toLowerCase();
+      let cellContent;
+      if (key.includes('status') || key.includes('level') || key.includes('delivery') || key.includes('type') || key.includes('category') || key.includes('priority')) {
+        cellContent = h('div', { class: 'h-5 w-16 rounded-full bg-gray-200/70 animate-pulse' });
+      } else if (key.includes('action') || key.includes('manage') || key.includes('button')) {
+        cellContent = h('div', { class: 'h-8 w-16 rounded-xl bg-gray-100 animate-pulse' });
+      } else if (key.includes('date') || key.includes('sent') || key.includes('time') || key.includes('scheduled')) {
+        cellContent = h('div', { class: 'h-3.5 w-24 rounded-full bg-gray-200/60 animate-pulse' });
+      } else if (key.includes('phone') || key.includes('contact') || key.includes('id') || key.includes('quantity') || key.includes('count')) {
+        cellContent = h('div', { class: 'h-4 w-20 rounded-full bg-gray-200/70 animate-pulse' });
+      } else {
+        const widths = ['w-36', 'w-48', 'w-40', 'w-32', 'w-44'];
+        const w = widths[(r * 3 + c) % widths.length];
+        cellContent = h('div', { class: `h-4 ${w} rounded-full bg-gray-200/70 animate-pulse` });
+      }
+      row.appendChild(h('td', { class: 'px-5 py-3.5 text-[13px] align-middle' }, cellContent));
+    });
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+
+  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
+    h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
+  );
+}
+
+export function skeletonModuleStats(count = 3) {
+  return h('div', { class: 'flex flex-wrap gap-2.5 animate-pulse' },
+    Array.from({ length: count }).map(() =>
+      h('div', { class: 'inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-gray-100 shadow-sm' },
+        h('div', { class: 'w-7 h-7 rounded-lg bg-gray-100' }),
+        h('div', { class: 'h-3.5 w-6 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-16 bg-gray-100 rounded-full' }),
+      )
+    )
+  );
+}
+
+export function skeletonSearchBar({ hasFilters = false, count = 1 } = {}) {
+  const bar = h('div', { class: 'flex flex-wrap items-center gap-3 animate-pulse' },
+    h('div', { class: 'relative flex-1 min-w-[240px]' },
+      icon('search', 'text-gray-300 text-sm absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none'),
+      h('div', { class: `${inputCls} pl-10 bg-gray-50/70 border-gray-100 h-[42px]` })
+    )
+  );
+  if (hasFilters) {
+    for (let i = 0; i < count; i++) {
+      bar.appendChild(h('div', { class: `${inputCls} w-36 bg-gray-50/70 border-gray-100 h-[42px]` }));
+    }
+  }
+  return bar;
+}
+
+export function skeletonHeroBanner() {
+  return h('section', {
+    class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm animate-pulse',
+  },
+    h('div', {
+      class: 'absolute right-0 top-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50',
+    }),
+    h('div', { class: 'relative z-10 flex justify-between items-center h-full gap-8' },
+      h('div', { class: 'max-w-2xl w-full' },
+        h('div', { class: 'flex items-center gap-3 mb-6' },
+          h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
+          h('div', { class: 'h-3 w-28 bg-white/30 rounded-full' }),
+        ),
+        h('div', { class: 'h-10 sm:h-12 w-72 sm:w-80 bg-white/35 rounded-2xl mb-5' }),
+        h('div', { class: 'h-4 w-80 sm:w-96 max-w-full bg-white/20 rounded-full mb-8' }),
+        h('div', { class: 'h-3.5 w-48 bg-white/20 rounded-full' }),
+      ),
+      h('div', { class: 'hidden md:block pr-8' },
+        h('div', { class: 'w-44 h-44 rounded-full border border-white/10 flex items-center justify-center p-2 bg-black/5 relative' },
+          h('div', { class: 'absolute inset-0 rounded-full border border-dashed border-pink-300/30' }),
+          h('img', { src: '/assets/logo.png', alt: 'SAAC Seal', class: 'w-32 h-32 object-contain relative z-10 opacity-40' }),
+        ),
+      ),
+    ),
+  );
+}
+
+export function skeletonHeader({ hasAction = true, hasIcon = true, titleWidth = 'w-64 sm:w-80', subtitleWidth = 'w-48 sm:w-96' } = {}) {
+  const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4 pb-1 animate-pulse' });
+  const left = h('div');
+  if (hasIcon) {
+    left.appendChild(h('div', { class: 'w-10 h-10 rounded-xl bg-pink-50 border border-pink-100 mb-3' }));
+  }
+  left.appendChild(h('div', { class: `h-8 ${titleWidth} bg-gray-200/90 rounded-xl mb-2` }));
+  left.appendChild(h('div', { class: `h-4 ${subtitleWidth} bg-gray-100 rounded-full` }));
   head.appendChild(left);
   if (hasAction) {
-    head.appendChild(h('div', { class: 'h-10 w-36 sm:w-44 bg-gray-200/80 rounded-2xl shrink-0' }));
+    head.appendChild(h('div', { class: 'h-10 w-36 sm:w-44 bg-pink-200/60 rounded-2xl shrink-0' }));
   }
   return head;
 }
@@ -190,161 +426,53 @@ export function skeletonCard({ title = true, lines = 3, height = 'auto' } = {}) 
 }
 
 export function skeletonCharts() {
-  const wrap = h('div', { class: 'grid grid-cols-1 lg:grid-cols-2 gap-6' });
-  
-  // Donut/pie chart card skeleton
-  const c1 = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse' },
-    h('div', { class: 'flex items-center justify-between pb-3 border-b border-gray-100' },
-      h('div', { class: 'h-5 w-44 bg-gray-200/80 rounded-lg' }),
-      h('div', { class: 'h-4 w-20 bg-gray-100 rounded-full' }),
-    ),
-    h('div', { class: 'w-44 h-44 rounded-full border-[18px] border-gray-100 mx-auto my-6 flex items-center justify-center' },
-      h('div', { class: 'h-6 w-16 bg-gray-100 rounded-md' }),
-    ),
-    h('div', { class: 'grid grid-cols-3 gap-3 pt-2' },
-      h('div', { class: 'h-4 bg-gray-100 rounded-full' }),
-      h('div', { class: 'h-4 bg-gray-100 rounded-full' }),
-      h('div', { class: 'h-4 bg-gray-100 rounded-full' }),
-    ),
-  );
-  
-  // Bar chart card skeleton
-  const c2 = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse' },
-    h('div', { class: 'flex items-center justify-between pb-3 border-b border-gray-100' },
-      h('div', { class: 'h-5 w-48 bg-gray-200/80 rounded-lg' }),
-      h('div', { class: 'h-4 w-20 bg-gray-100 rounded-full' }),
-    ),
-    h('div', { class: 'flex items-end justify-between h-48 px-4 gap-3 pt-4 border-b border-gray-100 pb-2' },
-      [45, 75, 35, 90, 60, 80, 50, 65].map((val) =>
-        h('div', { class: 'w-full bg-gray-100 rounded-t-lg', style: { height: `${val}%` } })
-      ),
-    ),
-    h('div', { class: 'flex justify-between px-2 pt-1' },
-      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
-      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
-      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
-      h('div', { class: 'h-3 w-10 bg-gray-100 rounded-full' }),
-    ),
-  );
-  
-  wrap.appendChild(c1);
-  wrap.appendChild(c2);
-  return wrap;
+  return skeletonAnalyticsGrid();
 }
 
 export function skeletonDashboard() {
-  const wrap = h('div', { class: 'space-y-8 max-w-[1400px] 2xl:max-w-[1600px] mx-auto animate-pulse' });
-  
-  // Top header skeleton with title & action text pills
-  wrap.appendChild(
-    h('div', { class: 'flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-100' },
-      h('div', { class: 'space-y-2' },
-        h('div', { class: 'h-8 w-64 bg-gray-200/90 rounded-xl' }),
-        h('div', { class: 'h-4 w-80 sm:w-96 bg-gray-100 rounded-full' }),
-      ),
-      h('div', { class: 'flex items-center gap-2' },
-        h('div', { class: 'h-9 w-28 bg-gray-200/80 rounded-xl' }),
-        h('div', { class: 'h-9 w-32 bg-gray-200/80 rounded-xl' }),
-      ),
-    ),
-  );
-  
-  // Hero banner skeleton
-  wrap.appendChild(
-    h('div', { class: 'bg-white rounded-3xl p-8 border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6' },
-      h('div', { class: 'space-y-3 flex-1' },
-        h('div', { class: 'h-6 w-36 bg-gray-100 rounded-full' }),
-        h('div', { class: 'h-9 w-72 sm:w-96 bg-gray-200/80 rounded-xl' }),
-        h('div', { class: 'h-4 w-60 sm:w-80 bg-gray-100 rounded-full' }),
-        h('div', { class: 'h-4 w-44 bg-gray-100/70 rounded-full pt-1' }),
-      ),
-      h('div', { class: 'hidden md:block pr-8' },
-        h('div', { class: 'w-36 h-36 rounded-full bg-gray-100' }),
-      ),
-    ),
-  );
-  
-  // 4 Stat Cards
-  wrap.appendChild(skeletonGrid(4));
-  
-  // 2 Chart Cards
-  wrap.appendChild(skeletonCharts());
-  
-  // Alert banner skeleton
-  wrap.appendChild(
-    h('div', { class: 'bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between gap-4' },
-      h('div', { class: 'flex items-center gap-3.5 flex-1' },
-        h('div', { class: 'w-9 h-9 rounded-full bg-gray-100 shrink-0' }),
-        h('div', { class: 'space-y-2 flex-1' },
-          h('div', { class: 'h-4 w-48 bg-gray-200/80 rounded-md' }),
-          h('div', { class: 'h-3 w-80 bg-gray-100 rounded-full' }),
+  const wrap = h('div', { class: 'space-y-8 max-w-[1400px] 2xl:max-w-[1600px] mx-auto' });
+  wrap.appendChild(skeletonHeroBanner());
+  wrap.appendChild(skeletonSupplyAlert());
+  wrap.appendChild(h('section', {},
+    h('div', { class: 'mb-6 animate-pulse' },
+      h('div', { class: 'h-2.5 w-20 bg-pink-100 rounded-full mb-2' }),
+      h('div', { class: 'flex items-center justify-between' },
+        h('div', { class: 'space-y-1' },
+          h('div', { class: 'h-7 w-56 bg-gray-200/80 rounded-xl' }),
+          h('div', { class: 'h-4 w-64 bg-gray-100 rounded-full' }),
         ),
+        h('div', { class: 'h-7 w-28 bg-gray-100 rounded-full' }),
       ),
-      h('div', { class: 'h-9 w-36 bg-gray-200/70 rounded-xl shrink-0' }),
     ),
-  );
-  
+    skeletonStatCards(6, 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5'),
+  ));
+  wrap.appendChild(h('section', { class: 'space-y-5' },
+    h('div', { class: 'animate-pulse space-y-1' },
+      h('div', { class: 'h-2.5 w-28 bg-pink-100 rounded-full' }),
+      h('div', { class: 'h-7 w-72 bg-gray-200/80 rounded-xl' }),
+      h('div', { class: 'h-4 w-96 bg-gray-100 rounded-full' }),
+    ),
+    skeletonAnalyticsGrid(),
+  ));
+  wrap.appendChild(skeletonTrendChart());
   return wrap;
 }
 
 export function skeletonModulePage({ columns = 5, hasAction = true } = {}) {
-  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6 animate-pulse' });
-  
-  // Header skeleton
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
   wrap.appendChild(skeletonHeader({ hasAction, hasIcon: true }));
-  
-  // Search and filter controls skeleton
-  wrap.appendChild(
-    h('div', { class: 'flex flex-wrap items-center justify-between gap-3' },
-      h('div', { class: 'h-11 w-full sm:w-72 bg-white rounded-2xl border border-gray-100 shadow-xs' }),
-      h('div', { class: 'flex gap-2' },
-        h('div', { class: 'h-10 w-24 bg-white rounded-xl border border-gray-100 shadow-xs' }),
-        h('div', { class: 'h-10 w-28 bg-white rounded-xl border border-gray-100 shadow-xs' }),
-      ),
-    ),
-  );
-  
-  // Table card skeleton
+  wrap.appendChild(skeletonSearchBar());
   wrap.appendChild(skeletonTable(5, columns));
-  
   return wrap;
 }
 
 export function skeletonTable(rows = 5, cols = 5) {
-  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4' });
-  
-  // Header row
-  const header = h('div', { class: 'flex gap-4 border-b border-gray-100 pb-4 mb-2' });
-  for (let c = 0; c < cols; c++) {
-    header.appendChild(h('div', { class: 'h-4 rounded-full bg-gray-200/60 animate-pulse', style: { width: `${40 + (c * 17 % 30)}%` } }));
-  }
-  wrap.appendChild(header);
-
-  // Data rows
-  for (let r = 0; r < rows; r++) {
-    const row = h('div', { class: 'flex gap-4 items-center' });
-    for (let c = 0; c < cols; c++) {
-      row.appendChild(h('div', { class: 'h-4 rounded-full bg-gray-100 animate-pulse', style: { width: `${60 + ((r * 13 + c * 29) % 30)}%`, animationDelay: `${(r * 50) + (c * 20)}ms` } }));
-    }
-    wrap.appendChild(row);
-  }
-  return wrap;
+  const dummyCols = Array.from({ length: cols }).map((_, i) => ({ label: `Column ${i + 1}` }));
+  return skeletonTableWithColumns(dummyCols, rows);
 }
 
 export function skeletonGrid(cards = 4) {
-  const wrap = h('div', { class: 'grid grid-cols-2 lg:grid-cols-4 gap-5' });
-  for (let i = 0; i < cards; i++) {
-    wrap.appendChild(
-      h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 animate-pulse' },
-        h('div', { class: 'w-12 h-12 rounded-full bg-gray-100' }),
-        h('div', { class: 'space-y-2' },
-          h('div', { class: 'h-8 bg-gray-100 rounded-lg w-3/4' }),
-          h('div', { class: 'h-4 bg-gray-50 rounded-full w-1/2' })
-        )
-      )
-    );
-  }
-  return wrap;
+  return skeletonStatCards(cards, cards === 6 ? 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5' : 'grid grid-cols-2 lg:grid-cols-4 gap-5');
 }
 
 export function skeletonFeed(items = 4) {

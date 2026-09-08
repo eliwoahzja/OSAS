@@ -1,16 +1,5 @@
 import { h, icon } from './ui.js';
 
-/**
- * Lightweight SVG Chart Engine.
- *
- * WHY:
- * 1. Zero external dependencies: Avoids bundling large external chart libraries (e.g. Chart.js, Recharts),
- *    saving ~250KB of network payload over slow Philippine provincial Wi-Fi networks.
- * 2. Analytic SVG path lengths: Calculating segment lengths mathematically (Math.hypot) avoids
- *    triggering forced DOM reflows / layout thrashing (el.getTotalLength()).
- * 3. Donut starts at -90deg: Humans expect gauge meters to sweep clockwise starting from 12 o'clock.
- */
-
 const CHART_COLORS = [
   '#EC4899', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981',
   '#EF4444', '#14B8A6', '#F97316', '#6366F1', '#D946EF',

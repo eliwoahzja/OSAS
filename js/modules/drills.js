@@ -5,8 +5,6 @@ import {
 import * as api from '../api.js';
 import { loadTable } from './table-loader.js';
 
-// NOTE(drrm): Drill scheduling aligns with DepEd Order No. 48, s. 2012 & NDRRMC quarterly NSED schedule.
-// WHY: Standard evacuation benchmark is under 4 minutes total campus clearance to designated open assembly field.
 export const DRILL_TYPES = ['Fire', 'Earthquake', 'Lockdown', 'Evacuation'];
 export const AUDIENCES = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'All Parents'];
 

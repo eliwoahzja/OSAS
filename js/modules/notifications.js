@@ -1,17 +1,50 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal, moduleShell, skeletonTable, skeletonModulePage,
+  capitalize, toast, openModal, moduleShell, skeletonHeader, skeletonTableWithColumns,
   dataTable, emptyBanner, errorBanner,
 } from '../ui.js';
 import * as api from '../api.js';
 import { AUDIENCES } from './drills.js';
 
 export async function parentNotifications(el) {
-  el.appendChild(skeletonModulePage({ columns: 7, hasAction: true }));
   return renderNotifications(el);
 }
 
 async function renderNotifications(el, currentType = 'all') {
+  el.innerHTML = '';
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
+  el.appendChild(wrap);
+
+  wrap.appendChild(skeletonHeader({
+    hasAction: true,
+    hasIcon: true,
+    titleWidth: 'w-72 sm:w-80',
+    subtitleWidth: 'w-80 sm:w-[480px]',
+  }));
+
+  const holder = h('div', { class: 'space-y-5' });
+  wrap.appendChild(holder);
+
+  const skeletonFilterRow = h('div', { class: 'flex flex-wrap items-center gap-2 animate-pulse' },
+    ['w-14', 'w-32', 'w-28'].map(w =>
+      h('div', { class: `h-8 ${w} rounded-full bg-gray-100 border border-gray-100` })
+    )
+  );
+  holder.appendChild(skeletonFilterRow);
+
+  const notifColumns = [
+    { key: 'id', label: 'ID' },
+    { key: 'notif_type', label: 'Type' },
+    { key: 'message', label: 'Message' },
+    { key: 'audience', label: 'Audience' },
+    { key: 'contact_method', label: 'Channel' },
+    { key: 'sent_at', label: 'Sent' },
+    { key: 'delivery_status', label: 'Delivery' },
+  ];
+  const tableWrap = h('div');
+  tableWrap.appendChild(skeletonTableWithColumns(notifColumns, 5));
+  holder.appendChild(tableWrap);
+
   try {
     const [rows] = await Promise.all([
       api.listRows('notifications'),
@@ -19,16 +52,17 @@ async function renderNotifications(el, currentType = 'all') {
     ]);
 
     el.innerHTML = '';
-    el.appendChild(moduleShell({
+    const shell = moduleShell({
       icon: 'notifications',
       title: 'Parent Notification System',
       subtitle: 'Send urgent incident alerts or informational event notices to parents.',
       actionLabel: 'New Notification',
       onAction: () => composer(el),
-    }));
+    });
+    el.appendChild(shell);
 
-    const holder = h('div', { class: 'space-y-5' });
-    el.appendChild(holder);
+    const realHolder = h('div', { class: 'space-y-5' });
+    shell.appendChild(realHolder);
 
     const filterRow = h('div', { class: 'flex flex-wrap items-center gap-2' },
       ['all', 'incident_alert', 'event_notice'].map((k) =>
@@ -36,12 +70,15 @@ async function renderNotifications(el, currentType = 'all') {
           class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k === currentType ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
           onclick: () => renderNotifications(el, k),
         }, k === 'all' ? 'All' : k === 'incident_alert' ? 'Incident Alerts' : 'Event Notices')));
-    holder.appendChild(filterRow);
+    realHolder.appendChild(filterRow);
 
     const filteredRows = currentType === 'all' ? rows : rows.filter(r => r.notif_type === currentType);
 
+    const realTableWrap = h('div');
+    realHolder.appendChild(realTableWrap);
+
     if (!filteredRows.length) {
-      holder.appendChild(emptyBanner({ icon: 'notifications', title: 'No notifications sent yet', text: 'Use "New Notification" to send the first incident alert or event notice.' }));
+      realTableWrap.appendChild(emptyBanner({ icon: 'notifications', title: 'No notifications sent yet', text: 'Use "New Notification" to send the first incident alert or event notice.' }));
       return;
     }
     const columns = [
@@ -55,10 +92,10 @@ async function renderNotifications(el, currentType = 'all') {
       { key: 'sent_at', label: 'Sent', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.sent_at)) },
       { key: 'delivery_status', label: 'Delivery', render: (r) => pill(r.delivery_status) },
     ];
-    holder.appendChild(dataTable(columns, filteredRows));
+    realTableWrap.appendChild(dataTable(columns, filteredRows));
   } catch (e) {
-    el.innerHTML = '';
-    el.appendChild(errorBanner(e.message, () => parentNotifications(el)));
+    wrap.innerHTML = '';
+    wrap.appendChild(errorBanner(e.message, () => renderNotifications(el, currentType)));
   }
 }
 
@@ -76,8 +113,6 @@ function notifBadge(r) {
 }
 
 function composer(el) {
-  // FIXME: When sending SMS broadcasts via external gateway (Semaphore / Twilio),
-  // throttle in batches of 25 numbers with 400ms delay to avoid carrier-level rate-limiting (HTTP 429).
   let closeModal = () => {};
   const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' });
   const tabs = h('div', { class: 'grid grid-cols-2 gap-1 p-2 bg-gray-50 border-b border-gray-100' });
