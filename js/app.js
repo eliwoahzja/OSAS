@@ -1,4 +1,9 @@
-import { h, icon, statCard, donutChart, pieChart, yearBarChart, skeleton, errorBanner, toast, openModal, inputCls, labelCls } from './ui.js';
+import {
+  h, icon, statCard, donutChart, pieChart, yearBarChart, barChart,
+  skeletonGrid, skeletonDashboard, skeletonHeroBanner, skeletonSupplyAlert, skeletonStatCards,
+  skeletonAnalyticsGrid, skeletonTrendChart,
+  errorBanner, toast, openModal,
+} from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -41,27 +46,93 @@ function renderSidebar() {
   for (const item of NAV) {
     if (item.adminOnly && !admin) continue;
     const a = h('a', {
-      class: 'flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-800/50 text-gray-400 hover:text-white transition-colors clickable',
+      class: 'group relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:text-white transition-all duration-200 clickable overflow-hidden outline-none',
       href: `#/${item.route}`,
     },
-      icon(item.icon, 'text-sm w-5 text-center'),
-      h('span', { class: 'text-[13px]' }, item.label),
+      h('div', { class: 'nav-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-pink-500 rounded-r-md transition-all duration-300 opacity-0 group-hover:h-1/2 group-hover:opacity-50' }),
+      icon(item.icon, 'text-sm w-5 text-center relative z-10 transition-transform duration-200 group-hover:scale-110'),
+      h('span', { class: 'text-[13px] relative z-10' }, item.label),
+      h('div', { class: 'nav-bg absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl' })
     );
-    nav.appendChild(h('li', {}, a));
+    nav.appendChild(h('li', { class: 'mb-1' }, a));
   }
 }
 
 function highlightSidebar(route) {
   document.querySelectorAll('#sidebar-nav a').forEach((a) => {
     const active = a.getAttribute('href') === `#/${route}`;
-    a.classList.toggle('bg-sidebar-active', active);
-    a.classList.toggle('text-white', active);
-    a.classList.toggle('font-medium', active);
-    a.classList.toggle('text-gray-400', !active);
+    const indicator = a.querySelector('.nav-indicator');
+    const bg = a.querySelector('.nav-bg');
+    const iconEl = a.querySelector('.material-symbols-outlined');
+    
+    if (active) {
+      a.className = 'group relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-white font-semibold transition-all duration-200 clickable overflow-hidden outline-none';
+      if (indicator) {
+        indicator.className = 'nav-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-2/3 bg-pink-500 rounded-r-md transition-all duration-300 opacity-100';
+      }
+      if (bg) {
+        bg.className = 'nav-bg absolute inset-0 bg-white/10 opacity-100 transition-opacity duration-200 rounded-xl';
+      }
+      if (iconEl) {
+        iconEl.classList.add('text-pink-500');
+      }
+    } else {
+      a.className = 'group relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:text-white transition-all duration-200 clickable overflow-hidden outline-none';
+      if (indicator) {
+        indicator.className = 'nav-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-pink-500 rounded-r-md transition-all duration-300 opacity-0 group-hover:h-1/2 group-hover:opacity-50';
+      }
+      if (bg) {
+        bg.className = 'nav-bg absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl';
+      }
+      if (iconEl) {
+        iconEl.classList.remove('text-pink-500');
+      }
+    }
   });
 }
 
-function route() {
+let nprogress = null;
+let pTimer1 = null;
+let pTimer2 = null;
+let pTimer3 = null;
+function startProgress() {
+  if (!nprogress) {
+    nprogress = document.createElement('div');
+    nprogress.className = 'fixed top-0 left-0 h-[3px] bg-pink-500 z-50 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(236,72,153,0.7)]';
+    document.body.appendChild(nprogress);
+  }
+  clearTimeout(pTimer1);
+  clearTimeout(pTimer2);
+  clearTimeout(pTimer3);
+  
+  nprogress.style.transition = 'none';
+  nprogress.style.width = '0%';
+  nprogress.style.opacity = '1';
+  
+  void nprogress.offsetWidth;
+  
+  nprogress.style.transition = 'width 400ms ease-out, opacity 300ms ease-out';
+  nprogress.style.width = '30%';
+  pTimer1 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '60%'; }, 700);
+  pTimer2 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '85%'; }, 1800);
+  pTimer3 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '94%'; }, 2600);
+}
+
+function stopProgress() {
+  if (!nprogress) return;
+  clearTimeout(pTimer1);
+  clearTimeout(pTimer2);
+  clearTimeout(pTimer3);
+  
+  nprogress.style.transition = 'width 250ms ease-out, opacity 300ms ease-out';
+  nprogress.style.width = '100%';
+  setTimeout(() => {
+    nprogress.style.opacity = '0';
+    setTimeout(() => { nprogress.style.width = '0%'; }, 300);
+  }, 250);
+}
+
+async function route() {
   let r = (location.hash || '#/dashboard').replace(/^#\//, '');
   if (!VIEWS[r]) r = 'dashboard';
   if (r !== 'dashboard') clearInterval(statsTimer);
@@ -69,37 +140,48 @@ function route() {
   const title = (NAV.find((n) => n.route === r) || {}).label || 'Admin Dashboard';
   titleEl().textContent = title;
   highlightSidebar(r);
+  
   const el = viewEl();
+  
+  startProgress();
   el.innerHTML = '';
   el.scrollTop = 0;
-  el.classList.remove('animate-view');
-  void el.offsetWidth;
-  el.classList.add('animate-view');
+  el.style.opacity = '1';
+  
   try {
-    view(el);
+    const res = view(el);
+    if (res && typeof res.then === 'function') await res;
   } catch (e) {
     console.error(e);
     el.appendChild(errorBanner(e.message, () => route()));
   }
+  
+  stopProgress();
 }
 
 function syncAvatarUI() {
-  const customAvatar = localStorage.getItem('osas.user.avatar') || '/assets/logo.png';
+  let customAvatar = '/assets/logo.png';
+  try {
+    customAvatar = localStorage.getItem('osas.user.avatar') || '/assets/logo.png';
+  } catch {}
   document.querySelectorAll('[data-user-avatar-img]').forEach((img) => {
     img.src = customAvatar;
     img.onerror = () => {
       img.classList.add('hidden');
-      const span = img.parentElement.querySelector('[data-user-initials]');
+      const span = img.parentElement?.querySelector('[data-user-initials]');
       if (span) span.classList.remove('hidden');
     };
     img.classList.remove('hidden');
-    const span = img.parentElement.querySelector('[data-user-initials]');
+    const span = img.parentElement?.querySelector('[data-user-initials]');
     if (span) span.classList.add('hidden');
   });
 }
 
 function openProfilePhotoModal() {
-  const current = localStorage.getItem('osas.user.avatar') || '/assets/logo.png';
+  let current = '/assets/logo.png';
+  try {
+    current = localStorage.getItem('osas.user.avatar') || '/assets/logo.png';
+  } catch {}
   let selected = current;
 
   const previewImg = h('img', {
@@ -280,30 +362,47 @@ function drawStats(box, s) {
           h('ul', { class: 'mt-2 space-y-1.5' }, ...listItems),
         ),
       ),
-      h('div', { class: 'shrink-0 self-start md:self-center flex flex-wrap items-center gap-2.5' },
+      h('div', { class: 'shrink-0 self-start md:self-center flex items-center gap-2.5 flex-wrap' },
         h('button', {
-          type: 'button',
-          id: 'notify-stock-btn',
-          class: 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-semibold shadow-xs transition-colors whitespace-nowrap clickable',
-          title: 'Identify stock handlers and dispatch restock alert email',
-          onclick: () => {
-            openStockNotifyModal(s.supplies_low_items, {
-              onSent: () => {
-                const btn = document.getElementById('notify-stock-btn');
-                if (btn) {
-                  btn.classList.remove('bg-pink-600', 'hover:bg-pink-700');
-                  btn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                  btn.innerHTML = '';
-                  btn.appendChild(icon('check_circle', 'text-xs'));
-                  btn.appendChild(document.createTextNode(' Alert Dispatched'));
-                }
-              },
-            });
-          },
-        }, icon('notifications_active', 'text-xs'), 'Notify Handlers'),
+          id: 'btn-notify-stock-handlers',
+          class: 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs transition-colors whitespace-nowrap clickable',
+          onclick: (e) => modules.promptNotifyStockHandlers(s.supplies_low_items, e.currentTarget),
+        }, icon('notifications', 'text-xs'), 'Notify Stock Handlers'),
         h('a', {
           href: '#/first-aid-supplies',
-          class: 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold shadow-xs transition-colors whitespace-nowrap',
+          class: 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-red-50/60 border border-red-200 text-red-700 text-xs font-semibold shadow-xs transition-colors whitespace-nowrap',
+        }, icon('medical_services', 'text-xs'), 'Manage Supplies'),
+      ),
+    ));
+  } else {
+    box.appendChild(h('div', {
+      class: 'bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs',
+    },
+      h('div', { class: 'flex items-center gap-3.5 flex-1 min-w-0' },
+        h('div', {
+          class: 'w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0',
+        }, icon('medical_services', 'text-sm')),
+        h('div', { class: 'flex-1 min-w-0' },
+          h('div', { class: 'flex items-center gap-2 flex-wrap' },
+            h('h4', { class: 'text-[14px] font-bold text-emerald-950' }, 'First Aid Supplies Status'),
+            h('span', { class: 'px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200' },
+              'All items stocked',
+            ),
+          ),
+          h('p', { class: 'text-xs text-emerald-800/90 mt-1' },
+            'All tracked clinic first aid supplies are above their reorder thresholds.',
+          ),
+        ),
+      ),
+      h('div', { class: 'shrink-0 self-start md:self-center flex items-center gap-2.5 flex-wrap' },
+        h('button', {
+          id: 'btn-notify-stock-handlers',
+          class: 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition-colors whitespace-nowrap clickable',
+          onclick: (e) => modules.promptNotifyStockHandlers([], e.currentTarget),
+        }, icon('notifications', 'text-xs'), 'Notify Stock Handlers'),
+        h('a', {
+          href: '#/first-aid-supplies',
+          class: 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-emerald-50/60 border border-emerald-200 text-emerald-800 text-xs font-semibold shadow-xs transition-colors whitespace-nowrap',
         }, icon('medical_services', 'text-xs'), 'Manage Supplies'),
       ),
     ));
@@ -341,8 +440,8 @@ function drawStats(box, s) {
     ),
     h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' },
       pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
-      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', centerLabel: 'Stock Health' }),
-      pieChart(s.incident_breakdown || [], { title: 'Incidents by Type', centerLabel: 'Incidents' }),
+      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', isDonut: true }),
+      barChart(s.incident_breakdown || [], { title: 'Incidents by Type' }),
       pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
     ),
   ));
@@ -358,184 +457,118 @@ function drawStats(box, s) {
   }
 }
 
-function openStockNotifyModal(items = [], options = {}) {
-  const modalContainer = h('div', { class: 'w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden' });
-  const modal = openModal(modalContainer);
-
-  const renderComposeView = () => {
-    modalContainer.innerHTML = '';
-
-    const header = h('div', { class: 'px-6 py-4 border-b border-gray-100 flex items-center justify-between' },
-      h('h3', { class: 'text-lg font-semibold text-gray-900' }, 'Dispatch Restock Alert'),
-      h('button', {
-        class: 'text-gray-400 hover:text-gray-600 transition-colors',
-        onclick: () => modal.close(),
-      }, icon('close', 'text-xl'))
-    );
-
-    const body = h('div', { class: 'p-6 space-y-6' });
-
-    const recipients = h('div', {},
-      h('label', { class: 'block text-sm font-medium text-gray-700 mb-2' }, 'Notifying Handlers'),
-      h('div', { class: 'bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2' },
-        h('div', { class: 'flex flex-col sm:flex-row sm:justify-between sm:items-center' },
-          h('span', { class: 'text-sm font-medium text-gray-900' }, 'School Nurse'),
-          h('span', { class: 'text-xs text-gray-500' }, 'nurse@saac.edu.ph')
-        ),
-        h('div', { class: 'flex flex-col sm:flex-row sm:justify-between sm:items-center' },
-          h('span', { class: 'text-sm font-medium text-gray-900' }, 'Supply Custodian'),
-          h('span', { class: 'text-xs text-gray-500' }, 'supplies@saac.edu.ph')
-        )
-      )
-    );
-
-    const itemsList = h('div', {},
-      h('label', { class: 'block text-sm font-medium text-gray-700 mb-2' }, `Low Stock Items (${items.length})`),
-      h('div', { class: 'border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-48 overflow-y-auto bg-white' },
-        ...items.map(it => h('div', { class: 'px-3 py-2.5 flex justify-between items-center text-sm' },
-          h('span', { class: 'text-gray-900 truncate pr-2' }, it.item),
-          h('span', { class: 'text-red-600 font-medium whitespace-nowrap' }, `${it.quantity} left`)
-        ))
-      )
-    );
-
-    const memoInput = h('textarea', {
-      class: 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 resize-none min-h-[80px]',
-      placeholder: 'Add an optional note (e.g., "Need these for Friday intramurals...")...'
-    });
-
-    const memo = h('div', {},
-      h('label', { class: 'block text-sm font-medium text-gray-700 mb-2' }, 'Restock Notes (Optional)'),
-      memoInput
-    );
-
-    const errBox = h('div', { class: 'hidden text-sm text-red-600 bg-red-50 p-3 rounded-lg border border-red-200' });
-
-    const footer = h('div', { class: 'px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3' },
-      h('button', {
-        class: 'px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors',
-        onclick: () => modal.close()
-      }, 'Cancel'),
-      h('button', {
-        class: 'px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-black rounded-lg transition-colors flex items-center gap-2',
-        onclick: async (e) => {
-          const btn = e.currentTarget;
-          const origHTML = btn.innerHTML;
-          btn.disabled = true;
-          btn.classList.add('opacity-75', 'cursor-wait');
-          btn.innerHTML = 'Sending...';
-          errBox.classList.add('hidden');
-
-          try {
-            const res = await api.notifyStockHandlers(items, {
-              recipientRoles: ['School Nurse (nurse@saac.edu.ph)', 'Supply Custodian (supplies@saac.edu.ph)'],
-              customMessage: memoInput.value.trim() || undefined,
-            });
-
-            toast('Restock alert sent successfully');
-            if (typeof options.onSent === 'function') {
-              options.onSent(res);
-            }
-            renderSuccessView();
-          } catch (err) {
-            console.error('Failed to notify stock handlers:', err);
-            errBox.textContent = err.message || 'Could not send email';
-            errBox.classList.remove('hidden');
-            btn.disabled = false;
-            btn.classList.remove('opacity-75', 'cursor-wait');
-            btn.innerHTML = origHTML;
-          }
-        }
-      }, 'Send Alert')
-    );
-
-    body.append(recipients, itemsList, memo, errBox);
-    modalContainer.append(header, body, footer);
-  };
-
-  const renderSuccessView = () => {
-    modalContainer.innerHTML = '';
-
-    const view = h('div', { class: 'p-8 text-center space-y-4 bg-white rounded-2xl' },
-      h('div', { class: 'w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-2xl' },
-        icon('check', 'text-2xl')
-      ),
-      h('h3', { class: 'text-xl font-semibold text-gray-900' }, 'Alert Sent'),
-      h('p', { class: 'text-sm text-gray-500' }, 'The restock notification has been emailed to the clinic and supply custodians.'),
-      h('div', { class: 'pt-4' },
-        h('button', {
-          class: 'px-5 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-black rounded-lg transition-colors',
-          onclick: () => modal.close()
-        }, 'Done')
-      )
-    );
-
-    modalContainer.appendChild(view);
-  };
-
-  renderComposeView();
-}
-
 async function renderDashboard(el) {
+  el.innerHTML = '';
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' });
+  el.appendChild(wrap);
 
-  wrap.appendChild(
-    h('section', {
-      class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm',
-    },
-      h('div', {
-        class: 'absolute right-0 top-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50',
-      }),
-      h('div', { class: 'relative z-10 flex justify-between items-center h-full gap-8' },
-        h('div', { class: 'max-w-2xl' },
-          h('div', { class: 'flex items-center gap-3 mb-6' },
-            h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
-            h('p', { class: 'text-[11px] font-bold tracking-[0.2em] text-pink-100 uppercase' }, 'OSAS Overview'),
-          ),
-          h('h2', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, `${greeting()},`),
-          h('p', { class: 'text-[15px] text-gray-200 mb-8 max-w-xl font-light' },
-            'Here\'s what\'s happening across campus safety today.'),
-          h('p', { class: 'text-[13px] text-pink-100/80' }, new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })),
-        ),
-        h('div', { class: 'hidden md:block pr-8' },
-          h('div', { class: 'w-44 h-44 rounded-full border border-white/10 flex items-center justify-center p-2 bg-black/5 relative' },
-            h('div', { class: 'absolute inset-0 rounded-full border border-dashed border-pink-300/30' }),
-            h('img', { src: '/assets/logo.png', alt: 'SAAC Seal', class: 'w-32 h-32 object-contain relative z-10' }),
-          ),
-        ),
-      ),
-    ),
-  );
+  const heroWrap = h('div');
+  heroWrap.appendChild(skeletonHeroBanner());
+  wrap.appendChild(heroWrap);
 
   const statsWrap = h('div', { class: 'space-y-8' });
   wrap.appendChild(statsWrap);
-  el.appendChild(wrap);
 
-  const box = h('div', { class: 'space-y-8' });
-  statsWrap.appendChild(box);
-  box.appendChild(skeleton(2, 6));
+  const skeletonBox = h('div', { class: 'space-y-8' });
+  skeletonBox.appendChild(skeletonSupplyAlert());
+  skeletonBox.appendChild(h('section', {},
+    h('div', { class: 'mb-6 animate-pulse' },
+      h('div', { class: 'h-2.5 w-20 bg-pink-200/80 rounded-full mb-2' }),
+      h('div', { class: 'flex items-center justify-between' },
+        h('div', { class: 'space-y-1.5' },
+          h('div', { class: 'h-7 w-60 bg-gray-200/90 rounded-xl' }),
+          h('div', { class: 'h-4 w-52 bg-gray-100 rounded-full' }),
+        ),
+        h('div', { class: 'h-7 w-28 bg-gray-100 rounded-full' }),
+      ),
+    ),
+    skeletonStatCards(6, 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5'),
+  ));
+  skeletonBox.appendChild(h('section', { class: 'space-y-5' },
+    h('div', { class: 'animate-pulse space-y-1.5' },
+      h('div', { class: 'h-2.5 w-28 bg-pink-200/80 rounded-full mb-2' }),
+      h('div', { class: 'h-7 w-80 bg-gray-200/90 rounded-xl' }),
+      h('div', { class: 'h-4 w-96 max-w-full bg-gray-100 rounded-full' }),
+    ),
+    skeletonAnalyticsGrid(),
+  ));
+  skeletonBox.appendChild(skeletonTrendChart());
+  statsWrap.appendChild(skeletonBox);
 
-  const refresh = async () => {
+  const refresh = async (isInitial = false) => {
     try {
-      const s = await api.getDashboardStats();
-      drawStats(box, s);
+      const [s] = await Promise.all([
+        api.getDashboardStats(),
+        isInitial ? new Promise(r => setTimeout(r, 3000)) : Promise.resolve(),
+      ]);
+
+      if (isInitial) {
+        heroWrap.innerHTML = '';
+        heroWrap.appendChild(
+          h('section', {
+            class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm',
+          },
+            h('div', {
+              class: 'absolute right-0 top-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50',
+            }),
+            h('div', { class: 'relative z-10 flex justify-between items-center h-full gap-8' },
+              h('div', { class: 'max-w-2xl' },
+                h('div', { class: 'flex items-center gap-3 mb-6' },
+                  h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
+                  h('p', { class: 'text-[11px] font-bold tracking-[0.2em] text-pink-100 uppercase' }, 'OSAS Overview'),
+                ),
+                h('h2', { class: 'text-3xl sm:text-[44px] font-extrabold mb-5 leading-[1.1] tracking-tight' }, `${greeting()},`),
+                h('p', { class: 'text-[15px] text-gray-200 mb-8 max-w-xl font-light' },
+                  'Here\'s what\'s happening across campus safety today.'),
+                h('p', { class: 'text-[13px] text-pink-100/80' }, new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })),
+              ),
+              h('div', { class: 'hidden md:block pr-8' },
+                h('div', { class: 'w-44 h-44 rounded-full border border-white/10 flex items-center justify-center p-2 bg-black/5 relative' },
+                  h('div', { class: 'absolute inset-0 rounded-full border border-dashed border-pink-300/30' }),
+                  h('img', { src: '/assets/logo.png', alt: 'SAAC Seal', class: 'w-32 h-32 object-contain relative z-10' }),
+                ),
+              ),
+            ),
+          )
+        );
+      }
+
+      statsWrap.innerHTML = '';
+      drawStats(statsWrap, s);
     } catch (e) {
-      if (!box.querySelector('.bg-red-50')) {
-        box.appendChild(errorBanner(e.message, refresh));
+      if (isInitial) {
+        statsWrap.innerHTML = '';
+        statsWrap.appendChild(errorBanner(e.message, () => renderDashboard(el)));
+      } else if (!statsWrap.querySelector('.bg-red-50')) {
+        statsWrap.appendChild(errorBanner(e.message, refresh));
       }
       console.error(e);
     }
   };
 
-  await refresh();
+  await refresh(true);
   clearInterval(statsTimer);
   statsTimer = setInterval(refresh, 15000);
 }
 
 async function boot() {
-  wireShell();
-  await auth.restore();
-  enterApp();
+  try {
+    wireShell();
+  } catch (err) {
+    console.error('wireShell error:', err);
+  }
+
+  try {
+    await auth.restore();
+  } catch (err) {
+    console.error('auth.restore error:', err);
+  }
+
+  try {
+    enterApp();
+  } catch (err) {
+    console.error('enterApp error:', err);
+  }
 }
 
 boot();

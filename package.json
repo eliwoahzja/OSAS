@@ -6,9 +6,9 @@
   "description": "SAAC - OSAS Dashboard. School safety and compliance dashboard for the Office of Student Affairs and Services.",
   "scripts": {
     "dev": "node server.js",
-    "build": "node scripts/lint.mjs",
-    "build:css": "npx --yes tailwindcss@3.4.17 -i css/tailwind.input.css -o css/tailwind.css --minify",
     "start": "node server.js",
+    "build": "node scripts/lint.mjs && mkdir -p dist && cp -r index.html js css assets dist/",
+    "build:css": "npx --yes tailwindcss@3.4.17 -i css/tailwind.input.css -o css/tailwind.css --minify",
     "lint": "node scripts/lint.mjs"
   },
   "dependencies": {

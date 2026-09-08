@@ -15,18 +15,36 @@ function loadSession() {
 
 function saveSession(s) {
   session = s;
-  if (s) localStorage.setItem(AUTH_KEY, JSON.stringify(s));
-  else localStorage.removeItem(AUTH_KEY);
-  listeners.forEach((fn) => fn(s));
+  try {
+    if (s) localStorage.setItem(AUTH_KEY, JSON.stringify(s));
+    else localStorage.removeItem(AUTH_KEY);
+  } catch {}
+  listeners.forEach((fn) => {
+    try {
+      fn(s);
+    } catch {}
+  });
 }
 
 async function getClient() {
   if (client) return client;
-  const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.OSAS;
+  const cfg = window.OSAS || {};
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = cfg;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
-  const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-  client = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  return client;
+  try {
+    const modPromise = import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase client load timeout')), 1500)
+    );
+    const mod = await Promise.race([modPromise, timeoutPromise]);
+    if (mod && typeof mod.createClient === 'function') {
+      client = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return client;
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function decodeClaims(token) {
@@ -55,7 +73,6 @@ function injectedSession() {
 }
 
 function devSession() {
-  // Developer/demo fallback session when running standalone without live Supabase
   return {
     provider: 'dev',
     user: { email: 'admin@saac.ph', role: 'admin', name: 'Local Administrator' },
@@ -63,8 +80,6 @@ function devSession() {
   };
 }
 
-// TODO: Integrate Google Workspace / MS 365 OAuth with domain lock for @saac.edu.ph institutional faculty accounts
-// FIXME: If session expires during an active incident form entry, save draft to sessionStorage so marshal doesn't lose field inputs.
 export function onAuthChange(fn) {
   listeners.push(fn);
   return () => { listeners = listeners.filter((f) => f !== fn); };
@@ -120,28 +135,32 @@ export function setSession(s) {
 }
 
 export async function restore() {
-  const inj = injectedSession();
-  if (inj) {
-    saveSession(inj);
-    return;
-  }
-  const sb = await getClient();
-  if (!sb) {
-    if (!session) saveSession(devSession());
-    return;
-  }
-  const { data } = await sb.auth.getSession();
-  if (data.session) {
-    saveSession({
-      provider: 'supabase',
-      user: {
-        email: data.session.user.email,
-        role: data.session.user.user_metadata?.role || 'staff',
-        name: data.session.user.user_metadata?.name || data.session.user.email,
-      },
-      access_token: data.session.access_token,
-    });
-    return;
-  }
+  try {
+    const inj = injectedSession();
+    if (inj) {
+      saveSession(inj);
+      return;
+    }
+    const sb = await getClient();
+    if (sb && sb.auth) {
+      const sessionPromise = sb.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Session restore timeout')), 1200)
+      );
+      const { data } = await Promise.race([sessionPromise, timeoutPromise]);
+      if (data && data.session) {
+        saveSession({
+          provider: 'supabase',
+          user: {
+            email: data.session.user.email,
+            role: data.session.user.user_metadata?.role || 'staff',
+            name: data.session.user.user_metadata?.name || data.session.user.email,
+          },
+          access_token: data.session.access_token,
+        });
+        return;
+      }
+    }
+  } catch {}
   if (!session) saveSession(devSession());
 }

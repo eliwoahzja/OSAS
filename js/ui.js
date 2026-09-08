@@ -22,25 +22,8 @@ export function append(el, children) {
   return el;
 }
 
-export function openModal(content) {
-  const overlay = h('div', {
-    class: 'fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4 overflow-y-auto',
-    onclick: (e) => { if (e.target === overlay) close(); },
-  });
-  const card = h('div', {
-    class: 'bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-2xl max-h-[90vh] overflow-y-auto',
-  });
-  overlay.appendChild(card);
-  card.appendChild(content);
-  document.body.appendChild(overlay);
-  const onKey = (e) => { if (e.key === 'Escape') close(); };
-  document.addEventListener('keydown', onKey);
-  function close() {
-    document.removeEventListener('keydown', onKey);
-    overlay.remove();
-  }
-  return { close };
-}
+export { openModal } from './modal.js';
+export { pieChart, donutChart, yearBarChart, barChart } from './charts.js';
 
 function svgEl(tag, attrs = {}) {
   const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
@@ -132,7 +115,7 @@ export function pill(status, tone) {
   }, String(status ?? '—'));
 }
 
-export function moduleShell({ icon: iconName, title, subtitle, actionLabel, onAction, children }) {
+export function moduleShell({ icon: iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, children }) {
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
   const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4' });
   const left = h('div');
@@ -142,9 +125,9 @@ export function moduleShell({ icon: iconName, title, subtitle, actionLabel, onAc
   head.appendChild(left);
   if (actionLabel) {
     head.appendChild(h('button', {
-      class: 'btn-primary shrink-0',
+      class: actionClass || 'btn-primary shrink-0',
       onclick: onAction,
-    }, icon('add', 'text-base'), actionLabel));
+    }, icon(actionIcon || 'add', 'text-base'), actionLabel));
   }
   wrap.appendChild(head);
   append(wrap, children);
@@ -167,14 +150,343 @@ export function moduleStats(chips) {
   );
 }
 
-export function skeleton(rows = 5, cols = 6) {
-  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-3' });
-  for (let r = 0; r < rows; r++) {
-    const row = h('div', { class: 'flex gap-4' });
-    for (let c = 0; c < cols; c++) {
-      row.appendChild(h('div', { class: `h-4 rounded-full bg-gray-100 animate-pulse`, style: { width: `${70 + ((r * 13 + c * 29) % 25)}%` } }));
+export function skeleton(rows = 5, cols = 5) {
+  return skeletonTable(rows, cols);
+}
+
+export function skeletonStatCards(count = 6, gridCls = 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5') {
+  const grid = h('div', { class: gridCls });
+  for (let i = 0; i < count; i++) {
+    grid.appendChild(
+      h('div', {
+        class: 'card-lift bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col relative overflow-hidden animate-pulse',
+      },
+        h('div', { class: 'w-8 h-8 rounded-xl bg-gray-100 mb-4' }),
+        h('div', { class: 'h-2.5 w-20 bg-gray-200/80 rounded-full mb-2' }),
+        h('div', { class: 'h-8 w-14 bg-gray-300/70 rounded-lg my-1' }),
+        h('div', { class: 'h-2.5 w-24 bg-gray-100 rounded-full mt-4' }),
+      )
+    );
+  }
+  return grid;
+}
+
+export function skeletonSupplyAlert() {
+  return h('div', {
+    class: 'bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xs animate-pulse',
+  },
+    h('div', { class: 'flex items-center gap-3.5 flex-1 min-w-0' },
+      h('div', { class: 'w-9 h-9 rounded-full bg-gray-100 shrink-0' }),
+      h('div', { class: 'flex-1 min-w-0 space-y-2' },
+        h('div', { class: 'flex items-center gap-2' },
+          h('div', { class: 'h-4 w-44 bg-gray-200/90 rounded-md' }),
+          h('div', { class: 'h-4 w-28 bg-gray-100 rounded-full' }),
+        ),
+        h('div', { class: 'h-3 w-80 max-w-full bg-gray-100 rounded-full' }),
+      ),
+    ),
+    h('div', { class: 'shrink-0 flex items-center gap-2.5' },
+      h('div', { class: 'h-9 w-36 bg-gray-200/80 rounded-xl' }),
+      h('div', { class: 'h-9 w-32 bg-gray-100 rounded-xl' }),
+    ),
+  );
+}
+
+export function skeletonAnalyticsGrid() {
+  const grid = h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' });
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'flex flex-col sm:flex-row items-center gap-4 justify-between my-auto py-2' },
+        h('div', { class: 'w-[130px] h-[130px] rounded-full border-[14px] border-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 min-w-[120px] space-y-2' },
+          h('div', { class: 'h-3 w-full bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-5/6 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-4/6 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-3/4 bg-gray-100 rounded-full' }),
+        ),
+      ),
+    )
+  );
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'flex flex-col sm:flex-row items-center gap-4 justify-between my-auto py-2' },
+        h('div', { class: 'w-[130px] h-[130px] rounded-full border-[20px] border-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 min-w-[120px] space-y-2' },
+          h('div', { class: 'h-3 w-full bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-4/5 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-3/5 bg-gray-100 rounded-full' }),
+        ),
+      ),
+    )
+  );
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'space-y-3.5 my-auto py-2' },
+        [80, 55, 40, 25].map((w) =>
+          h('div', { class: 'space-y-1.5' },
+            h('div', { class: 'flex justify-between' },
+              h('div', { class: 'h-2.5 w-20 bg-gray-200/70 rounded-full' }),
+              h('div', { class: 'h-2.5 w-8 bg-gray-100 rounded-full' }),
+            ),
+            h('div', { class: 'h-2.5 w-full bg-gray-100 rounded-full overflow-hidden' },
+              h('div', { class: 'h-full bg-gray-200/80 rounded-full', style: { width: `${w}%` } })
+            ),
+          )
+        ),
+      ),
+    )
+  );
+
+  grid.appendChild(
+    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+      h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
+        h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
+      ),
+      h('div', { class: 'flex flex-col sm:flex-row items-center gap-4 justify-between my-auto py-2' },
+        h('div', { class: 'w-[130px] h-[130px] rounded-full border-[14px] border-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 min-w-[120px] space-y-2' },
+          h('div', { class: 'h-3 w-full bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-4/5 bg-gray-100 rounded-full' }),
+          h('div', { class: 'h-3 w-3/5 bg-gray-100 rounded-full' }),
+        ),
+      ),
+    )
+  );
+
+  return grid;
+}
+
+export function skeletonTrendChart() {
+  return h('div', { class: 'trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-4 animate-pulse' },
+    h('div', { class: 'flex items-center justify-between mb-4' },
+      h('div', { class: 'space-y-1' },
+        h('div', { class: 'h-2.5 w-24 bg-pink-100 rounded-full' }),
+        h('div', { class: 'h-4 w-40 bg-gray-200/80 rounded-md' }),
+      ),
+      h('div', { class: 'h-6 w-24 bg-gray-100 rounded-full' }),
+    ),
+    h('div', { class: 'h-36 w-full bg-gray-50/80 rounded-2xl border border-gray-100/80 flex items-end justify-between px-6 pb-3 pt-6 gap-4' },
+      [30, 55, 45, 80, 60].map((hVal) =>
+        h('div', { class: 'flex-1 flex flex-col items-center gap-2' },
+          h('div', { class: 'w-full bg-gray-200/60 rounded-t-lg', style: { height: `${hVal}%` } }),
+          h('div', { class: 'h-2.5 w-10 bg-gray-100 rounded-full' }),
+        )
+      ),
+    ),
+  );
+}
+
+export function skeletonTableWithColumns(columns = [], rowCount = 5) {
+  const table = h('table', { class: 'w-full text-left border-collapse' });
+  const thead = h('thead');
+  const tr = h('tr', { class: 'border-b border-gray-100' });
+
+  columns.forEach((col) => {
+    const label = typeof col === 'string' ? col : col.label || '';
+    tr.appendChild(h('th', {
+      class: 'px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap',
+    }, label));
+  });
+  thead.appendChild(tr);
+  table.appendChild(thead);
+
+  const tbody = h('tbody');
+  for (let r = 0; r < rowCount; r++) {
+    const row = h('tr', { class: `border-b border-gray-50 ${r % 2 ? 'bg-gray-50/40' : ''}` });
+    columns.forEach((col, c) => {
+      const key = typeof col === 'string' ? col.toLowerCase() : String(col.key || col.label || '').toLowerCase();
+      let cellContent;
+      if (key.includes('status') || key.includes('level') || key.includes('delivery') || key.includes('type') || key.includes('category') || key.includes('priority')) {
+        cellContent = h('div', { class: 'h-5 w-16 rounded-full bg-gray-200/70 animate-pulse' });
+      } else if (key.includes('action') || key.includes('manage') || key.includes('button')) {
+        cellContent = h('div', { class: 'h-8 w-16 rounded-xl bg-gray-100 animate-pulse' });
+      } else if (key.includes('date') || key.includes('sent') || key.includes('time') || key.includes('scheduled')) {
+        cellContent = h('div', { class: 'h-3.5 w-24 rounded-full bg-gray-200/60 animate-pulse' });
+      } else if (key.includes('phone') || key.includes('contact') || key.includes('id') || key.includes('quantity') || key.includes('count')) {
+        cellContent = h('div', { class: 'h-4 w-20 rounded-full bg-gray-200/70 animate-pulse' });
+      } else {
+        const widths = ['w-36', 'w-48', 'w-40', 'w-32', 'w-44'];
+        const w = widths[(r * 3 + c) % widths.length];
+        cellContent = h('div', { class: `h-4 ${w} rounded-full bg-gray-200/70 animate-pulse` });
+      }
+      row.appendChild(h('td', { class: 'px-5 py-3.5 text-[13px] align-middle' }, cellContent));
+    });
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+
+  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
+    h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
+  );
+}
+
+export function skeletonModuleStats(count = 3) {
+  return h('div', { class: 'flex flex-wrap gap-2.5 animate-pulse' },
+    Array.from({ length: count }).map(() =>
+      h('div', { class: 'inline-flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-white border border-gray-100 shadow-sm' },
+        h('div', { class: 'w-7 h-7 rounded-lg bg-gray-100' }),
+        h('div', { class: 'h-3.5 w-6 bg-gray-200/80 rounded-md' }),
+        h('div', { class: 'h-3 w-16 bg-gray-100 rounded-full' }),
+      )
+    )
+  );
+}
+
+export function skeletonSearchBar({ hasFilters = false, count = 1 } = {}) {
+  const bar = h('div', { class: 'flex flex-wrap items-center gap-3 animate-pulse' },
+    h('div', { class: 'relative flex-1 min-w-[240px]' },
+      icon('search', 'text-gray-300 text-sm absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none'),
+      h('div', { class: `${inputCls} pl-10 bg-gray-50/70 border-gray-100 h-[42px]` })
+    )
+  );
+  if (hasFilters) {
+    for (let i = 0; i < count; i++) {
+      bar.appendChild(h('div', { class: `${inputCls} w-36 bg-gray-50/70 border-gray-100 h-[42px]` }));
     }
-    wrap.appendChild(row);
+  }
+  return bar;
+}
+
+export function skeletonHeroBanner() {
+  return h('section', {
+    class: 'bg-maroon-gradient rounded-3xl p-10 sm:p-12 text-white relative overflow-hidden shadow-sm animate-pulse',
+  },
+    h('div', {
+      class: 'absolute right-0 top-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50',
+    }),
+    h('div', { class: 'relative z-10 flex justify-between items-center h-full gap-8' },
+      h('div', { class: 'max-w-2xl w-full' },
+        h('div', { class: 'flex items-center gap-3 mb-6' },
+          h('span', { class: 'w-8 h-[2px] bg-pink-400 block' }),
+          h('div', { class: 'h-3 w-28 bg-white/30 rounded-full' }),
+        ),
+        h('div', { class: 'h-10 sm:h-12 w-72 sm:w-80 bg-white/35 rounded-2xl mb-5' }),
+        h('div', { class: 'h-4 w-80 sm:w-96 max-w-full bg-white/20 rounded-full mb-8' }),
+        h('div', { class: 'h-3.5 w-48 bg-white/20 rounded-full' }),
+      ),
+      h('div', { class: 'hidden md:block pr-8' },
+        h('div', { class: 'w-44 h-44 rounded-full border border-white/10 flex items-center justify-center p-2 bg-black/5 relative' },
+          h('div', { class: 'absolute inset-0 rounded-full border border-dashed border-pink-300/30' }),
+          h('img', { src: '/assets/logo.png', alt: 'SAAC Seal', class: 'w-32 h-32 object-contain relative z-10 opacity-40' }),
+        ),
+      ),
+    ),
+  );
+}
+
+export function skeletonHeader({ hasAction = true, hasIcon = true, titleWidth = 'w-64 sm:w-80', subtitleWidth = 'w-48 sm:w-96' } = {}) {
+  const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4 pb-1 animate-pulse' });
+  const left = h('div');
+  if (hasIcon) {
+    left.appendChild(h('div', { class: 'w-10 h-10 rounded-xl bg-pink-50 border border-pink-100 mb-3' }));
+  }
+  left.appendChild(h('div', { class: `h-8 ${titleWidth} bg-gray-200/90 rounded-xl mb-2` }));
+  left.appendChild(h('div', { class: `h-4 ${subtitleWidth} bg-gray-100 rounded-full` }));
+  head.appendChild(left);
+  if (hasAction) {
+    head.appendChild(h('div', { class: 'h-10 w-36 sm:w-44 bg-pink-200/60 rounded-2xl shrink-0' }));
+  }
+  return head;
+}
+
+export function skeletonCard({ title = true, lines = 3, height = 'auto' } = {}) {
+  const card = h('div', {
+    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse',
+    style: height !== 'auto' ? { minHeight: height } : {},
+  });
+  if (title) {
+    card.appendChild(h('div', { class: 'flex items-center justify-between pb-3 border-b border-gray-100' },
+      h('div', { class: 'h-5 w-40 bg-gray-200/80 rounded-lg' }),
+      h('div', { class: 'h-4 w-16 bg-gray-100 rounded-full' }),
+    ));
+  }
+  for (let i = 0; i < lines; i++) {
+    card.appendChild(h('div', {
+      class: 'h-4 rounded-full bg-gray-100',
+      style: { width: `${80 - ((i * 19) % 35)}%`, animationDelay: `${i * 100}ms` },
+    }));
+  }
+  return card;
+}
+
+export function skeletonCharts() {
+  return skeletonAnalyticsGrid();
+}
+
+export function skeletonDashboard() {
+  const wrap = h('div', { class: 'space-y-8 max-w-[1400px] 2xl:max-w-[1600px] mx-auto' });
+  wrap.appendChild(skeletonHeroBanner());
+  wrap.appendChild(skeletonSupplyAlert());
+  wrap.appendChild(h('section', {},
+    h('div', { class: 'mb-6 animate-pulse' },
+      h('div', { class: 'h-2.5 w-20 bg-pink-100 rounded-full mb-2' }),
+      h('div', { class: 'flex items-center justify-between' },
+        h('div', { class: 'space-y-1' },
+          h('div', { class: 'h-7 w-56 bg-gray-200/80 rounded-xl' }),
+          h('div', { class: 'h-4 w-64 bg-gray-100 rounded-full' }),
+        ),
+        h('div', { class: 'h-7 w-28 bg-gray-100 rounded-full' }),
+      ),
+    ),
+    skeletonStatCards(6, 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5'),
+  ));
+  wrap.appendChild(h('section', { class: 'space-y-5' },
+    h('div', { class: 'animate-pulse space-y-1' },
+      h('div', { class: 'h-2.5 w-28 bg-pink-100 rounded-full' }),
+      h('div', { class: 'h-7 w-72 bg-gray-200/80 rounded-xl' }),
+      h('div', { class: 'h-4 w-96 bg-gray-100 rounded-full' }),
+    ),
+    skeletonAnalyticsGrid(),
+  ));
+  wrap.appendChild(skeletonTrendChart());
+  return wrap;
+}
+
+export function skeletonModulePage({ columns = 5, hasAction = true } = {}) {
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
+  wrap.appendChild(skeletonHeader({ hasAction, hasIcon: true }));
+  wrap.appendChild(skeletonSearchBar());
+  wrap.appendChild(skeletonTable(5, columns));
+  return wrap;
+}
+
+export function skeletonTable(rows = 5, cols = 5) {
+  const dummyCols = Array.from({ length: cols }).map((_, i) => ({ label: `Column ${i + 1}` }));
+  return skeletonTableWithColumns(dummyCols, rows);
+}
+
+export function skeletonGrid(cards = 4) {
+  return skeletonStatCards(cards, cards === 6 ? 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5' : 'grid grid-cols-2 lg:grid-cols-4 gap-5');
+}
+
+export function skeletonFeed(items = 4) {
+  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-6' });
+  for (let i = 0; i < items; i++) {
+    wrap.appendChild(
+      h('div', { class: 'flex gap-4 items-start animate-pulse', style: { animationDelay: `${i * 100}ms` } },
+        h('div', { class: 'w-10 h-10 rounded-full bg-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 space-y-2 py-1' },
+          h('div', { class: 'h-4 bg-gray-100 rounded-full w-1/3' }),
+          h('div', { class: 'h-3 bg-gray-50 rounded-full w-2/3' })
+        )
+      )
+    );
   }
   return wrap;
 }
@@ -249,340 +561,8 @@ export function dataTable(columns, rows) {
   });
   table.appendChild(tbody);
 
-  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-x-auto' }, table);
-}
-
-const CHART_COLORS = ['#EC4899', '#F59E0B', '#3B82F6', '#8B5CF6', '#10B981', '#EF4444', '#14B8A6', '#F97316', '#6366F1', '#D946EF'];
-
-export function pieChart(items, { title = '', centerLabel = 'Total', size = 180, isDonut = false } = {}) {
-  const total = items.reduce((s, i) => s + (Number(i.value) || 0), 0) || 0;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = size / 2 - 10;
-  const innerR = isDonut ? r * 0.55 : 0;
-
-  let startAngle = -Math.PI / 2;
-  const segs = items.map((it, i) => {
-    const val = Number(it.value) || 0;
-    const frac = total ? val / total : 0;
-    const angle = frac * 2 * Math.PI;
-    const endAngle = startAngle + angle;
-
-    const x1 = cx + r * Math.cos(startAngle);
-    const y1 = cy + r * Math.sin(startAngle);
-    const x2 = cx + r * Math.cos(endAngle);
-    const y2 = cy + r * Math.sin(endAngle);
-
-    const largeArc = frac > 0.5 ? 1 : 0;
-
-    let pathD = '';
-    if (frac >= 0.999) {
-      if (isDonut) {
-        pathD = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx} ${cy + r} A ${r} ${r} 0 1 1 ${cx} ${cy - r} M ${cx} ${cy - innerR} A ${innerR} ${innerR} 0 1 0 ${cx} ${cy + innerR} A ${innerR} ${innerR} 0 1 0 ${cx} ${cy - innerR} Z`;
-      } else {
-        pathD = `M ${cx} ${cy - r} A ${r} ${r} 0 1 1 ${cx} ${cy + r} A ${r} ${r} 0 1 1 ${cx} ${cy - r} Z`;
-      }
-    } else if (frac > 0) {
-      if (isDonut) {
-        const ix1 = cx + innerR * Math.cos(endAngle);
-        const iy1 = cy + innerR * Math.sin(endAngle);
-        const ix2 = cx + innerR * Math.cos(startAngle);
-        const iy2 = cy + innerR * Math.sin(startAngle);
-        pathD = `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix2} ${iy2} Z`;
-      } else {
-        pathD = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-      }
-    }
-
-    startAngle = endAngle;
-
-    return {
-      ...it,
-      value: val,
-      pct: total ? Math.round(frac * 100) : 0,
-      pathD,
-      color: it.color || CHART_COLORS[i % CHART_COLORS.length],
-    };
-  });
-
-  const svg = svgEl('svg', {
-    viewBox: `0 0 ${size} ${size}`,
-    class: 'w-full max-w-[160px] h-auto drop-shadow-sm',
-    role: 'img',
-  });
-
-  if (total === 0) {
-    svg.appendChild(svgEl('circle', {
-      cx, cy, r,
-      fill: '#F3F4F6',
-      stroke: '#E5E7EB',
-      'stroke-width': 2,
-    }));
-    const noDataText = svgEl('text', {
-      x: cx, y: cy + 4,
-      'text-anchor': 'middle',
-      class: 'fill-gray-400 text-xs font-semibold',
-    });
-    noDataText.textContent = 'No data';
-    svg.appendChild(noDataText);
-  } else {
-    segs.forEach((s) => {
-      if (!s.pathD) return;
-      const slice = svgEl('path', {
-        d: s.pathD,
-        fill: s.color,
-        stroke: '#ffffff',
-        'stroke-width': '2',
-        class: 'transition-all duration-200 hover:opacity-90 hover:brightness-105 cursor-pointer',
-      });
-      const titleEl = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-      titleEl.textContent = `${s.label}: ${s.value} (${s.pct}%)`;
-      slice.appendChild(titleEl);
-      svg.appendChild(slice);
-    });
-  }
-
-  const legend = h('div', { class: 'flex-1 min-w-[130px] space-y-1.5 max-h-[160px] overflow-y-auto pr-1' },
-    segs.length
-      ? segs.map((s) =>
-          h('div', { class: 'flex items-center gap-2 text-xs hover:bg-gray-50/80 p-1 rounded-lg transition-colors' },
-            h('span', { class: 'w-2.5 h-2.5 rounded-full shrink-0 shadow-sm', style: { backgroundColor: s.color } }),
-            h('span', { class: 'text-gray-700 flex-1 truncate capitalize font-medium text-[12px]', title: s.label }, s.label),
-            h('span', { class: 'font-bold text-gray-900 ml-1 text-[12px]' }, String(s.value)),
-            h('span', { class: 'text-gray-400 w-8 text-right font-mono text-[10px]' }, `${s.pct}%`),
-          )
-        )
-      : h('p', { class: 'text-xs text-gray-400' }, 'No data recorded yet.'),
-  );
-
-  return h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-shadow',
-  },
-    title
-      ? h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
-          h('h4', { class: 'text-sm font-bold text-gray-900 flex items-center gap-2' },
-            h('span', { class: 'w-2 h-2 rounded-full bg-pink-500' }),
-            title,
-          ),
-          h('span', { class: 'text-[11px] font-semibold text-gray-400 uppercase tracking-wider' }, `${total} total`),
-        )
-      : null,
-    h('div', { class: 'flex flex-col sm:flex-row items-center gap-5' },
-      h('div', { class: 'shrink-0 flex items-center justify-center p-1' }, svg),
-      legend,
-    ),
-  );
-}
-
-export function donutChart(items, { centerLabel = 'Total', size = 200, stroke = 26 } = {}) {
-  const total = items.reduce((s, i) => s + i.value, 0) || 0;
-  const radius = (size - stroke) / 2;
-  const cx = size / 2;
-  const cy = size / 2;
-  const circ = 2 * Math.PI * radius;
-
-  let offset = 0;
-  const segs = items.map((it, i) => {
-    const frac = total ? it.value / total : 0;
-    const seg = {
-      ...it,
-      pct: total ? Math.round(frac * 100) : 0,
-      dash: `${frac * circ} ${circ}`,
-      offset: -offset * circ,
-      color: CHART_COLORS[i % CHART_COLORS.length],
-    };
-    offset += frac;
-    return seg;
-  });
-
-  const svg = svgEl('svg', {
-    viewBox: `0 0 ${size} ${size}`,
-    class: 'w-full max-w-[220px] h-auto',
-    role: 'img',
-  });
-  svg.appendChild(svgEl('circle', { cx, cy, r: radius, fill: 'none', stroke: '#F3F4F6', 'stroke-width': stroke }));
-  const segEls = segs.map((s) => svgEl('circle', {
-    cx, cy, r: radius, fill: 'none',
-    class: 'donut-seg',
-    stroke: s.color, 'stroke-width': stroke,
-    'stroke-dasharray': s.dash, 'stroke-dashoffset': circ,
-    'stroke-linecap': 'butt',
-    transform: `rotate(-90 ${cx} ${cy})`,
-  }));
-  for (const el of segEls) svg.appendChild(el);
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    segEls.forEach((el, i) => { el.setAttribute('stroke-dashoffset', String(segs[i].offset)); });
-  }));
-  const centerTotal = svgEl('text', { x: cx, y: cy - 6, 'text-anchor': 'middle', class: 'fill-gray-900', style: { fontSize: 26, fontWeight: 800 } });
-  centerTotal.textContent = String(total);
-  svg.appendChild(centerTotal);
-  const centerLabelEl = svgEl('text', { x: cx, y: cy + 18, 'text-anchor': 'middle', class: 'fill-gray-400', style: { fontSize: 10, fontWeight: 700, letterSpacing: '.1em' } });
-  centerLabelEl.textContent = centerLabel.toUpperCase();
-  svg.appendChild(centerLabelEl);
-
-  const legend = h('div', { class: 'flex-1 min-w-[220px] space-y-2.5' },
-    segs.length
-      ? segs.map((s) =>
-          h('div', { class: 'flex items-center gap-2.5' },
-            h('span', { class: 'w-2.5 h-2.5 rounded-full shrink-0', style: { backgroundColor: s.color } }),
-            h('span', { class: 'text-[13px] text-gray-700 flex-1 capitalize' }, s.label),
-            h('span', { class: 'text-[13px] font-bold text-gray-900' }, String(s.value)),
-            h('span', { class: 'text-[11px] text-gray-400 w-10 text-right' }, `${s.pct}%`),
-          )
-        )
-      : h('p', { class: 'text-[13px] text-gray-400' }, 'No data yet.'),
-  );
-
-  return h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row items-center gap-8',
-  },
-    h('div', { class: 'shrink-0' }, svg),
-    legend,
-  );
-}
-
-export function yearBarChart(items, { title = 'Incidents by Year', subtitle = '' } = {}) {
-  if (!items || !items.length) {
-    return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center' },
-      h('div', { class: 'w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mb-4' }, icon('chart-column', 'text-2xl')),
-      h('p', { class: 'text-sm font-bold text-gray-800' }, 'No historical data yet'),
-      h('p', { class: 'text-[13px] text-gray-500 mt-1' }, 'Incidents from past years will appear here once recorded.'),
-    );
-  }
-
-  const currentYear = new Date().getFullYear();
-  const maxVal = Math.max(...items.map((d) => d.incidents), 1);
-  // headroom above the tallest point so labels/dots never touch the top edge
-  const scaleMax = Math.max(maxVal * 1.2, maxVal + 1);
-
-  // Fixed, gently-proportioned canvas — capped in CSS via .trend-chart-shell
-  // so it can't balloon to an oversized aspect ratio on wide desktop screens.
-  const chartWidth = 640;
-  const chartHeight = 160;
-  const padTop = 28;
-  const padBottom = 28;
-  const padLeft = 20;
-  const padRight = 20;
-  const plotW = chartWidth - padLeft - padRight;
-  const plotH = chartHeight - padTop - padBottom;
-
-  const points = items.map((d, i) => ({
-    ...d,
-    x: items.length > 1 ? padLeft + (i * plotW) / (items.length - 1) : padLeft + plotW / 2,
-    y: padTop + plotH - (d.incidents / scaleMax) * plotH,
-  }));
-
-  // exact analytic path length (sum of segment lengths) — no DOM measuring needed
-  let pathLen = 0;
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    d += ` L ${points[i].x} ${points[i].y}`;
-    pathLen += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-  }
-  if (points.length === 1) pathLen = 1;
-
-  const areaD = `${d} L ${points[points.length - 1].x} ${padTop + plotH} L ${points[0].x} ${padTop + plotH} Z`;
-
-  const svg = svgEl('svg', { viewBox: `0 0 ${chartWidth} ${chartHeight}`, class: 'w-full h-auto block', role: 'img' });
-
-  const gradId = `trendFill-${Math.random().toString(36).slice(2, 9)}`;
-  const defs = svgEl('defs');
-  const grad = svgEl('linearGradient', { id: gradId, x1: 0, y1: 0, x2: 0, y2: 1 });
-  grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#DB2777', 'stop-opacity': 0.22 }));
-  grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#DB2777', 'stop-opacity': 0 }));
-  defs.appendChild(grad);
-  svg.appendChild(defs);
-
-  // baseline
-  svg.appendChild(svgEl('line', {
-    x1: padLeft, y1: padTop + plotH, x2: chartWidth - padRight, y2: padTop + plotH,
-    stroke: '#F3F4F6', 'stroke-width': 1,
-  }));
-
-  // filled area under the line, fades in after the line finishes drawing
-  const area = svgEl('path', { d: areaD, fill: `url(#${gradId})`, class: 'trend-fill', style: { opacity: 0 } });
-  svg.appendChild(area);
-
-  // the line itself — starts fully hidden via a dash the length of the path,
-  // then animates its dashoffset down to 0 to "draw" it in on load
-  const linePath = svgEl('path', {
-    d, fill: 'none', stroke: '#DB2777', 'stroke-width': 3,
-    'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-    class: 'trend-line-path',
-    style: { strokeDasharray: `${pathLen}`, strokeDashoffset: `${pathLen}` },
-  });
-  svg.appendChild(linePath);
-
-  const pointEls = [];
-  points.forEach((p, i) => {
-    const isCurrent = p.year === currentYear;
-
-    const dot = svgEl('circle', {
-      cx: p.x, cy: p.y, r: 0,
-      fill: '#ffffff', stroke: '#DB2777', 'stroke-width': isCurrent ? 3 : 2.5,
-      class: 'trend-point',
-      style: { opacity: 0, '--pt-delay': `${0.5 + i * 0.08}s` },
-    });
-    const titleEl = svgEl('title');
-    titleEl.textContent = `${p.year}: ${p.incidents} incident${p.incidents === 1 ? '' : 's'}`;
-    dot.appendChild(titleEl);
-    svg.appendChild(dot);
-    pointEls.push(dot);
-
-    const valueLabel = svgEl('text', {
-      x: p.x, y: p.y - 12, 'text-anchor': 'middle',
-      class: 'fill-gray-900',
-      style: { fontSize: 11, fontWeight: 800 },
-    });
-    valueLabel.textContent = String(p.incidents);
-    svg.appendChild(valueLabel);
-
-    const yearLabel = svgEl('text', {
-      x: p.x, y: chartHeight - 10, 'text-anchor': 'middle',
-      class: isCurrent ? 'fill-gray-900' : 'fill-gray-500',
-      style: { fontSize: 11, fontWeight: isCurrent ? 800 : 600 },
-    });
-    yearLabel.textContent = String(p.year);
-    svg.appendChild(yearLabel);
-
-    if (isCurrent) {
-      const badge = svgEl('text', {
-        x: p.x, y: p.y - 24, 'text-anchor': 'middle',
-        class: 'fill-pink-600',
-        style: { fontSize: 7, fontWeight: 700, letterSpacing: '.08em' },
-      });
-      badge.textContent = 'CURRENT';
-      svg.appendChild(badge);
-    }
-  });
-
-  // kick off the draw-in on the next couple of frames so the initial
-  // (hidden) styles above have painted before we transition to the final state
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    linePath.style.strokeDashoffset = '0';
-    area.style.opacity = '1';
-    pointEls.forEach((el, i) => { el.setAttribute('r', points[i].year === currentYear ? 5 : 4); el.style.opacity = '1'; });
-  }));
-
-  let changeText = '';
-  if (items.length >= 2) {
-    const prev = items[items.length - 2];
-    const curr = items[items.length - 1];
-    const diff = curr.incidents - prev.incidents;
-    const pct = prev.incidents ? Math.round(Math.abs(diff) / prev.incidents * 100) : 0;
-    changeText = diff > 0 ? `↑ ${pct}% from ${prev.year}` : diff < 0 ? `↓ ${pct}% from ${prev.year}` : `Same as ${prev.year}`;
-  }
-
-  return h('div', { class: 'trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-4' },
-    h('div', { class: 'flex items-center justify-between mb-3' },
-      h('div', {},
-        h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-0.5' }, 'Year-over-Year'),
-        h('h3', { class: 'text-base font-bold text-gray-900' }, title),
-        subtitle ? h('p', { class: 'text-[12px] text-gray-500 mt-0.5' }, subtitle) : null,
-      ),
-      changeText ? h('span', { class: 'px-3 py-1.5 bg-pink-50 text-pink-700 rounded-full text-[11px] font-bold border border-pink-200/70' }, changeText) : null,
-    ),
-    svg,
+  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
+    h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
   );
 }
 
