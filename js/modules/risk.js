@@ -294,7 +294,7 @@ function riskForm(el) {
   closeModal = openModal(form).close;
 }
 
-export function riskAssessment(el) {
+export async function riskAssessment(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'hazard', label: 'Hazard', render: (r) => h('span', { class: 'font-semibold text-gray-900 block max-w-[300px]' }, r.hazard) },
@@ -325,7 +325,7 @@ export function riskAssessment(el) {
     { key: 'owner', label: 'Owner' },
     { key: 'review_date', label: 'Review Date', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.review_date)) },
   ];
-  loadTable(el, {
+  return loadTable(el, {
     table: 'risks', columns, iconName: 'security',
     title: 'Risk Assessment Tool',
     subtitle: 'Hazards with quantitative scoring, computed risk levels, mitigation plans, and review owners.',

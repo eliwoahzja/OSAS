@@ -151,11 +151,16 @@ export function moduleStats(chips) {
 }
 
 export function skeleton(rows = 5, cols = 6) {
-  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-3' });
+  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 relative overflow-hidden min-h-[200px]' },
+    h('div', { class: 'absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[1px] z-10' },
+      h('div', { class: 'w-8 h-8 rounded-full border-2 border-pink-100 border-t-pink-500 animate-spin mb-3 shadow-[0_0_10px_rgba(236,72,153,0.2)]' }),
+      h('span', { class: 'text-[10px] font-bold tracking-[0.2em] text-pink-500 uppercase' }, 'Loading')
+    )
+  );
   for (let r = 0; r < rows; r++) {
     const row = h('div', { class: 'flex gap-4' });
     for (let c = 0; c < cols; c++) {
-      row.appendChild(h('div', { class: `h-4 rounded-full bg-gray-100 animate-pulse`, style: { width: `${70 + ((r * 13 + c * 29) % 25)}%` } }));
+      row.appendChild(h('div', { class: `h-4 rounded-full bg-gray-100/80 animate-pulse`, style: { width: `${70 + ((r * 13 + c * 29) % 25)}%`, animationDelay: `${(r * 50) + (c * 20)}ms` } }));
     }
     wrap.appendChild(row);
   }

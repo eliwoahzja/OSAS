@@ -6,7 +6,7 @@ import {
 import * as api from '../api.js';
 import { AUDIENCES } from './drills.js';
 
-export function parentNotifications(el) {
+export async function parentNotifications(el) {
   el.appendChild(moduleShell({
     icon: 'notifications',
     title: 'Parent Notification System',
@@ -16,10 +16,10 @@ export function parentNotifications(el) {
   }));
   const holder = h('div', { class: 'space-y-5' });
   el.appendChild(holder);
-  renderNotifications(el, holder);
+  return renderNotifications(el, holder);
 }
 
-function renderNotifications(el, holder) {
+async function renderNotifications(el, holder) {
   holder.innerHTML = '';
   const filterRow = h('div', { class: 'flex flex-wrap items-center gap-2' },
     ['all', 'incident_alert', 'event_notice'].map((k) =>
@@ -29,7 +29,8 @@ function renderNotifications(el, holder) {
       }, k === 'all' ? 'All' : k === 'incident_alert' ? 'Incident Alerts' : 'Event Notices')));
   holder.appendChild(filterRow);
   holder.appendChild(skeleton(4, 7));
-  api.listRows('notifications').then((rows) => {
+  try {
+    const rows = await api.listRows('notifications');
     holder.innerHTML = '';
     holder.appendChild(filterRow);
     if (!rows.length) {
@@ -48,7 +49,9 @@ function renderNotifications(el, holder) {
       { key: 'delivery_status', label: 'Delivery', render: (r) => pill(r.delivery_status) },
     ];
     holder.appendChild(dataTable(columns, rows));
-  }).catch((e) => holder.replaceChildren(filterRow, errorBanner(e.message)));
+  } catch (e) {
+    holder.replaceChildren(filterRow, errorBanner(e.message));
+  }
 }
 
 function notifBadge(r) {

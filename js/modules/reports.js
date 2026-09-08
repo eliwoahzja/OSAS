@@ -3,7 +3,7 @@ import {
 } from '../ui.js';
 import * as api from '../api.js';
 
-export function complianceReports(el) {
+export async function complianceReports(el) {
   el.appendChild(moduleShell({
     icon: 'assessment', title: 'Safety Compliance Reports',
     subtitle: 'Auto-generated summaries pulled from inspections, drills, and incidents — exportable as CSV or PDF.',
@@ -12,7 +12,8 @@ export function complianceReports(el) {
   el.appendChild(holder);
   holder.appendChild(skeleton(2, 4));
 
-  api.getDashboardStats().then((s) => {
+  try {
+    const s = await api.getDashboardStats();
     holder.innerHTML = '';
     const grid = h('div', { class: 'grid grid-cols-2 lg:grid-cols-4 gap-5' });
     const items = [
@@ -24,38 +25,25 @@ export function complianceReports(el) {
     items.forEach((d) => grid.appendChild(statCard(d)));
     holder.appendChild(grid);
 
-    holder.appendChild(h('div', { class: 'flex flex-wrap gap-3' },
-      h('button', { class: 'btn-primary', onclick: () => exportCSV(s) }, icon('download', 'text-base'), 'Export CSV (Excel)'),
-      h('button', { class: 'inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-gray-700 text-sm font-semibold border border-gray-200 hover:bg-gray-50 transition-colors clickable', onclick: () => window.print() }, icon('print', 'text-base'), 'Export PDF (Print)')));
-
-    holder.appendChild(h('div', { class: 'bg-[#FFF8E7] border border-amber-200/60 rounded-2xl p-4 flex items-center gap-4' },
-      h('div', { class: 'w-8 h-8 rounded-full bg-amber-100 text-amber-500 flex items-center justify-center shrink-0' }, icon('database', 'text-xs')),
-      h('div', {},
-        h('h4', { class: 'text-[13px] font-bold text-gray-900' }, 'Generated report'),
-        h('p', { class: 'text-[13px] text-gray-600 mt-0.5' }, `Summary generated ${new Date().toLocaleString()} from live module data.`))));
-  }).catch((e) => holder.replaceChildren(errorBanner(e.message)));
-}
-
-function exportCSV(stats) {
-  const rows = [
-    ['Metric', 'Value'],
-    ['Total Incidents', stats.incidents_total],
-    ['Open Incidents', stats.incidents_open],
-    ['Inspections Passed', stats.inspections_passed],
-    ['Inspections Pending', stats.inspections_pending],
-    ['Inspections Overdue', stats.inspections_overdue],
-    ['Drills Completed', stats.drills_completed],
-    ['Active Drills', stats.drills_active],
-    ['Low Supplies', stats.supplies_low],
-    ['Emergency Contacts', stats.emergency_contacts_total],
-    ['Compliance Score (%)', stats.compliance_score],
-  ];
-  const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `osas-compliance-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  toast('Compliance summary exported as CSV.');
+    const logEl = h('div', { class: 'space-y-4 max-w-4xl mt-8' });
+    holder.appendChild(logEl);
+    logEl.appendChild(h('h3', { class: 'text-lg font-bold text-gray-900 mt-2' }, 'Recent System Activity'));
+    const logs = await api.listRows('incidents');
+    if (!logs.length) {
+      logEl.appendChild(h('p', { class: 'text-sm text-gray-500' }, 'No recent activity.'));
+    } else {
+      logs.slice(0, 10).forEach((l) => {
+        logEl.appendChild(h('div', { class: 'flex items-center gap-4 py-3 border-b border-gray-100 last:border-0' },
+          h('span', { class: 'text-[11px] text-gray-400 font-mono w-24 shrink-0' }, l.date),
+          h('div', { class: 'w-2 h-2 rounded-full bg-pink-500 shrink-0' }),
+          h('div', { class: 'flex-1' },
+            h('p', { class: 'text-sm text-gray-800 font-medium' }, `Incident logged in ${l.location || 'campus'}`),
+            h('p', { class: 'text-xs text-gray-500 mt-0.5' }, l.description || 'No description provided'),
+          ),
+        ));
+      });
+    }
+  } catch (e) {
+    holder.replaceChildren(errorBanner(e.message));
+  }
 }

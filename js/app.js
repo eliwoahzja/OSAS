@@ -41,27 +41,80 @@ function renderSidebar() {
   for (const item of NAV) {
     if (item.adminOnly && !admin) continue;
     const a = h('a', {
-      class: 'flex items-center gap-3 px-4 py-2.5 rounded-xl hover:bg-gray-800/50 text-gray-400 hover:text-white transition-colors clickable',
+      class: 'group relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-400 hover:text-white transition-all duration-200 clickable overflow-hidden outline-none',
       href: `#/${item.route}`,
     },
-      icon(item.icon, 'text-sm w-5 text-center'),
-      h('span', { class: 'text-[13px]' }, item.label),
+      h('div', { class: 'nav-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-pink-500 rounded-r-md transition-all duration-300 opacity-0 group-hover:h-1/2 group-hover:opacity-50' }),
+      icon(item.icon, 'text-sm w-5 text-center relative z-10 transition-transform duration-200 group-hover:scale-110'),
+      h('span', { class: 'text-[13px] relative z-10' }, item.label),
+      h('div', { class: 'nav-bg absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl' })
     );
-    nav.appendChild(h('li', {}, a));
+    nav.appendChild(h('li', { class: 'mb-1' }, a));
   }
 }
 
 function highlightSidebar(route) {
   document.querySelectorAll('#sidebar-nav a').forEach((a) => {
     const active = a.getAttribute('href') === `#/${route}`;
-    a.classList.toggle('bg-sidebar-active', active);
-    a.classList.toggle('text-white', active);
-    a.classList.toggle('font-medium', active);
-    a.classList.toggle('text-gray-400', !active);
+    const indicator = a.querySelector('.nav-indicator');
+    const bg = a.querySelector('.nav-bg');
+    
+    if (active) {
+      a.classList.add('text-white', 'font-semibold');
+      a.classList.remove('text-gray-400');
+      if (indicator) {
+        indicator.classList.add('!h-2/3', '!opacity-100');
+        indicator.classList.remove('h-0', 'opacity-0');
+      }
+      if (bg) {
+        bg.classList.add('!opacity-100', 'bg-white/10');
+        bg.classList.remove('opacity-0', 'bg-white/5');
+      }
+    } else {
+      a.classList.add('text-gray-400');
+      a.classList.remove('text-white', 'font-semibold');
+      if (indicator) {
+        indicator.classList.remove('!h-2/3', '!opacity-100');
+        indicator.classList.add('h-0', 'opacity-0');
+      }
+      if (bg) {
+        bg.classList.remove('!opacity-100', 'bg-white/10');
+        bg.classList.add('opacity-0', 'bg-white/5');
+      }
+    }
   });
 }
 
-function route() {
+let nprogress = null;
+function startProgress() {
+  if (!nprogress) {
+    nprogress = document.createElement('div');
+    nprogress.className = 'fixed top-0 left-0 h-[3px] bg-pink-500 z-50 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(236,72,153,0.7)]';
+    document.body.appendChild(nprogress);
+  }
+  nprogress.style.transition = 'none';
+  nprogress.style.width = '0%';
+  nprogress.style.opacity = '1';
+  
+  // force reflow
+  void nprogress.offsetWidth;
+  
+  nprogress.style.transition = 'width 200ms ease-out, opacity 300ms ease-out';
+  nprogress.style.width = '20%';
+  setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '40%'; }, 100);
+  setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '70%'; }, 300);
+}
+
+function stopProgress() {
+  if (!nprogress) return;
+  nprogress.style.width = '100%';
+  setTimeout(() => {
+    nprogress.style.opacity = '0';
+    setTimeout(() => { nprogress.style.width = '0%'; }, 300);
+  }, 200);
+}
+
+async function route() {
   let r = (location.hash || '#/dashboard').replace(/^#\//, '');
   if (!VIEWS[r]) r = 'dashboard';
   if (r !== 'dashboard') clearInterval(statsTimer);
@@ -69,18 +122,29 @@ function route() {
   const title = (NAV.find((n) => n.route === r) || {}).label || 'Admin Dashboard';
   titleEl().textContent = title;
   highlightSidebar(r);
+  
   const el = viewEl();
+  
+  startProgress();
+  el.style.transition = 'opacity 150ms ease-out';
+  el.style.opacity = '0.4';
+  
+  // allow fade out to start
+  await new Promise(res => setTimeout(res, 50));
+  
   el.innerHTML = '';
   el.scrollTop = 0;
-  el.classList.remove('animate-view');
-  void el.offsetWidth;
-  el.classList.add('animate-view');
+  
   try {
-    view(el);
+    const res = view(el);
+    if (res && typeof res.then === 'function') await res;
   } catch (e) {
     console.error(e);
     el.appendChild(errorBanner(e.message, () => route()));
   }
+  
+  stopProgress();
+  el.style.opacity = '1';
 }
 
 function syncAvatarUI() {

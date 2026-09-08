@@ -153,7 +153,7 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
  * every 6 months, exit routes inspected monthly). Flagging items as 'overdue' prevents
  * lapses before regional DepEd accreditation audits.
  */
-export function safetyInspections(el) {
+export async function safetyInspections(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'item', label: 'Inspection Item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
@@ -164,7 +164,7 @@ export function safetyInspections(el) {
     { key: 'inspector', label: 'Inspector' },
     { key: 'notes', label: 'Follow-up Notes', render: (r) => r.notes ? h('span', { class: 'block max-w-[300px] text-gray-600' }, r.notes) : h('span', { class: 'text-gray-300' }, '—') },
   ];
-  loadTable(el, {
+  return loadTable(el, {
     table: 'inspections', columns, iconName: 'fact_check',
     title: 'Safety Inspection Checklist',
     subtitle: 'Track inspection items per area with frequency, status, and follow-up notes. Items past their due date are auto-flagged Overdue.',
@@ -174,7 +174,7 @@ export function safetyInspections(el) {
   });
 }
 
-export function emergencyRoles(el) {
+export async function emergencyRoles(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'role', label: 'Role', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.role) },
@@ -182,7 +182,7 @@ export function emergencyRoles(el) {
     { key: 'zone', label: 'Zone / Building' },
     { key: 'backup', label: 'Backup Person', render: (r) => r.backup ? h('span', { class: 'text-gray-600' }, r.backup) : h('span', { class: 'text-gray-300' }, '—') },
   ];
-  loadTable(el, {
+  return loadTable(el, {
     table: 'emergency_roles', columns, iconName: 'groups',
     title: 'Emergency Role Assignment',
     subtitle: 'Fire wardens, first aiders, and evacuation marshals assigned per zone, each with a backup person.',
@@ -192,7 +192,7 @@ export function emergencyRoles(el) {
   });
 }
 
-export function firstAidSupplies(el) {
+export async function firstAidSupplies(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'item', label: 'Item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
@@ -203,7 +203,7 @@ export function firstAidSupplies(el) {
     { key: 'last_restocked', label: 'Last Restocked', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.last_restocked)) },
     { key: 'status', label: 'Status', render: (r) => pill(Number(r.quantity) <= Number(r.reorder_threshold) ? 'low' : 'ok') },
   ];
-  loadTable(el, {
+  return loadTable(el, {
     table: 'supplies', columns, iconName: 'medical_services',
     title: 'First Aid Supplies Monitor',
     subtitle: 'Stock levels with expiry dates and reorder thresholds. Items at or below threshold are flagged Low automatically.',

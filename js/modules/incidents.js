@@ -8,7 +8,7 @@ import { loadTable } from './table-loader.js';
 export const INCIDENT_TYPES = ['medical', 'slips/falls', 'fire-related', 'security', 'equipment failure'];
 export const SEVERITIES = ['low', 'medium', 'high'];
 
-export function emergencyContacts(el) {
+export async function emergencyContacts(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'name', label: 'Name', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
@@ -25,7 +25,7 @@ export function emergencyContacts(el) {
     { key: 'priority', label: 'Priority', render: (r) => (r.priority ? pill(`#${r.priority}`, 'pink') : h('span', { class: 'text-gray-300' }, '—')) },
   ];
 
-  loadTable(el, {
+  return loadTable(el, {
     table: 'emergency_contacts', columns, iconName: 'contacts',
     title: 'Emergency Contact Database',
     subtitle: 'Per-student guardians (priority order) plus school-wide responders: nurse, security head, and nearest police/fire/hospital.',
@@ -38,7 +38,7 @@ export function emergencyContacts(el) {
   });
 }
 
-export function incidentLogging(el) {
+export async function incidentLogging(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'date', label: 'Date / Time', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
@@ -50,7 +50,7 @@ export function incidentLogging(el) {
     { key: 'status', label: 'Status', render: (r) => pill(r.status) },
   ];
 
-  loadTable(el, {
+  return loadTable(el, {
     table: 'incidents', columns, iconName: 'report',
     title: 'Incident Logging',
     subtitle: 'Record medical, fire, security, and structural incidents. Incidents tied to a student can auto-notify their parents.',

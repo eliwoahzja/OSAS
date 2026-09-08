@@ -10,7 +10,7 @@ import { loadTable } from './table-loader.js';
 export const DRILL_TYPES = ['Fire', 'Earthquake', 'Lockdown', 'Evacuation'];
 export const AUDIENCES = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'All Parents'];
 
-export function drillScheduling(el) {
+export async function drillScheduling(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'type', label: 'Drill Type', render: (r) => pill(r.type) },
@@ -21,7 +21,7 @@ export function drillScheduling(el) {
     { key: 'notes', label: 'Outcome Notes', render: (r) => r.notes ? h('span', { class: 'block max-w-[340px] text-gray-600' }, r.notes) : h('span', { class: 'text-gray-300' }, '—') },
   ];
 
-  loadTable(el, {
+  return loadTable(el, {
     table: 'drills', columns, iconName: 'person-running',
     title: 'Drill Scheduling',
     subtitle: 'Plan fire, earthquake, lockdown, and evacuation drills. Scheduled drills can auto-send an event notice to parents.',
@@ -128,7 +128,7 @@ function drillForm(el) {
   closeModal = openModal(form).close;
 }
 
-export function evacuationPlans(el) {
+export async function evacuationPlans(el) {
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'building', label: 'Building', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.building) },
@@ -140,7 +140,7 @@ export function evacuationPlans(el) {
     { key: 'updated', label: 'Last Updated', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.updated)) },
     { key: 'current', label: 'Status', render: (r) => pill(r.current ? 'current' : 'archived') },
   ];
-  loadTable(el, {
+  return loadTable(el, {
     table: 'evacuation_plans', columns, iconName: 'map',
     title: 'Evacuation Map & Plans',
     subtitle: 'Floor plans per building with exits, evacuation routes, and assembly points. Upload a new plan to keep a version history.',
