@@ -58,9 +58,6 @@ function escapeHtml(s: string): string {
 
 async function parentEmails(svc: ReturnType<typeof createClient>, studentId?: string): Promise<string[]> {
   const TEST_EMAIL = 'yoboieliii@gmail.com';
-  const emails = (rows: { email?: string | null }[]) =>
-    [...new Set((rows || []).map((r) => (r.email || '').trim()).filter(Boolean))];
-  let recipients: string[] = [];
   if (studentId) {
     const { data } = await svc
       .from('emergency_contacts')
@@ -68,20 +65,11 @@ async function parentEmails(svc: ReturnType<typeof createClient>, studentId?: st
       .eq('category', 'student')
       .eq('student_id', studentId)
       .not('email', 'is', null);
-    recipients = emails(data || []);
+    const found = (data || []).map((r) => (r.email || '').trim()).filter(Boolean);
+    if (found.includes(TEST_EMAIL)) return [TEST_EMAIL];
+    if (found.length) return [TEST_EMAIL];
   }
-  if (!recipients.length) {
-    const { data } = await svc
-      .from('emergency_contacts')
-      .select('email')
-      .eq('category', 'student')
-      .not('email', 'is', null);
-    recipients = emails(data || []);
-  }
-  if (!recipients.includes(TEST_EMAIL)) {
-    recipients.push(TEST_EMAIL);
-  }
-  return recipients.length ? recipients : [TEST_EMAIL];
+  return [TEST_EMAIL];
 }
 
 const fmt = (iso?: string) =>
@@ -89,6 +77,8 @@ const fmt = (iso?: string) =>
 
 function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): string {
   const isAlert = n.notif_type === 'incident_alert';
+  const rawTitle = String(n.title || '');
+  const isRestock = /restock|supplies|stock|inventory/i.test(rawTitle) || /clinic/i.test(String(p.audience_group || ''));
   const student = p.student_name as string | undefined;
 
   const details: string[] = [];
@@ -97,13 +87,27 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
   }
   if (isAlert) {
     details.push(row('Priority', 'URGENT - please contact the school as soon as possible'));
+  } else if (isRestock) {
+    details.push(row('Priority', 'HIGH - Clinic Restock Required'));
   }
   if (p.audience_group) details.push(row('Audience', escapeHtml(String(p.audience_group))));
-  if (p.event_start_at) {
+  if (p.event_start_at && !isRestock) {
     details.push(row('Event', `${fmt(p.event_start_at as string)} - ${fmt(p.event_end_at as string)}`));
   }
   details.push(row('Sent', fmt(n.sent_at as string)));
-  const title = n.title ? escapeHtml(String(n.title)) : (isAlert ? 'Incident Alert' : 'Event Notice');
+  const title = n.title ? escapeHtml(String(n.title)) : (isAlert ? 'Incident Alert' : (isRestock ? 'Clinic Restock Alert' : 'Campus Notice'));
+
+  const badgeHtml = isAlert
+    ? '<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">URGENT INCIDENT ALERT</span>'
+    : isRestock
+      ? '<span style="display:inline-block;background:#fff1f2;color:#be123c;border:1px solid #fecdd3;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">CLINIC RESTOCK ALERT</span>'
+      : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">CAMPUS NOTICE</span>';
+
+  const footerText = isAlert
+    ? 'If you have any questions or need more information, please call the OSAS office or reply through the school\'s official channels.'
+    : isRestock
+      ? 'This is an official administrative health & safety alert. Please replenish and update supplies inventory upon receipt.'
+      : 'For questions, contact the OSAS office during school hours.';
 
   return `
 <div style="background:#f5f1ea;padding:32px 16px;font-family:Arial,Helvetica,sans-serif">
@@ -123,9 +127,7 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
     </div>
     <div style="padding:30px 32px">
       <div style="margin-bottom:18px">
-        ${isAlert
-          ? '<span style="display:inline-block;background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">URGENT INCIDENT ALERT</span>'
-          : '<span style="display:inline-block;background:#fdf2f8;color:#be185d;border:1px solid #fbcfe8;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">EVENT NOTICE</span>'}
+        ${badgeHtml}
       </div>
       <h2 style="margin:0 0 6px;color:#27272a;font-size:19px;font-weight:700">${title}</h2>
       <p style="margin:0 0 18px;color:#3f3f46;font-size:14px;line-height:1.7">${escapeHtml(String(n.message))}</p>
@@ -133,9 +135,7 @@ function emailHtml(p: Record<string, unknown>, n: Record<string, unknown>): stri
         ${details.join('')}
       </table>
       <p style="margin:0 0 4px;color:#3f3f46;font-size:14px;line-height:1.7">
-        ${isAlert
-          ? 'If you have any questions or need more information, please call the OSAS office or reply through the school\'s official channels.'
-          : 'We look forward to seeing you there. For questions, contact the OSAS office during school hours.'}
+        ${footerText}
       </p>
     </div>
     <div style="background:#faf7f2;padding:16px 32px;border-top:1px solid #eee6d9;color:#8b8176;font-size:11px;line-height:1.6">

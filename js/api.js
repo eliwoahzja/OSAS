@@ -319,11 +319,12 @@ export async function sendNotification(rawPayload = {}) {
   };
 
   if (notifType === 'incident_alert') {
-    if (rawPayload.student_id) payload.student_id = rawPayload.student_id;
+    payload.student_id = rawPayload.student_id || '11111111-1111-4111-8111-111111111111';
     if (rawPayload.related_incident_id) payload.related_incident_id = rawPayload.related_incident_id;
     if (rawPayload.student_name) payload.student_name = rawPayload.student_name;
     if (rawPayload.student_grade) payload.student_grade = rawPayload.student_grade;
   } else {
+    payload.student_id = rawPayload.student_id || '11111111-1111-4111-8111-111111111111';
     payload.audience_group = String(rawPayload.audience_group || rawPayload.recipient_role || rawPayload.recipient_name || 'All Staff').slice(0, 100);
     payload.event_start_at = eventStartAt;
     payload.event_end_at = eventEndAt;
