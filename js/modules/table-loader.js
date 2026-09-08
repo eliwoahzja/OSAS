@@ -1,6 +1,6 @@
 import {
   h, icon, dataTable, moduleShell, moduleStats,
-  skeleton, emptyBanner, errorBanner, inputCls,
+  skeletonTable, emptyBanner, errorBanner, inputCls,
 } from '../ui.js';
 import * as api from '../api.js';
 
@@ -65,11 +65,15 @@ export async function loadTable(el, {
   el.appendChild(moduleShell({ icon: iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction }));
   const holder = h('div', { class: 'space-y-5' });
   el.appendChild(holder);
-  holder.appendChild(skeleton(5, columns.length));
+  holder.appendChild(skeletonTable(5, columns.length));
 
   let rows;
   try {
-    rows = await api.listRows(table, filters);
+    const [fetchedRows] = await Promise.all([
+      api.listRows(table, filters),
+      new Promise(res => setTimeout(res, 3000))
+    ]);
+    rows = fetchedRows;
   } catch (e) {
     holder.replaceChildren(errorBanner(e.message, () => {
       el.innerHTML = '';

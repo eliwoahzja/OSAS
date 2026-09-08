@@ -1,5 +1,5 @@
 import {
-  h, icon, moduleShell, skeleton, statCard, toast, errorBanner,
+  h, icon, moduleShell, skeletonGrid, statCard, toast, errorBanner,
 } from '../ui.js';
 import * as api from '../api.js';
 
@@ -10,10 +10,14 @@ export async function complianceReports(el) {
   }));
   const holder = h('div', { class: 'space-y-5' });
   el.appendChild(holder);
-  holder.appendChild(skeleton(2, 4));
+  holder.appendChild(skeletonGrid(4));
 
   try {
-    const s = await api.getDashboardStats();
+    const [s, logs] = await Promise.all([
+      api.getDashboardStats(),
+      api.listRows('incidents'),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
     holder.innerHTML = '';
     const grid = h('div', { class: 'grid grid-cols-2 lg:grid-cols-4 gap-5' });
     const items = [
@@ -28,7 +32,6 @@ export async function complianceReports(el) {
     const logEl = h('div', { class: 'space-y-4 max-w-4xl mt-8' });
     holder.appendChild(logEl);
     logEl.appendChild(h('h3', { class: 'text-lg font-bold text-gray-900 mt-2' }, 'Recent System Activity'));
-    const logs = await api.listRows('incidents');
     if (!logs.length) {
       logEl.appendChild(h('p', { class: 'text-sm text-gray-500' }, 'No recent activity.'));
     } else {

@@ -150,19 +150,55 @@ export function moduleStats(chips) {
   );
 }
 
-export function skeleton(rows = 5, cols = 6) {
-  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 relative overflow-hidden min-h-[200px]' },
-    h('div', { class: 'absolute inset-0 flex flex-col items-center justify-center bg-white/40 backdrop-blur-[1px] z-10' },
-      h('div', { class: 'w-8 h-8 rounded-full border-2 border-pink-100 border-t-pink-500 animate-spin mb-3 shadow-[0_0_10px_rgba(236,72,153,0.2)]' }),
-      h('span', { class: 'text-[10px] font-bold tracking-[0.2em] text-pink-500 uppercase' }, 'Loading')
-    )
-  );
+export function skeletonTable(rows = 5, cols = 5) {
+  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4' });
+  
+  // Header row
+  const header = h('div', { class: 'flex gap-4 border-b border-gray-100 pb-4 mb-2' });
+  for (let c = 0; c < cols; c++) {
+    header.appendChild(h('div', { class: 'h-4 rounded-full bg-gray-200/60 animate-pulse', style: { width: `${40 + (c * 17 % 30)}%` } }));
+  }
+  wrap.appendChild(header);
+
+  // Data rows
   for (let r = 0; r < rows; r++) {
-    const row = h('div', { class: 'flex gap-4' });
+    const row = h('div', { class: 'flex gap-4 items-center' });
     for (let c = 0; c < cols; c++) {
-      row.appendChild(h('div', { class: `h-4 rounded-full bg-gray-100/80 animate-pulse`, style: { width: `${70 + ((r * 13 + c * 29) % 25)}%`, animationDelay: `${(r * 50) + (c * 20)}ms` } }));
+      row.appendChild(h('div', { class: 'h-4 rounded-full bg-gray-100 animate-pulse', style: { width: `${60 + ((r * 13 + c * 29) % 30)}%`, animationDelay: `${(r * 50) + (c * 20)}ms` } }));
     }
     wrap.appendChild(row);
+  }
+  return wrap;
+}
+
+export function skeletonGrid(cards = 4) {
+  const wrap = h('div', { class: 'grid grid-cols-2 lg:grid-cols-4 gap-5' });
+  for (let i = 0; i < cards; i++) {
+    wrap.appendChild(
+      h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 animate-pulse' },
+        h('div', { class: 'w-12 h-12 rounded-full bg-gray-100' }),
+        h('div', { class: 'space-y-2' },
+          h('div', { class: 'h-8 bg-gray-100 rounded-lg w-3/4' }),
+          h('div', { class: 'h-4 bg-gray-50 rounded-full w-1/2' })
+        )
+      )
+    );
+  }
+  return wrap;
+}
+
+export function skeletonFeed(items = 4) {
+  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-6' });
+  for (let i = 0; i < items; i++) {
+    wrap.appendChild(
+      h('div', { class: 'flex gap-4 items-start animate-pulse', style: { animationDelay: `${i * 100}ms` } },
+        h('div', { class: 'w-10 h-10 rounded-full bg-gray-100 shrink-0' }),
+        h('div', { class: 'flex-1 space-y-2 py-1' },
+          h('div', { class: 'h-4 bg-gray-100 rounded-full w-1/3' }),
+          h('div', { class: 'h-3 bg-gray-50 rounded-full w-2/3' })
+        )
+      )
+    );
   }
   return wrap;
 }

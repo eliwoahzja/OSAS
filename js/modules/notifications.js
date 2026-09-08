@@ -1,6 +1,6 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal, moduleShell, skeleton,
+  capitalize, toast, openModal, moduleShell, skeletonTable,
   dataTable, emptyBanner, errorBanner,
 } from '../ui.js';
 import * as api from '../api.js';
@@ -28,9 +28,12 @@ async function renderNotifications(el, holder) {
         onclick: () => renderNotifications(el, holder),
       }, k === 'all' ? 'All' : k === 'incident_alert' ? 'Incident Alerts' : 'Event Notices')));
   holder.appendChild(filterRow);
-  holder.appendChild(skeleton(4, 7));
+  holder.appendChild(skeletonTable(4, 7));
   try {
-    const rows = await api.listRows('notifications');
+    const [rows] = await Promise.all([
+      api.listRows('notifications'),
+      new Promise(r => setTimeout(r, 3000))
+    ]);
     holder.innerHTML = '';
     holder.appendChild(filterRow);
     if (!rows.length) {

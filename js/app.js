@@ -1,4 +1,4 @@
-import { h, icon, statCard, donutChart, pieChart, yearBarChart, barChart, skeleton, errorBanner, toast, openModal } from './ui.js';
+import { h, icon, statCard, donutChart, pieChart, yearBarChart, barChart, skeletonGrid, errorBanner, toast, openModal } from './ui.js';
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
@@ -491,11 +491,14 @@ async function renderDashboard(el) {
 
   const box = h('div', { class: 'space-y-8' });
   statsWrap.appendChild(box);
-  box.appendChild(skeleton(2, 6));
+  box.appendChild(skeletonGrid(4));
 
   const refresh = async () => {
     try {
-      const s = await api.getDashboardStats();
+      const [s] = await Promise.all([
+        api.getDashboardStats(),
+        new Promise(r => setTimeout(r, 3000))
+      ]);
       drawStats(box, s);
     } catch (e) {
       if (!box.querySelector('.bg-red-50')) {
