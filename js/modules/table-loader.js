@@ -94,6 +94,28 @@ export async function loadTable(el, {
   realShell.appendChild(realHolder);
 
   if (!rows.length) {
+    // If we're in live mode and the table is one that always has seed data,
+    // an empty result almost certainly means the session JWT expired and
+    // Supabase returned [] (anon role, RLS blocks everything). Show a
+    // helpful sign-in prompt instead of the misleading "no records" banner.
+    const liveMode = api.dataMode() === 'api';
+    if (liveMode) {
+      const warn = h('div', { class: 'rounded-2xl border border-amber-200 bg-amber-50 p-6 flex flex-col items-center gap-3 text-center' },
+        h('span', { class: 'material-symbols-rounded text-4xl text-amber-500' }, 'lock'),
+        h('p', { class: 'font-bold text-gray-900 text-sm' }, 'Session expired or not authorised'),
+        h('p', { class: 'text-gray-500 text-[13px] max-w-sm' }, 'Your login session may have expired. Sign out and sign back in, then reload this page.'),
+        h('button', {
+          class: 'mt-1 px-5 py-2 rounded-xl bg-pink-600 text-white text-sm font-semibold hover:bg-pink-700 transition-colors',
+          onclick: async () => {
+            const { signOut } = await import('../auth.js');
+            await signOut();
+            window.location.reload();
+          },
+        }, 'Sign out & reload'),
+      );
+      realHolder.replaceChildren(warn);
+      return;
+    }
     realHolder.replaceChildren(emptyBanner({ icon: empty?.icon || iconName, title: empty?.title || 'No records yet', text: empty?.text }));
     return;
   }

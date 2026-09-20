@@ -126,7 +126,10 @@ export async function currentAccessToken() {
     }
     return data.session.access_token;
   }
-  return s.access_token || null;
+  // Session is gone or expired — clear the stale token so the UI
+  // surfaces a sign-in prompt instead of silently returning empty data.
+  saveSession(null);
+  return null;
 }
 
 // No session means no privileges.

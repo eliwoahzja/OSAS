@@ -235,7 +235,17 @@ export async function listRows(table, filters = {}) {
     // relationship embed unavailable: retry without it, but do not hide other errors
     rows = await restFetch('GET', table, { query: { ...query, select: '*' } });
   }
-  return withDerived(table, rows || []);
+  rows = rows || [];
+
+  // Guard: if 0 rows come back in live mode, the most likely cause is a stale
+  // or expired JWT (Supabase falls back to anon role, RLS returns nothing).
+  // Verify the session is still live so the UI can surface the real problem.
+  if (!rows.length) {
+    const token = await auth.currentAccessToken().catch(() => null);
+    if (!token) throw new Error('Sign-in required — your session has expired. Please sign in again.');
+  }
+
+  return withDerived(table, rows);
 }
 
 export async function insertRow(table, payload) {
