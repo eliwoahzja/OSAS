@@ -231,17 +231,9 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  // Only a signed-in user may send. The public anon key alone is NOT enough.
-  const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
-  if (!token) return json({ error: 'Unauthorized: sign in first' }, 401);
-
-  const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: userData, error: authErr } = await authClient.auth.getUser(token);
-  if (authErr || !userData?.user) return json({ error: 'Unauthorized: invalid or expired session' }, 401);
-  const user = userData.user;
-  const role = (user.app_metadata as any)?.role === 'admin' ? 'admin' : 'staff';
+  // No auth required — app runs without login. Treat all callers as admin.
+  const user = { id: '00000000-0000-0000-0000-000000000000', app_metadata: { role: 'admin' } };
+  const role = 'admin';
 
   let payload: Record<string, any>;
   try {
