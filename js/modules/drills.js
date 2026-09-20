@@ -146,7 +146,75 @@ export async function evacuationPlans(el) {
     searchPlaceholder: 'Search by building, floor, or exit…',
     empty: { title: 'No floor plans uploaded yet', text: 'Upload the first building floor plan with its evacuation routes.' },
     onAction: () => planUploadForm(el),
+    onRowClick: (row) => planDetailModal(row),
   });
+}
+
+function planDetailModal(row) {
+  const detail = (label, value) =>
+    value ? h('div', { class: 'flex flex-col gap-0.5' },
+      h('span', { class: 'text-[10px] uppercase tracking-wider font-bold text-gray-400' }, label),
+      h('span', { class: 'text-[13px] text-gray-800' }, value),
+    ) : null;
+
+  const hasFile = row.file_url && typeof row.file_url === 'string';
+  const isPdf = hasFile && row.file_url.toLowerCase().endsWith('.pdf');
+
+  const infoGrid = h('div', { class: 'grid grid-cols-2 gap-x-6 gap-y-4' },
+    detail('Building', row.building),
+    detail('Floor', row.floor),
+    detail('Exits', row.exits),
+    detail('Routes', row.routes),
+    detail('Assembly Point', row.assembly_point),
+    detail('Version', row.version),
+    detail('Last Updated', formatDate(row.updated)),
+    detail('Status', row.current ? 'Current' : 'Archived'),
+  );
+
+  let fileSection;
+  if (hasFile && isPdf) {
+    fileSection = h('div', { class: 'mt-4 flex flex-col gap-2' },
+      h('span', { class: 'text-[10px] uppercase tracking-wider font-bold text-gray-400' }, 'Floor Plan (PDF)'),
+      h('a', {
+        href: row.file_url, target: '_blank', rel: 'noopener noreferrer',
+        class: 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-pink-50 text-pink-600 font-semibold text-sm hover:bg-pink-100 transition-colors w-fit',
+      }, icon('picture_as_pdf', 'text-lg'), 'Open PDF in new tab'),
+    );
+  } else if (hasFile) {
+    fileSection = h('div', { class: 'mt-4 flex flex-col gap-2' },
+      h('span', { class: 'text-[10px] uppercase tracking-wider font-bold text-gray-400' }, 'Floor Plan'),
+      h('div', { class: 'rounded-2xl border border-gray-200 overflow-hidden bg-gray-50' },
+        h('img', {
+          src: row.file_url, alt: `${row.building} — ${row.floor}`,
+          class: 'w-full max-h-[480px] object-contain cursor-zoom-in',
+          onclick: () => window.open(row.file_url, '_blank'),
+          title: 'Click to open full size',
+        }),
+      ),
+    );
+  } else {
+    fileSection = h('div', { class: 'mt-4 flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-5 justify-center' },
+      h('span', { class: 'material-symbols-rounded text-2xl text-gray-300' }, 'image_not_supported'),
+      h('span', { class: 'text-[13px] text-gray-400' }, 'No floor plan file uploaded for this entry.'),
+    );
+  }
+
+  const content = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 w-full max-w-2xl' },
+    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100 flex items-center gap-3' },
+      h('span', { class: 'material-symbols-rounded text-xl text-pink-500' }, 'map'),
+      h('h3', { class: 'text-sm font-bold text-gray-900 flex-1' }, `${row.building} — ${row.floor}`),
+      h('span', { class: 'text-[11px] font-mono text-gray-400' }, row.id),
+    ),
+    h('div', { class: 'p-6' }, infoGrid, fileSection),
+    h('div', { class: 'px-6 pb-5 flex justify-end' },
+      h('button', {
+        class: 'btn-ghost',
+        onclick: () => modal.close(),
+      }, 'Close'),
+    ),
+  );
+
+  const modal = openModal(content, { delay: 400 });
 }
 
 function planUploadForm(el) {

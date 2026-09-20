@@ -51,7 +51,7 @@ export const SUMMARY = {
 export async function loadTable(el, {
   table, columns, empty, iconName, title, subtitle,
   actionLabel, actionIcon, actionClass, onAction, filters = {}, searchKeys = [],
-  searchPlaceholder, selectFilters = [],
+  searchPlaceholder, selectFilters = [], onRowClick,
 }) {
   el.innerHTML = '';
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
@@ -81,7 +81,7 @@ export async function loadTable(el, {
     rows = await api.listRows(table, filters);
   } catch (e) {
     holder.replaceChildren(errorBanner(e.message, () => {
-      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters, searchKeys, searchPlaceholder, selectFilters });
+      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick });
     }));
     return;
   }
@@ -153,7 +153,7 @@ export async function loadTable(el, {
 
   const renderTable = () => {
     const filtered = rows.filter(matches);
-    tableWrap.replaceChildren(dataTable(columns, filtered));
+    tableWrap.replaceChildren(dataTable(columns, filtered, { onRowClick }));
     if (!filtered.length) {
       tableWrap.appendChild(emptyBanner({ icon: 'search', title: 'No matches', text: 'Try a different search or clear the filters.' }));
     }

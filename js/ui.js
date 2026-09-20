@@ -574,7 +574,7 @@ export function toast(msg) {
   setTimeout(() => node.remove(), 4500);
 }
 
-export function dataTable(columns, rows) {
+export function dataTable(columns, rows, { onRowClick } = {}) {
   const table = h('table', { class: 'w-full text-left border-collapse' });
   const thead = h('thead');
   const tr = h('tr', { class: 'border-b border-gray-100' });
@@ -589,8 +589,10 @@ export function dataTable(columns, rows) {
   const tbody = h('tbody');
   rows.forEach((r, i) => {
     const row = h('tr', {
-      class: `animate-row border-b border-gray-50 ${i % 2 ? 'bg-gray-50/40' : ''} hover:bg-pink-50/30 transition-colors`,
+      class: `animate-row border-b border-gray-50 ${i % 2 ? 'bg-gray-50/40' : ''} hover:bg-pink-50/30 transition-colors`
+        + (onRowClick ? ' cursor-pointer' : ''),
       style: { animationDelay: `${Math.min(i * 40, 320)}ms` },
+      onclick: onRowClick ? () => onRowClick(r) : undefined,
     });
     for (const col of columns) {
       row.appendChild(h('td', { class: 'px-5 py-3.5 text-[13px] align-middle' },
