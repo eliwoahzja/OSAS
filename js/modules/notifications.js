@@ -207,15 +207,17 @@ function composer(el) {
         h('span', { class: 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200' },
           icon('emergency', 'text-[12px]'), 'URGENT INCIDENT ALERT — Direct email notification to student parent / guardian')));
 
-      const studentSel = h('select', { class: inputCls, onchange: (e) => {
-        const s = st.find((x) => x.id === e.target.value);
-        f.studentId = e.target.value;
-        f.student_name = s?.name || '';
-        f.student_grade = s?.grade || null;
-      } },
-        h('option', { value: '' }, 'Select student involved…'),
-        st.map((s) => h('option', { value: s.id, selected: s.id === f.studentId }, `${s.name} — Grade ${s.grade}${s.section ? ` (${s.section})` : ''}`)));
-      fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Student Involved (required)'), studentSel));
+      if (!f.notify_all_parents) {
+        const studentSel = h('select', { class: inputCls, onchange: (e) => {
+          const s = st.find((x) => x.id === e.target.value);
+          f.studentId = e.target.value;
+          f.student_name = s?.name || '';
+          f.student_grade = s?.grade || null;
+        } },
+          h('option', { value: '' }, 'Select student involved…'),
+          st.map((s) => h('option', { value: s.id, selected: s.id === f.studentId }, `${s.name} — Grade ${s.grade}${s.section ? ` (${s.section})` : ''}`)));
+        fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Student Involved (required)'), studentSel));
+      }
 
       const incSel = h('select', { class: inputCls, onchange: (e) => { f.related_incident_id = e.target.value; } },
         h('option', { value: '' }, 'No related incident log'),
@@ -228,7 +230,7 @@ function composer(el) {
           name: 'incident-recipients',
           class: 'mt-0.5 w-4 h-4 accent-red-600 cursor-pointer',
           checked,
-          onchange: () => { f.notify_all_parents = value === 'all'; },
+          onchange: () => { f.notify_all_parents = value === 'all'; renderFields(); },
         }),
         h('span', { class: 'text-xs text-gray-700 select-none' },
           h('span', { class: 'font-bold block text-gray-900' }, title),
@@ -264,7 +266,7 @@ function composer(el) {
       h('button', {
         class: 'btn-primary',
         onclick: async (e) => {
-          if (isIncident && !f.studentId) { errBox.textContent = 'A student is required for incident alerts.'; errBox.classList.remove('hidden'); return; }
+          if (isIncident && !f.notify_all_parents && !f.studentId) { errBox.textContent = 'A student is required for incident alerts.'; errBox.classList.remove('hidden'); return; }
           if (isEvent && (!f.audience_group || !f.event_start_at || !f.event_end_at)) {
             errBox.textContent = 'Audience group and event start/end times are required for event notices.'; errBox.classList.remove('hidden'); return;
           }
@@ -284,7 +286,7 @@ function composer(el) {
               payload = {
                 notif_type: 'incident_alert',
                 priority: 'urgent',
-                student_id: f.studentId,
+                student_id: f.studentId || null,
                 student_name: f.student_name,
                 student_grade: f.student_grade,
                 related_incident_id: f.related_incident_id || null,

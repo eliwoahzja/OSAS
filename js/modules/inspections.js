@@ -57,7 +57,7 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
     : h('p', { class: 'text-xs text-amber-700' },
       'No school nurse / clinic contact with an email is registered yet. Add one under Emergency Contacts (category: School) so restock alerts have someone to go to.');
 
-  const content = h('div', { class: 'p-6 sm:p-7 space-y-6 max-w-xl' },
+  const content = h('div', { class: 'p-6 sm:p-7 space-y-6 w-full' },
     h('div', { class: 'flex items-start justify-between gap-4' },
       h('div', { class: 'flex items-start gap-3.5' },
         h('div', { class: 'w-11 h-11 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0 shadow-xs' },

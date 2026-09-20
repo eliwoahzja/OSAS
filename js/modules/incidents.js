@@ -29,6 +29,10 @@ export async function emergencyContacts(el) {
     table: 'emergency_contacts', columns, iconName: 'contacts',
     title: 'Emergency Contact Database',
     subtitle: 'Per-student guardians (priority order) plus school-wide responders: nurse, security head, and nearest police/fire/hospital.',
+    actionLabel: 'Add Contact',
+    actionIcon: 'add',
+    actionClass: 'px-4 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-2 clickable shrink-0',
+    onAction: () => contactForm(el),
     searchKeys: ['name', 'email', 'phone', 'relationship', 'role'],
     searchPlaceholder: 'Search by name, email, or phone…',
     selectFilters: [
@@ -36,6 +40,94 @@ export async function emergencyContacts(el) {
     ],
     empty: { title: 'No contacts yet', text: 'Add student guardians and school-wide responders to build the emergency directory.' },
   });
+}
+
+function contactForm(el) {
+  let closeModal = () => {};
+  const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
+    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Add Emergency Contact')),
+    h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
+  const grid = form.querySelector('.grid');
+  const f = { category: 'student', name: '', relationship: '', role: 'School Nurse', phone: '', email: '', priority: '', studentId: '' };
+
+  const txt = (label, placeholder, onChange) => h('div', {},
+    h('label', { class: labelCls }, label),
+    h('input', { class: inputCls, placeholder, oninput: (e) => onChange(e.target.value) }));
+
+  const catSel = h('select', {
+    class: inputCls,
+    onchange: (e) => { f.category = e.target.value; syncCategory(); },
+  },
+  h('option', { value: 'student' }, 'Parent / Guardian'),
+  h('option', { value: 'school' }, 'School / Agency responder'));
+  grid.appendChild(h('div', {}, h('label', { class: labelCls }, 'Type'), catSel));
+
+  grid.appendChild(txt('Full Name', 'e.g. Ms. Ana Reyes', (v) => { f.name = v; }));
+  grid.appendChild(txt('Phone', 'e.g. 0917 555 1000', (v) => { f.phone = v; }));
+  grid.appendChild(txt('Email', 'e.g. ana@school.ph', (v) => { f.email = v; }));
+
+  const studentWrap = h('div', { class: 'sm:col-span-2' });
+  grid.appendChild(studentWrap);
+  const schoolWrap = h('div', { class: 'sm:col-span-2 hidden' });
+  grid.appendChild(schoolWrap);
+
+  const studentSel = h('select', { class: inputCls, onchange: (e) => { f.studentId = e.target.value; } }, h('option', { value: '' }, 'No linked student (general parent)'));
+  api.listRows('students').then((students) => {
+    students.forEach((s) => studentSel.appendChild(h('option', { value: s.id }, `${s.name} — Grade ${s.grade}${s.section ? ` (${s.section})` : ''}`)));
+  }).catch(() => {});
+
+  const roleSel = h('select', { class: inputCls, onchange: (e) => { f.role = e.target.value; } },
+    ['School Nurse', 'School Physician', 'Security Head', 'Nearest Police Station', 'Nearest Fire Station', 'Nearest Hospital', 'OSAS Staff', 'Custodian'].map((r) =>
+      h('option', { value: r, selected: r === f.role }, r)));
+
+  function syncCategory() {
+    if (f.category === 'school') {
+      studentWrap.classList.add('hidden');
+      schoolWrap.classList.remove('hidden');
+      schoolWrap.replaceChildren(h('label', { class: labelCls }, 'Role'), roleSel);
+    } else {
+      schoolWrap.classList.add('hidden');
+      studentWrap.classList.remove('hidden');
+      studentWrap.replaceChildren(h('label', { class: labelCls }, 'Linked Student (optional)'), studentSel);
+    }
+  }
+  syncCategory();
+
+  grid.appendChild(txt('Relationship (optional)', 'e.g. Mother, Guard', (v) => { f.relationship = v; }));
+  grid.appendChild(txt('Priority (optional)', '1 = highest, e.g. 1', (v) => { f.priority = v; }));
+
+  const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
+  grid.appendChild(errBox);
+  grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
+    h('button', { type: 'submit', class: 'btn-primary' }, icon('add', 'text-base'), 'Save Contact'),
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!f.name.trim() || !f.phone.trim()) { errBox.textContent = 'Name and phone are required.'; errBox.classList.remove('hidden'); return; }
+    if (f.category === 'school' && !f.role.trim()) { errBox.textContent = 'Assign a role for the school / agency responder.'; errBox.classList.remove('hidden'); return; }
+    errBox.classList.add('hidden');
+    const btn = grid.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    const priority = f.priority && !Number.isNaN(Number(f.priority)) ? Number(f.priority) : null;
+    const payload = f.category === 'school'
+      ? { category: 'school', name: f.name.trim(), role: f.role.trim(), relationship: f.relationship.trim() || null, phone: f.phone.trim(), email: f.email.trim() || null, priority }
+      : { category: 'student', name: f.name.trim(), relationship: f.relationship.trim() || null, phone: f.phone.trim(), email: f.email.trim() || null, student_id: f.studentId || null, priority };
+    try {
+      await api.insertRow('emergency_contacts', payload);
+      toast(`Contact ${f.name.trim()} added.`);
+      closeModal();
+      emergencyContacts(el);
+    } catch (err) {
+      errBox.textContent = err.message || 'Could not save the contact.';
+      errBox.classList.remove('hidden');
+      btn.disabled = false;
+      btn.textContent = 'Save Contact';
+    }
+  });
+
+  closeModal = openModal(form).close;
 }
 
 export async function incidentLogging(el) {

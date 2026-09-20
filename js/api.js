@@ -302,8 +302,8 @@ export async function sendNotification(raw = {}) {
   if (!payload.message) return { ok: false, error: 'Message is required.' };
 
   if (type === 'incident_alert') {
-    if (!isValidUuid(raw.student_id) && !isDemoMode()) return { ok: false, error: 'A student is required for incident alerts.' };
-    payload.student_id = raw.student_id;
+    if (!raw.notify_all_parents && !isValidUuid(raw.student_id) && !isDemoMode()) return { ok: false, error: 'A student is required for incident alerts.' };
+    payload.student_id = raw.student_id || null;
     payload.notify_all_parents = raw.notify_all_parents === true;
     if (isValidUuid(raw.related_incident_id)) payload.related_incident_id = raw.related_incident_id;
   } else if (type === 'alert') {
