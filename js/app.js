@@ -646,8 +646,7 @@ async function boot() {
   }
 
   try {
-    if (auth.getSession()) enterApp();
-    else showLogin();
+    enterApp();
   } catch (err) {
     console.error('startup error:', err);
   }

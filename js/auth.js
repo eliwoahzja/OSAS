@@ -114,54 +114,27 @@ export function hasRealSession() {
 }
 
 export async function currentAccessToken() {
-  const s = session;
-  if (!s || s.provider === 'dev') return null;
-  if (s.provider === 'injected') return s.access_token || null;
-  const sb = await getClient();
-  if (!sb) return s.access_token || null;
-  const { data } = await sb.auth.getSession();
-  if (data.session && data.session.access_token) {
-    if (data.session.access_token !== s.access_token) {
-      saveSession({ ...s, access_token: data.session.access_token, user: toSessionUser(data.session.user) });
-    }
-    return data.session.access_token;
-  }
-  // Session is gone or expired — clear the stale token so the UI
-  // surfaces a sign-in prompt instead of silently returning empty data.
-  saveSession(null);
-  return null;
+  // No login required — use the anon key directly for all API calls.
+  const { SUPABASE_ANON_KEY } = window.OSAS || {};
+  return SUPABASE_ANON_KEY || null;
 }
 
 // No session means no privileges.
 export function isAdmin() {
-  return Boolean(session && session.user && session.user.role === 'admin');
+  return true;
 }
 
 export function currentUser() {
-  return session ? session.user : null;
+  return session ? session.user : { name: 'Local Administrator', email: 'admin@saac.ph', role: 'admin' };
 }
 
 export function usesSupabaseAuth() {
-  return supabaseConfigured();
+  return false;
 }
 
-export async function signIn(email, password) {
-  const sb = await getClient();
-  if (!sb) throw new Error('Could not reach the sign-in service. Check your connection and try again.');
-  const { data, error } = await sb.auth.signInWithPassword({ email: String(email).trim(), password });
-  if (error) throw new Error(error.message || 'Sign-in failed.');
-  saveSession({
-    provider: 'supabase',
-    user: toSessionUser(data.session.user),
-    access_token: data.session.access_token,
-  });
-}
+export async function signIn() {}
 
 export async function signOut() {
-  try {
-    const sb = client || (session && session.provider === 'supabase' ? await getClient(2500) : null);
-    if (sb) await sb.auth.signOut();
-  } catch {}
   saveSession(null);
 }
 
@@ -170,31 +143,10 @@ export function enterDemo() {
 }
 
 export async function restore() {
-  const inj = injectedSession();
-  if (inj) {
-    saveSession(inj);
-    return;
-  }
-  if (!supabaseConfigured()) {
-    // Nothing to authenticate against: local demo dataset only.
-    if (!session || session.provider !== 'dev') saveSession(demoSession());
-    return;
-  }
-  if (session && session.provider === 'dev') return; // explicit demo choice persists
-  const sb = await getClient();
-  if (!sb || !sb.auth) return; // offline: keep whatever was stored, writes will surface errors
-  try {
-    const { data } = await sb.auth.getSession();
-    if (data && data.session) {
-      saveSession({
-        provider: 'supabase',
-        user: toSessionUser(data.session.user),
-        access_token: data.session.access_token,
-      });
-    } else {
-      saveSession(null);
-    }
-  } catch {
-    // keep stored session; API calls will report real errors
-  }
+  // No login required — always enter as admin.
+  saveSession({
+    provider: 'local',
+    user: { email: 'admin@saac.ph', role: 'admin', name: 'Local Administrator' },
+    access_token: null,
+  });
 }

@@ -10,7 +10,7 @@ const REST = `${SUPABASE_URL}/rest/v1`;
 //                                         reported to the user, never hidden in
 //                                         localStorage.
 function isDemoMode() {
-  return !SUPABASE_URL || !SUPABASE_ANON_KEY || auth.isDemo();
+  return !SUPABASE_URL || !SUPABASE_ANON_KEY;
 }
 
 export function dataMode() {
@@ -31,7 +31,7 @@ function explain(res, j) {
 
 async function restFetch(method, path, { query = {}, body = null, prefer = null } = {}) {
   const token = await auth.currentAccessToken();
-  if (!token) throw new Error('Sign-in required — please sign in to use live data.');
+  const bearer = token || SUPABASE_ANON_KEY;
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(query)) {
     if (v === null || v === undefined || v === '') continue;
@@ -40,7 +40,7 @@ async function restFetch(method, path, { query = {}, body = null, prefer = null 
   const url = `${REST}/${path}${qs.toString() ? `?${qs}` : ''}`;
   const headers = {
     apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${bearer}`,
     'Content-Type': 'application/json',
   };
   if (prefer) headers.Prefer = prefer;
