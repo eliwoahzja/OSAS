@@ -108,7 +108,7 @@ let pTimer3 = null;
 function startProgress() {
   if (!nprogress) {
     nprogress = document.createElement('div');
-    nprogress.className = 'fixed top-0 left-0 h-[3px] bg-pink-500 z-50 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(236,72,153,0.7)]';
+    nprogress.className = 'fixed top-0 left-0 h-[3px] rounded-r-full bg-gradient-to-r from-pink-500 to-fuchsia-500 z-50 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(236,72,153,0.7)]';
     document.body.appendChild(nprogress);
   }
   clearTimeout(pTimer1);
@@ -163,8 +163,19 @@ async function route() {
 
   resetPageScroll();
   startProgress();
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const hadContent = el.childNodes.length > 0;
+  if (hadContent && !reduced) {
+    // Crossfade: quickly soften the old view before repainting.
+    el.style.transition = 'opacity .16s ease, transform .16s ease';
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(8px)';
+    await new Promise((r) => setTimeout(r, 170));
+  }
   el.innerHTML = '';
   el.scrollTop = 0;
+  el.style.transition = 'none';
+  el.style.transform = 'none';
   el.style.opacity = '1';
 
   try {
@@ -448,7 +459,14 @@ function drawStats(box, s) {
   ];
   const defs = allDefs.filter((d) => !d.adminOnly || auth.isAdmin());
   defs.forEach((d) => cards.appendChild(statCard(d)));
-  box.appendChild(h('section', {},
+  requestAnimationFrame(() => {
+    const items = cards.children;
+    for (let i = 0; i < items.length; i++) {
+      items[i].classList.add('animate-stat');
+      items[i].style.setProperty('--stagger', `${60 + i * 70}ms`);
+    }
+  });
+  const summarySection = h('section', {},
     h('div', { class: 'mb-6' },
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'At a Glance'),
       h('div', { class: 'flex items-center justify-between' },
@@ -460,9 +478,9 @@ function drawStats(box, s) {
       ),
     ),
     cards,
-  ));
+  );
 
-  box.appendChild(h('section', { class: 'space-y-5' },
+  const analyticsSection = h('section', { class: 'space-y-5' },
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
       h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident, Inspection & Supplies Health'),
@@ -474,7 +492,11 @@ function drawStats(box, s) {
       barChart(s.incident_breakdown || [], { title: 'Incidents by Type' }),
       pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
     ),
-  ));
+  );
+
+  for (const sec of [summarySection, analyticsSection]) sec.classList.add('stagger-sibling');
+  box.appendChild(summarySection);
+  box.appendChild(analyticsSection);
 
   const yearsData = s.years_by_year || [];
   if (yearsData.length > 1) {

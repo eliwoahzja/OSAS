@@ -409,3 +409,114 @@ body.h-screen { height: 100vh; height: 100dvh; }
 .lg-locked-icon { width: 78px; height: 78px; margin: 26px auto 14px !important; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F7ECEF; color: #7A1B38; font-size: 30px; }
 .lg-locked-icon { margin-left: auto !important; margin-right: auto !important; }
 .lg-lead-sub { font-size: 14px; margin-top: 10px; }
+
+/* ================= Polished shared animations ================= */
+
+/* --- View transitions: soft crossfade + rise with slight scale settle --- */
+@keyframes viewFade {
+  from { opacity: 0; transform: translateY(10px) scale(.995); filter: blur(2px); }
+  60%  { filter: blur(0); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+.animate-view { animation: viewFade .34s cubic-bezier(.22,1,.36,1); will-change: opacity, transform; }
+
+/* --- Section reveal: staggered rise for dashboard blocks --- */
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+.stagger-item { opacity: 0; animation: riseIn .5s cubic-bezier(.22,1,.36,1) forwards; animation-delay: var(--stagger, 0ms); }
+.stagger-sibling > * { opacity: 0; animation: riseIn .5s cubic-bezier(.22,1,.36,1) forwards; }
+.stagger-sibling > *:nth-child(1) { animation-delay: 40ms; }
+.stagger-sibling > *:nth-child(2) { animation-delay: 110ms; }
+.stagger-sibling > *:nth-child(3) { animation-delay: 180ms; }
+.stagger-sibling > *:nth-child(4) { animation-delay: 250ms; }
+.stagger-sibling > *:nth-child(5) { animation-delay: 320ms; }
+.stagger-sibling > *:nth-child(6) { animation-delay: 390ms; }
+.stagger-sibling > *:nth-child(n+7) { animation-delay: 460ms; }
+
+/* --- Stat cards: entrance + refined hover lift --- */
+@keyframes statPop {
+  0%   { opacity: 0; transform: translateY(16px) scale(.97); }
+  70%  { opacity: 1; }
+  100% { opacity: 1; transform: none; }
+}
+.animate-stat { opacity: 0; animation: statPop .55s cubic-bezier(.22,1,.36,1) forwards; animation-delay: var(--stagger, 0ms); }
+.card-lift { transition: transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s ease; }
+.card-lift:hover { transform: translateY(-4px) scale(1.005); box-shadow: 0 14px 32px rgba(36, 26, 34, .10); }
+.card-lift:active { transition-duration: .1s; transform: translateY(-1px) scale(.995); }
+
+/* --- Table rows: quicker, snappier stagger with soft blur --- */
+@keyframes rowFade {
+  from { opacity: 0; transform: translateY(5px); filter: blur(1.5px); }
+  60%  { filter: blur(0); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+.animate-row { animation: rowFade .3s cubic-bezier(.22,1,.36,1) both; }
+tbody tr:hover .row-hover-nudge { transform: translateX(2px); }
+
+/* --- Toasts: spring slide-in with overshoot, progress life-line, fade exit --- */
+#toast-root { display: flex; flex-direction: column; gap: 10px; }
+@keyframes toastIn {
+  0%   { opacity: 0; transform: translateX(120%) scale(.92); }
+  60%  { opacity: 1; transform: translateX(-6px) scale(1.01); }
+  80%  { transform: translateX(2px) scale(1); }
+  100% { opacity: 1; transform: none; }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: none; max-height: 120px; }
+  to   { opacity: 0; transform: translateX(30px) scale(.95); max-height: 0; margin-top: -10px; }
+}
+@keyframes toastLife { from { width: 100%; } to { width: 0%; } }
+#toast-root > div {
+  animation: toastIn .45s cubic-bezier(.22,1,.36,1);
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+#toast-root > div.toast-exit { animation: toastOut .32s cubic-bezier(.6,.05,.26,.99) forwards; pointer-events: none; }
+#toast-root > div .toast-life {
+  position: absolute; left: 14px; right: 14px; bottom: 0; height: 2.5px;
+  border-radius: 999px; background: rgba(255,255,255,.35);
+  transform-origin: left center;
+  animation: toastLife linear forwards;
+}
+#toast-root > div.toast-error .toast-life { background: rgba(248,113,113,.8); }
+
+/* --- Buttons: micro-interactions --- */
+.btn-primary, .btn-ghost { transition: transform .15s cubic-bezier(.22,1,.36,1), background-color .2s ease, box-shadow .25s ease, border-color .2s ease; }
+.btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(219,39,119,.28); }
+.btn-primary:active, .btn-ghost:active { transform: scale(.97); }
+.btn-ghost:hover { transform: translateY(-1px); }
+
+/* --- Sidebar links: smooth icon trend + active pill grow --- */
+#sidebar-nav a { transition: background-color .25s ease; }
+#sidebar-nav a .nav-bg { transition: opacity .25s ease; }
+#sidebar-nav a .nav-indicator { transition: height .3s cubic-bezier(.22,1,.36,1), opacity .25s ease; }
+
+/* --- Chart entrance: pieces settle in --- */
+@keyframes segGrow { from { opacity: 0; stroke-width: 0; } to { opacity: 1; } }
+.donut-seg { transition: stroke-dashoffset 1s cubic-bezier(.65,0,.35,1), opacity .4s ease; }
+
+/* --- Modal: spring settle --- */
+@keyframes modalSettle {
+  0%   { opacity: 0; transform: translateY(26px) scale(.94); }
+  70%  { opacity: 1; transform: translateY(-3px) scale(1.005); }
+  100% { opacity: 1; transform: none; }
+}
+.osas-modal-card { transition: transform .3s cubic-bezier(.34,.4,.24,1), opacity .25s ease; }
+.osas-modal-overlay.active .osas-modal-card { animation: modalSettle .42s cubic-bezier(.22,1,.36,1); }
+
+/* --- Number count-up helper (js/ui.js toggles is-done) --- */
+.count-num { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-view, .stagger-item, .stagger-sibling > *, .animate-stat,
+  .animate-row, #toast-root > div, .osas-modal-overlay.active .osas-modal-card {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .card-lift, .btn-primary, .btn-ghost { transition: none !important; }
+  #toast-root > div { animation-duration: .01s; }
+}
