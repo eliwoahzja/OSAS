@@ -78,7 +78,8 @@ Admin tabs sit under their own *Administrator* heading in the sidebar and are no
 
 1. Run `supabase/lock_down.sql` in the SQL editor (removes the old no-login access), then make your first admin with the `UPDATE auth.users …` snippet at the bottom of that file.
 2. Supabase → *Authentication → Email Templates → **Magic Link***: the OTP email uses this template. Make sure it shows the code, e.g. `Your SAAC OSAS verification code is {{ .Token }}`.
-3. Supabase → *Authentication → Providers → Email*: keep **Enable sign ups** off (accounts are created by admins) and set the OTP length to 6.
+3. Supabase → *Authentication → Providers → Email*: keep **Enable sign ups** off (accounts are created by admins).
+   The app accepts **5-digit** codes (and longer if Supabase issues them).
 4. Supabase's built-in mailer is limited to a few emails per hour. For real use, set **custom SMTP** (*Authentication → SMTP Settings*), e.g. your Maileroo SMTP credentials.
 5. Deploy the account function: `supabase functions deploy manage-accounts` (uses the project's service-role key server-side; only a signed-in admin can call it).
 

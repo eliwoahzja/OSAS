@@ -17,7 +17,7 @@ DROP TABLE IF EXISTS users CASCADE;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS BOOLEAN LANGUAGE sql STABLE AS $$
-  SELECT COALESCE(auth.jwt() -> 'user_metadata' ->> 'role', '') = 'admin';
+  SELECT COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin';
 $$;
 
 CREATE TABLE users (

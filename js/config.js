@@ -3,6 +3,7 @@ window.OSAS = Object.assign({
   SUPABASE_ANON_KEY: getConfig('SUPABASE_ANON_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3cWFlYWJ4dXNpdmt5amdza2tvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1MjU4NzksImV4cCI6MjEwMjEwMTg3OX0.ViayPqKemu2fY3xPRifbnkdqfTOXz6RuN1nRbXEHfk0'),
 
   NOTIFY_FN_URL: getConfig('NOTIFY_FN_URL', 'https://rwqaeabxusivkyjgskko.functions.supabase.co/send-notification'),
+  AUTH_FN_URL: getConfig('AUTH_FN_URL', 'https://rwqaeabxusivkyjgskko.functions.supabase.co/auth-gateway'),
   accessToken: '',
   MAILEROO_API_KEY: getConfig('MAILEROO_API_KEY', ''),
   SMTP_HOST: getConfig('SMTP_HOST', ''),

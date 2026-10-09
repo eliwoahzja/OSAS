@@ -23,7 +23,7 @@ Required setup in your Supabase project:
      app expects.
 3. Supabase → Authentication → Providers → Email
    - Keep "Enable sign ups" OFF (accounts are created by admins).
-   - OTP length = 6 (matches what the app validates).
+   - OTP length: the app accepts a 5-digit code (also longer codes).
 4. Create users in Authentication → Users.
    - Admin role is set server-side only, e.g.:
      ```sql
@@ -138,3 +138,25 @@ labels it as such. When a real session is present, the app uses live data only.
   is configured," that is the problem.
 - If the function returns `delivery.status = failed`, the error field will name
   the provider issue (for example Maileroo 401, or SMTP auth failure).
+
+
+## 5) Account lockout & unlock (auth-gateway)
+
+After **5 wrong passwords on one account**, the sign-in function locks the
+account, bans it in Supabase Auth, and emails a one-time unlock code
+(`NSVF-N4D7` style). The user opens **Sign-in → Account locked? → Unlock it
+here** (or the `#/unlock` link in the email) and types the code to unlock.
+
+Deploy it once:
+
+```bash
+supabase functions deploy auth-gateway
+supabase secrets set SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+  MAILEROO_API_KEY=... MAILEROO_FROM="Saint Agnes Academy OSAS <osas@your-verified-domain>"
+# or SMTP_* (port 465 works from hosted Edge Functions)
+```
+
+Then run `supabase/account_lockout.sql` in the SQL editor once (idempotent,
+never drops data). `js/config.js` already points `AUTH_FN_URL` at the function;
+without a deployment the app falls back to direct Supabase sign-in (no
+lockout tracking).

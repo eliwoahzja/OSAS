@@ -396,3 +396,16 @@ html { -webkit-tap-highlight-color: transparent; }
 html, body { overscroll-behavior: none; }
 body.h-screen { height: 100vh; height: 100dvh; }
 #view { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+/* ---- Account locked / unlock screens ---- */
+.lg-locked-info { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: #713F12; background: #FEFCE8; border: 1px solid #FDE68A; border-radius: 12px; padding: 11px 14px; line-height: 1.5; }
+.lg-code-ex { font-family: 'Courier New', Courier, monospace; font-weight: 800; color: #7A1B38; background: #F7ECEF; border: 1px solid #EBCFD8; border-radius: 7px; padding: 1px 7px; letter-spacing: .08em; white-space: nowrap; }
+.lg-switch--locked { margin-top: 2px !important; }
+.lg-switch--locked .lg-switch-btn { color: #9F1239; }
+@media (prefers-reduced-motion: reduce) {
+  .lg-locked-icon, .lg-locked-icon .fa-solid { animation: none !important; transition: none !important; }
+}
+
+.lg-locked-icon { width: 78px; height: 78px; margin: 26px auto 14px !important; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: #F7ECEF; color: #7A1B38; font-size: 30px; }
+.lg-locked-icon { margin-left: auto !important; margin-right: auto !important; }
+.lg-lead-sub { font-size: 14px; margin-top: 10px; }

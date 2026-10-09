@@ -230,10 +230,10 @@ export function showLogin({ onSuccess }) {
     const err = mkErr();
     const code = h('input', {
       type: 'text', class: 'lg-input lg-code', inputmode: 'numeric', autocomplete: 'one-time-code',
-      maxlength: '10', placeholder: '••••••', required: true, 'aria-label': 'Verification code',
+      maxlength: '5', placeholder: '•••••', required: true, 'aria-label': 'Verification code',
       'aria-describedby': 'otp-format-hint',
     });
-    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 10); err.clear(); });
+    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 5); err.clear(); });
 
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, submitLabel);
     const resendBtn = h('button', { type: 'button', class: 'lg-link lg-inline', disabled: true }, '');
@@ -277,7 +277,7 @@ export function showLogin({ onSuccess }) {
       onsubmit: async (e) => {
         e.preventDefault();
         err.clear();
-        if (code.value.length < 6) { err.show('Enter the full code from your email.'); return; }
+        if (code.value.length < 5) { err.show('Enter the 5-digit code from your email.'); return; }
         submit.disabled = true;
         submit.classList.add('is-loading');
         submit.textContent = 'Verifying…';
@@ -382,6 +382,10 @@ export function showLogin({ onSuccess }) {
             stepTo(() => renderOtp(r.email));
           }
         } catch (ex) {
+          if (ex.locked) {
+            openLockedModal(ex.email || email.value.trim().toLowerCase(), ex.unlockSent !== false);
+            return;
+          }
           if (ex.unconfirmed) {
             const addr = email.value.trim().toLowerCase();
             if (readCooldown('signup', addr).until <= Date.now()) {
@@ -404,10 +408,12 @@ export function showLogin({ onSuccess }) {
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('p', { class: 'lg-switch' }, 'No account yet? ',
         h('button', { type: 'button', class: 'lg-switch-btn', onclick: () => switchTo(() => renderRegister()) }, 'Register now.')),
+      h('p', { class: 'lg-switch lg-switch--locked' }, 'Account locked? ',
+        h('button', { type: 'button', class: 'lg-switch-btn', onclick: () => stepTo(() => openUnlockScreen()) }, 'Unlock it here.')),
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'A 6-digit verification code will be emailed to you after your password is accepted.'),
+      h('p', { class: 'lg-hint' }, 'A 5-digit verification code will be emailed to you after your password is accepted.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
@@ -539,6 +545,143 @@ export function showLogin({ onSuccess }) {
     });
     card.appendChild(otp.form);
     return () => otp.focus();
+  }
+
+
+  function openLockedModal(addr, unlockSent) {
+    closeModal(true);
+    const locked = h('div', { class: 'lg-locked' },
+      iconBig(),
+      h('p', { class: 'lg-eyebrow lg-center' }, 'Account locked'),
+      h('h2', { class: 'lg-title lg-center' }, 'Too many attempts'),
+      h('p', { class: 'lg-lead lg-center' },
+        'This account is locked after ', h('strong', {}, '5 wrong passwords'),
+        '. ', unlockSent
+          ? 'We emailed an unlock code to '
+          : 'We could not email an unlock code to ',
+        h('strong', {}, addr), '.',
+      ),
+      unlockSent
+        ? h('p', { class: 'lg-lead lg-center lg-lead-sub' }, 'Click “Unlock my account” and type the code from the email (for example ', h('span', { class: 'lg-code-ex' }, 'NSVF-N4D7'), ').')
+        : null,
+    );
+    const goUnlock = h('button', { type: 'button', class: 'lg-btn', onclick: () => { closeModal(true); openUnlockScreen(addr); } }, 'Unlock my account');
+    const back = h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => closeModal() }, 'Close');
+    const structured = h('div', { class: 'lg-locked-body lg-center' }, goUnlock, back);
+    const modal = h('div', { class: 'lg-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Account locked' }, locked, structured);
+    const backdrop = h('div', { class: 'lg-modal-backdrop' }, modal);
+    backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeModal(); });
+    modalEl = { backdrop, modal, otp: { stop: () => {}, focus: () => {} } };
+    overlay.appendChild(backdrop);
+    if (!reduceMotion()) {
+      anim(backdrop, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
+      anim(modal, [{ opacity: 0, transform: 'translateY(24px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 520, easing: EASE_OUT });
+    }
+  }
+  function iconBig() {
+    return h('div', { class: 'lg-locked-icon' }, fa('lock'));
+  }
+
+  function openUnlockScreen(addr = '') {
+    stopTimers();
+    card.innerHTML = '';
+    const err = mkErr();
+    const notice = h('p', { class: 'lg-notice lg-hidden', role: 'status' });
+
+    const email = h('input', {
+      type: 'email', class: 'lg-input', placeholder: 'you@saac.edu.ph',
+      autocomplete: 'username', required: true, value: addr,
+    });
+    const codeInput = h('input', {
+      type: 'text', class: 'lg-input lg-code', maxlength: '9', placeholder: 'NSVF-N4D7',
+      required: true, 'aria-label': 'Unlock code', autocomplete: 'off', spellcheck: 'false',
+    });
+    // Formats XXXX-XXXX while typing (auto-dash, uppercase, a-z/A-Z0-9 only).
+    codeInput.addEventListener('input', () => {
+      const raw = codeInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      const hadDash = codeInput.dataset.dash === '1';
+      const compact = raw.replace(/-/g, '').slice(0, 8);
+      let out = compact;
+      if (hadDash || (compact.length > 4)) out = compact.length > 4 ? `${compact.slice(0, 4)}-${compact.slice(4)}` : compact;
+      codeInput.dataset.dash = raw.includes('-') ? '1' : '0';
+      codeInput.value = out;
+      err.clear();
+    });
+    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Unlock Account');
+
+    const resendWrap = h('div', { class: 'lg-row' },
+      h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => stepTo(() => renderCredentials()) }, '← Back to sign in'),
+      sendNewCodeButton(addr, err, notice),
+    );
+
+    const form = h('form', {
+      class: 'lg-form',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        err.clear();
+        notice.classList.add('lg-hidden');
+        const addr2 = email.value.trim().toLowerCase();
+        if (!authGwAvailable()) { err.show('The unlock service is not available right now. Please contact the OSAS office.'); return; }
+        if (!addr2) { err.show('Enter the email of the locked account.'); email.focus(); return; }
+        if (codeInput.value.replace(/[^A-Z0-9]/g, '').length < 8) { err.show('Enter the 8-character unlock code from your email, e.g. NSVF-N4D7.'); codeInput.focus(); return; }
+        submit.disabled = true;
+        submit.classList.add('is-loading');
+        submit.textContent = 'Unlocking…';
+        try {
+          await auth.unlockWithCode(addr2, codeInput.value);
+          notice.textContent = 'Account unlocked! You can sign in again with your password.';
+          notice.classList.remove('lg-hidden');
+          submit.disabled = false;
+          submit.classList.remove('is-loading');
+          submit.textContent = 'Unlock Account';
+          setTimeout(() => stepTo(() => renderCredentials(addr2, 'Account unlocked. Sign in to continue.')), 1400);
+        } catch (ex) {
+          err.show(ex.message || 'Could not unlock the account.');
+          submit.disabled = false;
+          submit.classList.remove('is-loading');
+          submit.textContent = 'Unlock Account';
+          codeInput.select();
+        }
+      },
+    },
+      h('p', { class: 'lg-eyebrow lg-center' }, 'Retry access'),
+      h('div', { class: 'lg-locked-icon' }, fa('unlock-keyhole')),
+      h('h2', { class: 'lg-title lg-center' }, 'Unlock your account'),
+      h('p', { class: 'lg-lead lg-center' }, 'Type the unlock code we emailed you. It looks like ', h('span', { class: 'lg-code-ex' }, 'NSVF-N4D7'), '.'),
+      field({ label: 'Email', icon: 'user', input: email }),
+      field({ label: 'Unlock code', icon: 'shield-halved', input: codeInput }),
+      notice,
+      err.el,
+      submit,
+      resendWrap,
+    );
+    card.appendChild(form);
+    return () => email.focus({ preventScroll: true });
+  }
+
+  function authGwAvailable() {
+    return Boolean(window.OSAS && window.OSAS.AUTH_FN_URL);
+  }
+  function sendNewCodeButton(addr, err, notice) {
+    const btn = h('button', {
+      type: 'button', class: 'lg-link lg-inline',
+      onclick: async (e) => {
+        const b = e.currentTarget;
+        const addr2 = document.querySelector('#login-overlay input[type="email"]').value.trim().toLowerCase();
+        if (!addr2) { err.show('Enter the email of the locked account first.'); return; }
+        b.disabled = true; b.textContent = 'Sending…';
+        try {
+          const r = await auth.sendUnlockCode(addr2);
+          notice.textContent = (r && r.message) || 'A fresh unlock code was emailed.';
+          notice.classList.remove('lg-hidden');
+          err.clear();
+        } catch (ex) {
+          err.show(ex.message || 'Could not send the code.');
+        }
+        setTimeout(() => { b.disabled = false; b.textContent = 'Email me a new code'; }, 3000);
+      },
+    }, 'Email me a new code');
+    return btn;
   }
 
   function renderRegister() {
@@ -699,6 +842,11 @@ export function showLogin({ onSuccess }) {
   const overlay = h('div', { id: 'login-overlay', class: 'lg-root' }, brand, side);
   document.body.appendChild(overlay);
   const focusFirst = renderCredentials();
+  // Email deep-link: ".../#/unlock" opens the unlock screen directly.
+  if ((location.hash || '').replace(/\/$/, '').toLowerCase() === '#/unlock') {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch {}
+    stepTo(() => openUnlockScreen());
+  }
   if (!reduceMotion()) {
     anim(brand, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 900, easing: EASE_OUT });
     [...brandInner.children].forEach((el, i) => {

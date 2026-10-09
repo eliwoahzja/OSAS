@@ -29,6 +29,33 @@ function saveSession(s) {
   });
 }
 
+const AUTH_ATTEMPTS_MAX = 5; // kept in sync with the auth-gateway function
+
+const authFnUrl = () => (window.OSAS && window.OSAS.AUTH_FN_URL) || '';
+const authFnAvailable = () => Boolean(authFnUrl());
+
+async function authFnPost(payload, timeoutMs = 20000) {
+  const url = authFnUrl();
+  if (!url) return null;
+  const cfg = window.OSAS;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: cfg.SUPABASE_ANON_KEY },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, data };
+  } catch {
+    return null; // gateway unreachable — callers fall back to direct Supabase auth
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function supabaseConfigured() {
   const cfg = window.OSAS || {};
   return Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
@@ -129,8 +156,49 @@ export function currentUser() {
 }
 
 export async function signIn(email, password) {
-  const c = await requireClient();
   const addr = String(email || '').trim().toLowerCase();
+
+  // Preferred path: the auth-gateway Edge Function tracks failed attempts and
+  // locks the account after too many wrong passwords (see EMAIL-WIRING.md).
+  if (authFnAvailable()) {
+    const res = await authFnPost({ action: 'sign-in', email: addr, password });
+    if (res) {
+      const d = (res && res.data) || {};
+      if (res.status >= 500 || (res.status === 0)) {
+        // fall through to legacy path below
+      } else {
+        if (responseIsLocked(res)) {
+          const e = new Error(d.error || 'This account is locked. Check your email for the unlock code.');
+          e.locked = true;
+          e.email = addr;
+          e.unlockSent = d.unlock_sent !== false;
+          throw e;
+        }
+        if (!res.ok || d.error) {
+          if (d.error && /email not confirmed/i.test(d.error)) {
+            const e = new Error('Please verify your email address first.');
+            e.unconfirmed = true;
+            throw e;
+          }
+          const e = new Error(d.error || friendly(null, 'Sign-in failed.'));
+          if (typeof d.remaining === 'number') e.remaining = d.remaining;
+          throw e;
+        }
+        // Password accepted by the gateway.
+        if (needsPin(addr)) {
+          pendingPin = { email: addr, userId: (d.user && d.user.id) || null, gateway: true };
+          pinTries = 0;
+          return { step: 'pin', email: addr, gateway: true };
+        }
+        await sendCode(addr);
+        return { step: 'otp', email: addr };
+      }
+    }
+  }
+
+  // Legacy path (auth-gateway not deployed or unreachable): direct Supabase
+  // sign-in. No lockout tracking is possible here.
+  const c = await requireClient();
   checkingPassword = true;
   try {
     const { data: signed, error } = await c.auth.signInWithPassword({ email: addr, password });
@@ -155,6 +223,33 @@ export async function signIn(email, password) {
   return { step: 'otp', email: addr };
 }
 
+function responseIsLocked({ data }) {
+  return Boolean(data && (data.locked === true));
+}
+
+// Unlock flow: verify the emailed code (e.g. NSVF-N4D7) to unlock the account.
+export function accountLocked(res) {
+  return responseIsLocked(res);
+}
+
+export async function sendUnlockCode(email) {
+  const res = await authFnPost({ action: 'resend-unlock', email: String(email || '').trim().toLowerCase() });
+  if (!res) throw new Error('Cannot reach the unlock service. Check your internet connection and try again.');
+  const d = res.data || {};
+  if (!res.ok || d.error) throw new Error(d.error || 'Could not send the unlock code.');
+  return d;
+}
+
+export async function unlockWithCode(email, code) {
+  const res = await authFnPost({ action: 'unlock', email: String(email || '').trim().toLowerCase(), code: String(code || '').trim() });
+  if (!res) throw new Error('Cannot reach the unlock service. Check your internet connection and try again.');
+  const d = res.data || {};
+  if (!res.ok || d.error) throw new Error(d.error || 'Could not unlock the account.');
+  return d;
+}
+
+export const MAX_LOGIN_ATTEMPTS = AUTH_ATTEMPTS_MAX; // shown in the UI (locks after 5)
+
 export function pinLockSeconds() {
   return Math.max(0, Math.ceil((pinLockedUntil - Date.now()) / 1000));
 }
@@ -174,12 +269,22 @@ export async function verifyPin(pin) {
     }
     throw new Error(`Wrong PIN. ${PIN_MAX_TRIES - pinTries} ${PIN_MAX_TRIES - pinTries === 1 ? 'try' : 'tries'} left.`);
   }
+  if (pendingPin.gateway) {
+    // Gateway mode: no Supabase session exists yet — continue to the emailed
+    // code step after the PIN is accepted.
+    const email = pendingPin.email;
+    pendingPin = null;
+    await sendCode(email);
+    return { step: 'otp' };
+  }
   const ok = pendingPin;
   pendingPin = null;
   try { sessionStorage.setItem(PIN_OK_KEY, String(ok.userId)); } catch {}
   saveSession(ok.session);
   return session;
 }
+
+function pendingEmail() { return (pendingPin && pendingPin.email) || ''; }
 
 export async function cancelPin() {
   if (!pendingPin) return;
