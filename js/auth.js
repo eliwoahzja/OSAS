@@ -1,0 +1,304 @@
+let client = null;
+let listeners = [];
+let checkingPassword = false;
+let session = null;
+let pendingPin = null;
+const PIN_OK_KEY = 'osas.pin.ok';
+const PIN_MAX_TRIES = 5;
+const PIN_LOCK_MS = 30000;
+let pinTries = 0;
+let pinLockedUntil = 0;
+
+const pinAccounts = () => (window.OSAS && window.OSAS.PIN_ACCOUNTS) || {};
+const needsPin = (email) => Object.prototype.hasOwnProperty.call(pinAccounts(), String(email || '').toLowerCase());
+
+async function sha256Hex(text) {
+  if (!window.crypto || !window.crypto.subtle) throw new Error('PIN sign-in needs a secure (https) connection.');
+  const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function pinPassed(userId) {
+  try { return sessionStorage.getItem(PIN_OK_KEY) === String(userId); } catch { return false; }
+}
+
+function saveSession(s) {
+  session = s;
+  listeners.forEach((fn) => {
+    try { fn(s); } catch {}
+  });
+}
+
+export function supabaseConfigured() {
+  const cfg = window.OSAS || {};
+  return Boolean(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
+}
+
+async function getClient(timeoutMs = 8000) {
+  if (client) return client;
+  if (!supabaseConfigured()) return null;
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.OSAS;
+  try {
+    const modPromise = import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Supabase client load timeout')), timeoutMs)
+    );
+    const mod = await Promise.race([modPromise, timeoutPromise]);
+    if (mod && typeof mod.createClient === 'function') {
+      client = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+      });
+      client.auth.onAuthStateChange((_event, s) => {
+        if (checkingPassword || pendingPin) return;
+        if (s) saveSession(toSession(s));
+        else if (session && session.provider === 'supabase') saveSession(null);
+      });
+      return client;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+async function requireClient() {
+  const c = await getClient();
+  if (!c) throw new Error('Cannot reach the sign-in service. Check your internet connection and try again.');
+  return c;
+}
+
+function roleOf(user) {
+  return user && user.app_metadata && user.app_metadata.role === 'admin' ? 'admin' : 'client';
+}
+
+function toSession(s) {
+  const user = s.user;
+  return {
+    provider: 'supabase',
+    user: {
+      id: user.id,
+      email: user.email,
+      role: roleOf(user),
+      name: (user.user_metadata && user.user_metadata.name) || user.email,
+    },
+    access_token: s.access_token,
+  };
+}
+
+function friendly(err, fallback) {
+  const m = String((err && err.message) || '');
+  if (/invalid login credentials/i.test(m)) return 'Incorrect email or password.';
+  if (/token has expired|invalid/i.test(m) && /token|otp|code/i.test(m)) return 'That code is incorrect or has expired. Request a new one.';
+  if (/rate limit|too many|security purposes/i.test(m)) return 'Too many attempts. Please wait a minute before trying again.';
+  if (/signups not allowed|user not found/i.test(m)) return 'No account exists for that email. Ask an administrator to create one.';
+  return m || fallback;
+}
+
+export function onAuthChange(fn) {
+  listeners.push(fn);
+  return () => { listeners = listeners.filter((f) => f !== fn); };
+}
+
+export function getSession() {
+  return session;
+}
+
+export function hasRealSession() {
+  return Boolean(session && session.provider === 'supabase');
+}
+
+export function isSignedIn() {
+  return Boolean(session);
+}
+
+export async function currentAccessToken() {
+  if (session && session.provider === 'supabase' && client) {
+    const { data } = await client.auth.getSession();
+    if (data && data.session) return data.session.access_token;
+    return null;
+  }
+  return null;
+}
+
+export function isAdmin() {
+  return Boolean(session && session.user && session.user.role === 'admin');
+}
+
+export function currentUser() {
+  return session ? session.user : null;
+}
+
+export async function signIn(email, password) {
+  const c = await requireClient();
+  const addr = String(email || '').trim().toLowerCase();
+  checkingPassword = true;
+  try {
+    const { data: signed, error } = await c.auth.signInWithPassword({ email: addr, password });
+    if (error) {
+      if (/email not confirmed/i.test(error.message || '')) {
+        const e = new Error('Please verify your email address first.');
+        e.unconfirmed = true;
+        throw e;
+      }
+      throw new Error(friendly(error, 'Sign-in failed.'));
+    }
+    if (needsPin(addr) && signed && signed.session) {
+      pendingPin = { email: addr, session: toSession(signed.session), userId: signed.session.user.id };
+      pinTries = 0;
+      return { step: 'pin', email: addr };
+    }
+    await c.auth.signOut();
+  } finally {
+    checkingPassword = false;
+  }
+  await sendCode(addr);
+  return { step: 'otp', email: addr };
+}
+
+export function pinLockSeconds() {
+  return Math.max(0, Math.ceil((pinLockedUntil - Date.now()) / 1000));
+}
+
+export async function verifyPin(pin) {
+  if (!pendingPin) throw new Error('Your sign-in expired. Enter your email and password again.');
+  const wait = pinLockSeconds();
+  if (wait > 0) throw Object.assign(new Error(`Too many wrong PINs. Try again in ${wait}s.`), { locked: true });
+  const expected = pinAccounts()[pendingPin.email];
+  const actual = await sha256Hex(`osas-pin:${pendingPin.email}:${String(pin)}`);
+  if (actual !== expected) {
+    pinTries += 1;
+    if (pinTries >= PIN_MAX_TRIES) {
+      pinTries = 0;
+      pinLockedUntil = Date.now() + PIN_LOCK_MS;
+      throw Object.assign(new Error(`Too many wrong PINs. Try again in ${PIN_LOCK_MS / 1000}s.`), { locked: true });
+    }
+    throw new Error(`Wrong PIN. ${PIN_MAX_TRIES - pinTries} ${PIN_MAX_TRIES - pinTries === 1 ? 'try' : 'tries'} left.`);
+  }
+  const ok = pendingPin;
+  pendingPin = null;
+  try { sessionStorage.setItem(PIN_OK_KEY, String(ok.userId)); } catch {}
+  saveSession(ok.session);
+  return session;
+}
+
+export async function cancelPin() {
+  if (!pendingPin) return;
+  pendingPin = null;
+  try { if (client) await client.auth.signOut(); } catch {}
+}
+
+export async function register({ name, email, password }) {
+  const c = await requireClient();
+  const addr = String(email || '').trim().toLowerCase();
+  checkingPassword = true;
+  try {
+    const { data, error } = await c.auth.signUp({
+      email: addr,
+      password,
+      options: { data: { name: String(name || '').trim() } },
+    });
+    if (error) {
+      if (/signups? (not allowed|are disabled)/i.test(error.message || '')) {
+        throw new Error('Self-registration is turned off. Ask an administrator to create your account.');
+      }
+      if (/already|registered/i.test(error.message || '')) throw new Error('An account with that email already exists.');
+      throw new Error(friendly(error, 'Could not create the account.'));
+    }
+    if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      throw new Error('An account with that email already exists.');
+    }
+    const needsConfirm = !(data && data.session);
+    if (!needsConfirm) await c.auth.signOut();
+    return { email: addr, needsConfirm };
+  } finally {
+    checkingPassword = false;
+  }
+}
+
+export async function verifySignup(email, code) {
+  const c = await requireClient();
+  const token = String(code || '').replace(/\s+/g, '');
+  const { data, error } = await c.auth.verifyOtp({
+    email: String(email).trim().toLowerCase(),
+    token,
+    type: 'signup',
+  });
+  if (error || !data || !data.session) throw new Error(friendly(error, 'Verification failed.'));
+  saveSession(toSession(data.session));
+  return session;
+}
+
+export async function resendSignup(email) {
+  const c = await requireClient();
+  const { error } = await c.auth.resend({ type: 'signup', email: String(email).trim().toLowerCase() });
+  if (error) throw new Error(friendly(error, 'Could not resend the code.'));
+}
+
+export async function sendCode(email) {
+  const c = await requireClient();
+  const { error } = await c.auth.signInWithOtp({
+    email: String(email).trim().toLowerCase(),
+    options: { shouldCreateUser: false },
+  });
+  if (error) {
+    const msg = friendly(error, 'Could not send the code.');
+    const layered = layerEmailError(error, msg);
+    const e = new Error(layered);
+    e.sendError = error;
+    throw e;
+  }
+}
+
+function layerEmailError(error, fallback) {
+  const m = String((error && error.message) || '').toLowerCase();
+  if (/email provider not configured|email is not configured|no email.*provider/i.test(m)) {
+    return 'Sign-in by email code is not set up yet. Ask an administrator to configure Supabase Auth email (Authentication → Email, SMTP or a working custom provider) and redeploy the project.';
+  }
+  if (/rate limit|too many/i.test(m)) return 'Too many code requests. Wait a minute before trying again.';
+  if (/invalid login credentials|user not found|no account/i.test(m)) return 'No account exists for that email. Ask an administrator to create one.';
+  return fallback;
+}
+
+export async function verifyCode(email, code) {
+  const c = await requireClient();
+  const token = String(code || '').replace(/\s+/g, '');
+  const { data, error } = await c.auth.verifyOtp({
+    email: String(email).trim().toLowerCase(),
+    token,
+    type: 'email',
+  });
+  if (error || !data || !data.session) throw new Error(friendly(error, 'Verification failed.'));
+  saveSession(toSession(data.session));
+  return session;
+}
+
+export async function signOut() {
+  pendingPin = null;
+  try { sessionStorage.removeItem(PIN_OK_KEY); } catch {}
+  try {
+    if (client) await client.auth.signOut();
+  } catch {}
+  saveSession(null);
+}
+
+export async function restore() {
+  if (!supabaseConfigured()) {
+    session = null;
+    return null;
+  }
+  const c = await getClient();
+  if (!c) return null;
+  const { data } = await c.auth.getSession();
+  if (data && data.session) {
+    const u = data.session.user;
+    if (needsPin(u.email) && !pinPassed(u.id)) {
+      try { await c.auth.signOut(); } catch {}
+      saveSession(null);
+      return null;
+    }
+    saveSession(toSession(data.session));
+    return session;
+  }
+  saveSession(null);
+  return null;
+}

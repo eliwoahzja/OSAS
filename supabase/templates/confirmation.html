@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>Confirm your email address</title>
+<style type="text/css">
+  :root { color-scheme: light; supported-color-schemes: light; }
+  body, table, td { background-color: #F6F3EA !important; }
+  .tpl-head { background-image: linear-gradient(135deg,#1F2A4D 0%,#4A1F3D 40%,#7A1B38 100%) !important; background-color: #7A1B38 !important; }
+  .tpl-head, .tpl-head * { color: #ffffff !important; }
+  .tpl-head .tpl-sub { color: #F8D98B !important; }
+  .tpl-card { background-color: #ffffff !important; }
+  .tpl-card, .tpl-card p, .tpl-card td { color: #1B2236 !important; }
+  .tpl-eyebrow { color: #7A1B38 !important; }
+  .tpl-codebox { background-color: #FAF6F7 !important; }
+  .tpl-code { color: #7A1B38 !important; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:#F6F3EA;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#F6F3EA;">Your OSAS Dashboard verification code is {{ .Token }}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#F6F3EA" style="background:#F6F3EA;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px;">
+      <tr><td class="tpl-head" bgcolor="#7A1B38" style="background:#7A1B38;background-image:linear-gradient(135deg,#1F2A4D 0%,#4A1F3D 40%,#7A1B38 100%);border-radius:24px 24px 0 0;padding:28px 36px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td style="padding-right:14px;"><img src="https://stagnesacademy.vercel.app/assets/logo.png" width="44" height="44" alt="SAAC" style="display:block;width:44px;height:44px;border-radius:10px;background:#ffffff;padding:2px;"></td>
+          <td style="font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+            <div style="font-size:18px;font-weight:800;line-height:1.2;">St. Agnes Academy</div>
+            <div style="font-size:12px;font-weight:700;color:#F8D98B;margin-top:2px;" class="tpl-sub">Office of Student Affairs &amp; Services</div>
+          </td>
+        </tr></table>
+      </td></tr>
+      <tr><td class="tpl-card" bgcolor="#ffffff" style="background:#ffffff;border-radius:0 0 24px 24px;padding:36px;font-family:Arial,Helvetica,sans-serif;color:#1B2236;box-shadow:0 12px 32px rgba(60,30,40,.10);">
+        <div class="tpl-eyebrow" style="font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#7A1B38;">Verify your email</div>
+        <h1 style="margin:10px 0 0;font-size:26px;line-height:1.2;font-weight:800;color:#1B2236;">Confirm your email address</h1>
+        <p style="margin:14px 0 0;font-size:15px;line-height:1.6;color:#4B5563;">Thanks for registering for the OSAS Dashboard. Enter the code below in the verification window to finish creating your account.</p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0;">
+          <tr><td class="tpl-codebox" align="center" bgcolor="#FAF6F7" style="background:#FAF6F7;border:1px solid #EBD5DB;border-radius:16px;padding:22px 12px;">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7280;">Your verification code</div>
+            <div class="tpl-code" style="margin-top:10px;font-family:'Courier New',Courier,monospace;font-size:38px;font-weight:800;letter-spacing:.35em;padding-left:.35em;color:#7A1B38;">{{ .Token }}</div>
+          </td></tr>
+        </table>
+        <p style="margin:0;font-size:14px;line-height:1.6;color:#4B5563;">Enter this code in the sign-up window where you registered.</p>
+        <p style="margin:14px 0 0;font-size:14px;line-height:1.6;color:#4B5563;">If you didn&rsquo;t request this, you can safely ignore this email. Never share this code with anyone.</p>
+        <hr style="border:0;border-top:1px solid #EEE7E9;margin:28px 0 18px;">
+        <p style="margin:0;font-size:12px;line-height:1.6;color:#9CA3AF;">Sent to {{ .Email }} by the OSAS Dashboard of Saint Agnes Academy.</p>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>
