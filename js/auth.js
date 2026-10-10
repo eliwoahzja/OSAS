@@ -240,11 +240,25 @@ export async function sendUnlockCode(email) {
   return d;
 }
 
-export async function unlockWithCode(email, code) {
-  const res = await authFnPost({ action: 'unlock', email: String(email || '').trim().toLowerCase(), code: String(code || '').trim() });
+export async function unlockWithCode(email, code, pageToken) {
+  const res = await authFnPost({
+    action: 'unlock',
+    email: String(email || '').trim().toLowerCase(),
+    code: String(code || '').trim(),
+    k: String(pageToken || '').trim(),
+  });
   if (!res) throw new Error('Cannot reach the unlock service. Check your internet connection and try again.');
   const d = res.data || {};
   if (!res.ok || d.error) throw new Error(d.error || 'Could not unlock the account.');
+  return d;
+}
+
+// Optional post-unlock step: set a new password with the one-time reset token.
+export async function changePasswordAfterUnlock(resetToken, password) {
+  const res = await authFnPost({ action: 'change-password', reset_token: String(resetToken || '').trim(), password: String(password || '') });
+  if (!res) throw new Error('Cannot reach the unlock service. Check your internet connection and try again.');
+  const d = res.data || {};
+  if (!res.ok || d.error) throw new Error(d.error || 'Could not set the new password.');
   return d;
 }
 

@@ -114,12 +114,16 @@ async function qrPng(text: string, scale = 8, margin = 4): Promise<Uint8Array> {
   const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
   return new Uint8Array([...sig, ...pngChunk('IHDR', ihdr), ...pngChunk('IDAT', idat), ...pngChunk('IEND', new Uint8Array(0))]);
 }
-const unlockLink = (email: string, code: string) =>
-  `${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+const unlockLink = (email: string, pageToken: string, code?: string) =>
+  `${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}&k=${encodeURIComponent(pageToken)}` +
+  (code ? `&code=${encodeURIComponent(code)}` : '');
 
-/** Public URL of the QR PNG for this email+code (served by this function). */
-const qrUrlFor = (email: string, code: string) =>
-  `${SUPABASE_URL}/functions/v1/auth-gateway?action=qr&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+/** Public URL of the QR PNG for this email+code+page-token (served by this function). */
+const qrUrlFor = (email: string, code: string, pageToken: string) =>
+  `${SUPABASE_URL}/functions/v1/auth-gateway?action=qr&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}&k=${encodeURIComponent(pageToken)}`;
+
+/** Long random page-access token handed out only inside the emailed link. */
+const newPageToken = () => randomCode(24, 'abcdefhkmnprstuvwxyz23456789');
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
@@ -230,8 +234,8 @@ function logoRow(): string {
   </td></tr>`;
 }
 
-function unlockEmailHtml(email: string, code: string, qrUrl: string): string {
-  const link = `${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}`;
+function unlockEmailHtml(email: string, code: string, qrUrl: string, pageToken: string): string {
+  const link = unlockLink(email, pageToken);
   return `<div style="background:#f5f1ea;padding:30px 14px;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e7e0d4">
     <table style="width:100%;border-collapse:collapse">${logoRow()}</table>
@@ -297,19 +301,22 @@ async function issueUnlockCode(svc: any, lock: LockRow): Promise<{ sent: boolean
     }
   }
   const code = newUnlockCode();
+  const pageToken = newPageToken();
   const hash = await sha256Hex(`osas-unlock:${lock.user_id}:${code}`);
+  const pageHash = await sha256Hex(`osas-page:${lock.user_id}:${pageToken}`);
   const expiresAt = new Date(now + UNLOCK_CODE_TTL_MIN * 60000).toISOString();
   const { error } = await svc.from(locksTable).update({
     unlock_code_hash: hash,
     unlock_code_expires_at: expiresAt,
     unlock_tries: 0,
     unlock_sent_at: new Date().toISOString(),
+    page_token_hash: pageHash,
   }).eq('user_id', lock.user_id);
   if (error) return { sent: false, isNew: true, error: error.message };
   const via = await mailProvider();
   if (!via) return { sent: false, isNew: true, error: 'Email is not configured on auth-gateway (MAILEROO_API_KEY or SMTP secrets).' };
   const subject = '[SAAC OSAS] Your account unlock code';
-  const html = unlockEmailHtml(lock.email, code, qrUrlFor(lock.email, code));
+  const html = unlockEmailHtml(lock.email, code, qrUrlFor(lock.email, code, pageToken), pageToken);
   const sendRes = await sendMail(lock.email, subject, html);
   return { sent: sendRes.ok, isNew: true, error: sendRes.ok ? undefined : sendRes.error };
 }
@@ -321,14 +328,23 @@ Deno.serve(async (req) => {
     if (url.searchParams.get('action') === 'qr') {
       const email = String(url.searchParams.get('email') || '').trim().toLowerCase();
       const code = String(url.searchParams.get('code') || '').trim().toUpperCase();
-      if (!EMAIL_RE.test(email) || !/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+      const k = String(url.searchParams.get('k') || '').trim();
+      if (!EMAIL_RE.test(email) || !/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code) || !k) {
         return new Response('Bad request', { status: 400, headers: CORS });
       }
       try {
-        const png = await qrPng(`${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`);
+        const svc = createClient(SUPABASE_URL!, SERVICE_ROLE_KEY!, { auth: { persistSession: false, autoRefreshToken: false } });
+        const { data: row } = await svc.from(locksTable).select('user_id, locked_at, unlock_code_expires_at, page_token_hash')
+          .eq('email', email).maybeSingle();
+        const nowIso = new Date().toISOString();
+        if (!row || !row.page_token_hash || !row.locked_at || !row.unlock_code_expires_at
+          || row.unlock_code_expires_at < nowIso) return new Response('Not found', { status: 404, headers: CORS });
+        const pageHash = await sha256Hex(`osas-page:${row.user_id}:${k}`);
+        if (pageHash !== row.page_token_hash) return new Response('Not found', { status: 404, headers: CORS });
+        const png = await qrPng(unlockLink(email, k, code));
         return new Response(png, {
           status: 200,
-          headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400', ...CORS },
+          headers: { 'Content-Type': 'image/png', 'Cache-Control': 'no-store', ...CORS },
         });
       } catch {
         return new Response('QR generation failed', { status: 500, headers: CORS });
@@ -383,15 +399,18 @@ Deno.serve(async (req) => {
     if (next >= MAX_FAILED_ATTEMPTS) {
       await setBanned(svc, user.id, true);
       const code = newUnlockCode();
+      const pageToken = newPageToken();
       const hash = await sha256Hex(`osas-unlock:${user.id}:${code}`);
+      const pageHash = await sha256Hex(`osas-page:${user.id}:${pageToken}`);
       await svc.from(locksTable).update({
         locked_at: new Date().toISOString(),
         unlock_code_hash: hash,
         unlock_code_expires_at: new Date(Date.now() + UNLOCK_CODE_TTL_MIN * 60000).toISOString(),
         unlock_tries: 0,
         unlock_sent_at: new Date().toISOString(),
+        page_token_hash: pageHash,
       }).eq('user_id', user.id);
-      const sendRes = await sendMail(email, '[SAAC OSAS] Your account unlock code', unlockEmailHtml(email, code, qrUrlFor(email, code)));
+      const sendRes = await sendMail(email, '[SAAC OSAS] Your account unlock code', unlockEmailHtml(email, code, qrUrlFor(email, code, pageToken), pageToken));
       return json({
         locked: true, email, attempts: next, remaining: 0,
         unlock_sent: sendRes.ok,
@@ -402,13 +421,15 @@ Deno.serve(async (req) => {
     return json({ ok: false, email, attempts: next, remaining, error: `Incorrect email or password. ${remaining} ${remaining === 1 ? 'try' : 'tries'} left before the account locks.` }, 401);
   }
 
-  // ---------------- unlock (type the emailed code) ----------------
+  // ---------------- unlock (type the code) — page invite token required ----------------
   if (action === 'unlock') {
     const code = String(payload.code || '').trim().toUpperCase();
+    const k = String(payload.k || '').trim();
     const normalized = code.includes('-') ? code : (code.length === 8 && !/^\d+$/.test(code) ? `${code.slice(0, 4)}-${code.slice(4)}` : code);
+    if (!k) return json({ error: 'Open the unlock page from the "Verify Now" link in your email.' }, 403);
     if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(normalized)) return json({ error: 'Enter the unlock code exactly as it appears in the email (e.g. NSVF-N4D7).' }, 400);
 
-    // Do not need the password. Identify the account purely from the lock row.
+    // Identify the account purely from the lock row (no password involved).
     let targetEmail = String(payload.email || '').trim().toLowerCase();
     let lock: LockRow | null = null;
     if (EMAIL_RE.test(targetEmail)) {
@@ -427,6 +448,11 @@ Deno.serve(async (req) => {
       }
       if (!lock) return json({ error: 'That unlock code is not valid or has expired. Sign in again to get a fresh email, or contact the OSAS office.' }, 400);
     }
+
+    // The page token must match the one embedded in the emailed link/QR.
+    if (!lock.page_token_hash) return json({ error: 'This unlock page invite is no longer valid. Sign in again to receive a fresh email.' }, 403);
+    const pageHash = await sha256Hex(`osas-page:${lock.user_id}:${k}`);
+    if (pageHash !== lock.page_token_hash) return json({ error: 'This unlock page invite is not valid. Use the "Verify Now" button in the latest email.' }, 403);
 
     if (!lock.locked_at) {
       await setBanned(svc, lock.user_id, false);
@@ -450,12 +476,41 @@ Deno.serve(async (req) => {
 
     const { error: unbanErr } = await setBanned(svc, lock.user_id, false);
     if (unbanErr) return json({ error: unbanErr.message || 'Could not unlock the account.' }, 500);
+    const resetToken = randomCode(24, 'abcdefhkmnprstuvwxyz23456789');
+    const resetHash = await sha256Hex(`osas-reset:${lock.user_id}:${resetToken}`);
     await svc.from(locksTable).update({
       locked_at: null, failed_attempts: 0, unlock_code_hash: null,
       unlock_code_expires_at: null, unlock_tries: 0, unlock_sent_at: null, locked_reason: null,
+      page_token_hash: null, reset_token_hash: resetHash,
+      reset_token_expires_at: new Date(Date.now() + 15 * 60000).toISOString(),
     }).eq('user_id', lock.user_id);
     await svc.from(attemptsTable).insert({ user_id: lock.user_id, email: targetEmail, ok: true, locked: false });
-    return json({ ok: true, email: targetEmail, message: 'Account unlocked. Sign in with your password and emailed code as usual.' });
+    return json({ ok: true, email: targetEmail, reset_token: resetToken, message: 'Account unlocked. You can now change your password.' });
+  }
+
+  // ---------------- change password after unlock (reset token required) ----------------
+  if (action === 'change-password') {
+    const resetToken = String(payload.reset_token || '').trim();
+    const password = String(payload.password || '');
+    if (!resetToken) return json({ error: 'Your unlock session expired. Start again from the email link.' }, 403);
+    if (password.length < 8) return json({ error: 'The new password must be at least 8 characters.' }, 400);
+
+    const { data: candidates } = await svc.from(locksTable).select('user_id, email, reset_token_hash, reset_token_expires_at')
+      .not('reset_token_hash', 'is', null).gt('reset_token_expires_at', new Date().toISOString());
+    const list = candidates || [];
+    let userId = '';
+    let targetEmail = '';
+    for (const row of list) {
+      const hash = await sha256Hex(`osas-reset:${row.user_id}:${resetToken}`);
+      if (hash === row.reset_token_hash) { userId = row.user_id; targetEmail = row.email; break; }
+    }
+    if (!userId) return json({ error: 'Your password-reset window expired. Sign in again to start over.' }, 403);
+
+    const { error: updErr } = await svc.auth.admin.updateUserById(userId, { password });
+    if (updErr) return json({ error: updErr.message || 'Could not set the new password.' }, 500);
+    await svc.from(locksTable).update({ reset_token_hash: null, reset_token_expires_at: null, failed_attempts: 0 }).eq('user_id', userId);
+    await svc.from(attemptsTable).insert({ user_id: userId, email: targetEmail, ok: true, locked: false });
+    return json({ ok: true, message: 'Password updated. Sign in with your new password.' });
   }
 
   // ---------------- resend unlock code ----------------

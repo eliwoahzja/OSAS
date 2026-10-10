@@ -408,8 +408,6 @@ export function showLogin({ onSuccess }) {
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('p', { class: 'lg-switch' }, 'No account yet? ',
         h('button', { type: 'button', class: 'lg-switch-btn', onclick: () => switchTo(() => renderRegister()) }, 'Register now.')),
-      h('p', { class: 'lg-switch lg-switch--locked' }, 'Account locked? ',
-        h('button', { type: 'button', class: 'lg-switch-btn', onclick: () => stepTo(() => openUnlockScreen()) }, 'Unlock it here.')),
       notice,
       err.el,
       submit,
@@ -562,10 +560,10 @@ export function showLogin({ onSuccess }) {
         h('strong', {}, addr), '.',
       ),
       unlockSent
-        ? h('p', { class: 'lg-lead lg-center lg-lead-sub' }, 'Click “Unlock my account” and type the code from the email (for example ', h('span', { class: 'lg-code-ex' }, 'NSVF-N4D7'), ').')
+        ? h('p', { class: 'lg-lead lg-center lg-lead-sub' }, 'Open the email we just sent and tap the ', h('strong', {}, 'Verify Now'), ' button (or scan its QR code) to unlock your account.')
         : null,
     );
-    const goUnlock = h('button', { type: 'button', class: 'lg-btn', onclick: () => { closeModal(true); openUnlockScreen({ email: addr }); } }, 'Verify Now');
+    const goUnlock = h('button', { type: 'button', class: 'lg-btn', onclick: () => closeModal() }, 'Got it — check my email');
     const back = h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => closeModal() }, 'Close');
     const structured = h('div', { class: 'lg-locked-body lg-center' }, goUnlock, back);
     const modal = h('div', { class: 'lg-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Account locked' }, locked, structured);
@@ -583,9 +581,28 @@ export function showLogin({ onSuccess }) {
   }
 
   function openUnlockScreen(params = {}) {
-    // params: { email?, code? } — code present means the QR/link carried it.
+    // The unlock page may ONLY be reached via the emailed "Verify Now" link/QR:
+    // the link carries a one-time invite token (k). No token -> explain and send back.
+    const pageToken = String(params.k || '').trim();
     const prefillEmail = String(params.email || '').toLowerCase();
     const linkedCode = String(params.code || '').toUpperCase();
+    lastUnlockEmail = prefillEmail;
+    if (!pageToken) {
+      card.innerHTML = '';
+      const err = mkErr();
+      const form = h('div', { class: 'lg-form lg-verify' },
+        h('p', { class: 'lg-eyebrow lg-center' }, 'Account security'),
+        h('div', { class: 'lg-locked-icon' }, fa('lock')),
+        h('h2', { class: 'lg-title lg-center' }, 'Open this from your email'),
+        h('p', { class: 'lg-lead lg-center' }, 'For your security, account unlocking can only be started from the "Verify Now" button (or QR code) in the lock email sent to you.'),
+        err.el,
+        h('div', { class: 'lg-row' },
+          h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => stepTo(() => renderCredentials(prefillEmail)) }, '← Back to sign in'),
+        ),
+      );
+      card.appendChild(form);
+      return () => {};
+    }
     stopTimers();
     card.innerHTML = '';
     const err = mkErr();
@@ -596,42 +613,85 @@ export function showLogin({ onSuccess }) {
       autocomplete: 'username', required: true, value: prefillEmail,
       ...(linkedCode ? { readonly: 'readonly' } : {}),
     });
+    // GitHub-style code input: individual cells, two groups of 4 (XXXX-XXXX),
+    // backed by a hidden input that holds the full value.
     const codeInput = h('input', {
-      type: 'text', class: 'lg-input lg-code', maxlength: '9', placeholder: 'NSVF-N4D7',
-      required: true, 'aria-label': 'Unlock code', autocomplete: 'off', spellcheck: 'false',
+      type: 'text', class: 'lg-hidden-real', maxlength: '9', required: true,
+      'aria-label': 'Unlock code', autocomplete: 'off', spellcheck: 'false', tabindex: '-1',
     });
-    // Formats XXXX-XXXX while typing (auto-dash, uppercase, A-Z0-9 only).
-    codeInput.addEventListener('input', () => {
-      const raw = codeInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-      const compact = raw.replace(/-/g, '').slice(0, 8);
-      codeInput.value = compact.length > 4 ? `${compact.slice(0, 4)}-${compact.slice(4)}` : compact;
+    codeInput.classList.add('lg-sr-only');
+    const codeCells = [];
+    const buildCells = () => {
+      const wrap = h('div', { class: 'lg-otp', role: 'group', 'aria-label': 'Unlock code' });
+      const groups = [0, 1].map(() => h('div', { class: 'lg-otp-group' }));
+      const dash = h('div', { class: 'lg-otp-dash' }, fa('minus'));
+      for (let i = 0; i < 8; i++) {
+        const cell = h('input', {
+          type: 'text', class: 'lg-otp-cell', maxlength: '1', inputmode: 'text',
+          autocomplete: 'off', spellcheck: 'false', 'aria-label': `Unlock code character ${i + 1}`,
+        });
+        cell.addEventListener('input', () => {
+          cell.value = cell.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 1);
+          if (cell.value && i < 7) codeCells[i + (i < 4 ? 1 : 5)]?.focus();
+          syncFromCells();
+        });
+        cell.addEventListener('keydown', (e) => {
+          if (e.key === 'Backspace' && !cell.value) {
+            const prev = i > 4 ? codeCells[i - 1] : (i > 0 ? codeCells[i - 1] : null);
+            if (prev) { prev.focus(); prev.value = ''; syncFromCells(); e.preventDefault(); }
+          } else if (e.key === 'ArrowLeft' && i > 0) codeCells[i - 1].focus();
+          else if (e.key === 'ArrowRight' && i < 7) codeCells[i + 1].focus();
+        });
+        cell.addEventListener('paste', (e) => {
+          e.preventDefault();
+          const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+          applyCodeValue(text);
+          (codeCells[Math.min(7, text.replace(/-/g, '').length)] || codeCells[0]).focus();
+        });
+        codeCells.push(cell);
+      }
+      groups[0].append(codeCells[0], codeCells[1], codeCells[2], codeCells[3]);
+      groups[1].append(codeCells[4], codeCells[5], codeCells[6], codeCells[7]);
+      wrap.append(groups[0], dash, groups[1]);
+      return wrap;
+    };
+    function syncFromCells() {
+      codeInput.value = codeCells.map((c) => c.value).join('');
       err.clear();
-    });
+    }
+    function applyCodeValue(text) {
+      const compact = String(text).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+      codeCells.forEach((c, i) => { c.value = compact[i] || ''; });
+      codeInput.value = compact;
+      err.clear();
+    }
 
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Verify & Unlock');
 
     async function verify(addr2, code, opts = {}) {
+      const tokenOverride = opts.token ? String(opts.token).trim() : '';
       err.clear();
       notice.classList.add('lg-hidden');
       if (!authGwAvailable()) { err.show('The unlock service is not available right now. Please contact the OSAS office.'); return; }
       if (!addr2) { err.show('Enter the email of the locked account.'); email.focus(); return; }
-      if (String(code).replace(/[^A-Z0-9]/g, '').length < 8) { err.show('Enter the 8-character unlock code from your email, e.g. NSVF-N4D7.'); codeInput.focus(); return; }
+      if (String(code).replace(/[^A-Z0-9]/gi, '').length < 8) { err.show('Enter the 8-character unlock code from your email, e.g. NSVF-N4D7.'); (codeCells.find((c) => !c.value) || codeCells[0]).focus(); return; }
       const btn = opts.btn || submit;
       const original = btn ? btn.textContent : '';
       if (btn) { btn.disabled = true; btn.classList.add('is-loading'); btn.textContent = 'Verifying…'; }
       try {
-        await auth.unlockWithCode(addr2, code);
-        notice.textContent = 'Account unlocked! Signing you in…';
+        const r = await auth.unlockWithCode(addr2, code, tokenOverride || pageToken);
+        notice.textContent = 'Account unlocked!';
         notice.classList.remove('lg-hidden');
         err.clear();
         if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); btn.textContent = original; }
         stopCamera();
-        setTimeout(() => stepTo(() => renderCredentials(addr2, 'Account unlocked. Sign in to continue.')), 1300);
+        setTimeout(() => stepTo(() => openPasswordStep(addr2, r.reset_token)), 1300);
       } catch (ex) {
         if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); btn.textContent = original; }
         err.show(ex.message || 'Could not unlock the account.');
         if (opts.fromScan) switchTab('code');
-        codeInput.select();
+        codeCells.forEach((c) => { c.classList.add('is-error'); setTimeout(() => c.classList.remove('is-error'), 900); });
+        (codeCells.find((c) => !c.value) || codeCells[0]).focus();
       }
     }
 
@@ -682,7 +742,8 @@ export function showLogin({ onSuccess }) {
     }
 
     function onQrDecoded(text) {
-      // Expect .../#/unlock?email=..&code=..
+      // Expect .../#/unlock?email=..&code=..&k=..
+      let scannedToken = pageToken;
       const m = /[?&]email=([^&]+)[&].*?code=([^&\s]+)/i.exec(text) || /[?&]code=([^&\s]+).*?[?&]email=([^&]+)/i.exec(text);
       let addr2 = prefillEmail, code = '';
       try {
@@ -690,6 +751,7 @@ export function showLogin({ onSuccess }) {
         const q = new URLSearchParams(url.hash.includes('?') ? url.hash.slice(url.hash.indexOf('?') + 1) : url.search);
         if (q.get('email')) addr2 = q.get('email').toLowerCase();
         if (q.get('code')) code = q.get('code').toUpperCase();
+        if (q.get('k')) scannedToken = q.get('k').trim();
       } catch {
         if (m) { /* fallback pair order */ }
       }
@@ -700,8 +762,9 @@ export function showLogin({ onSuccess }) {
         if (b.replace(/[^A-Z0-9]/gi, '').length >= 8) code = b.toUpperCase();
       }
       if (!code) { err.show('That QR code does not contain an unlock code.'); return; }
+      if (!scannedToken) { err.show('That QR code is missing its verify invite. Use the latest email.'); return; }
       stopCamera();
-      verify(addr2, code, { fromScan: true });
+      verify(addr2, code, { fromScan: true, token: scannedToken });
     }
 
     async function startCamera() {
@@ -754,7 +817,11 @@ export function showLogin({ onSuccess }) {
         },
       },
         field({ label: 'Email', icon: 'user', input: email }),
-        field({ label: 'Unlock code', icon: 'shield-halved', input: codeInput }),
+        h('div', { class: 'lg-field' },
+          h('label', { class: 'lg-label' }, 'Unlock code'),
+          buildCells(),
+        ),
+        codeInput,
         notice,
         submit,
       ),
@@ -797,7 +864,7 @@ export function showLogin({ onSuccess }) {
     // Arrived from the QR/email link with the code included: verify immediately.
     if (linkedCode && prefillEmail) {
       switchTab('code');
-      codeInput.value = linkedCode.length === 8 ? `${linkedCode.slice(0, 4)}-${linkedCode.slice(4)}` : linkedCode;
+      applyCodeValue(linkedCode.replace(/-/g, ''));
       setTimeout(() => verify(prefillEmail, codeInput.value), 350);
       return () => {};
     }
@@ -805,6 +872,7 @@ export function showLogin({ onSuccess }) {
     return () => { switchTab('scan'); };
   }
 
+  let lastUnlockEmail = '';
   function authGwAvailable() {
     return Boolean(window.OSAS && window.OSAS.AUTH_FN_URL);
   }
@@ -813,7 +881,9 @@ export function showLogin({ onSuccess }) {
       type: 'button', class: 'lg-link lg-inline',
       onclick: async (e) => {
         const b = e.currentTarget;
-        const addr2 = document.querySelector('#login-overlay input[type="email"]').value.trim().toLowerCase();
+        const em = document.querySelector('#login-overlay .lg-pane:not(.lg-hidden) input[type="email"], #login-overlay input[type="email"]');
+        const addr2 = em ? em.value.trim().toLowerCase() : (lastUnlockEmail || '');
+        if (!addr2) { err.show('Enter the email of the locked account first.'); return; }
         if (!addr2) { err.show('Enter the email of the locked account first.'); return; }
         b.disabled = true; b.textContent = 'Sending…';
         try {
@@ -828,6 +898,60 @@ export function showLogin({ onSuccess }) {
       },
     }, 'Email me a new code');
     return btn;
+  }
+
+  function openPasswordStep(email, resetToken) {
+    stopTimers();
+    card.innerHTML = '';
+    const err = mkErr();
+    const notice = h('p', { class: 'lg-notice lg-hidden', role: 'status' });
+
+    const password = h('input', { type: 'password', class: 'lg-input', placeholder: 'New password (min. 8 characters)', autocomplete: 'new-password', required: true, minlength: '8' });
+    const confirm = h('input', { type: 'password', class: 'lg-input', placeholder: 'Re-enter new password', autocomplete: 'new-password', required: true, minlength: '8' });
+    const checklist = passwordChecklist(password);
+    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Update password & sign in');
+
+    const form = h('form', {
+      class: 'lg-form lg-pwstep',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        err.clear();
+        if (!resetToken) { err.show('Your unlock session is no longer valid. Start again from the email link.'); return; }
+        if (!authGwAvailable()) { err.show('The unlock service is not available right now. Please contact the OSAS office.'); return; }
+        const unmet = checklist.firstUnmet();
+        if (unmet) { err.show(unmet + '.'); password.focus(); return; }
+        if (password.value !== confirm.value) { err.show('The two passwords do not match.'); return; }
+        submit.disabled = true; submit.classList.add('is-loading'); submit.textContent = 'Updating…';
+        try {
+          await auth.changePasswordAfterUnlock(resetToken, password.value);
+          notice.textContent = 'Password updated! Taking you to sign in…';
+          notice.classList.remove('lg-hidden');
+          err.clear();
+          setTimeout(() => stepTo(() => renderCredentials(email, 'Password changed. Sign in with your new password.')), 1200);
+        } catch (ex) {
+          err.show(ex.message || 'Could not set the new password.');
+          submit.disabled = false; submit.classList.remove('is-loading'); submit.textContent = 'Update password';
+        }
+      },
+    },
+      h('p', { class: 'lg-eyebrow lg-center' }, 'You’re in'),
+      h('div', { class: 'lg-locked-icon lg-pwstep-icon' }, fa('circle-check')),
+      h('h2', { class: 'lg-title lg-center' }, 'Change your password?'),
+      h('p', { class: 'lg-lead lg-center' }, 'Your account is unlocked. Want to set a new password now, or keep your current one and sign in?'),
+      field({ label: 'New password', icon: 'lock', input: password, trailing: eyeToggle([password, confirm]), extra: checklist.el }),
+      field({ label: 'Confirm new password', icon: 'lock', input: confirm }),
+      notice,
+      err.el,
+      submit,
+      h('div', { class: 'lg-row lg-center' },
+        h('button', {
+          type: 'button', class: 'lg-link lg-inline',
+          onclick: () => stepTo(() => renderCredentials(email, 'Account unlocked. Sign in to continue.')),
+        }, 'Skip for now — sign in'),
+      ),
+    );
+    card.appendChild(form);
+    return () => password.focus({ preventScroll: true });
   }
 
   function renderRegister() {
@@ -995,8 +1119,9 @@ export function showLogin({ onSuccess }) {
     const q = new URLSearchParams(unlockHash.includes('?') ? unlockHash.slice(unlockHash.indexOf('?') + 1) : '');
     const deepEmail = (q.get('email') || '').toLowerCase();
     const deepCode = (q.get('code') || '').toUpperCase();
+    const deepToken = (q.get('k') || '').trim();
     try { history.replaceState(null, '', location.pathname + location.search); } catch {}
-    stepTo(() => openUnlockScreen({ email: deepEmail, code: deepCode }));
+    stepTo(() => openUnlockScreen({ email: deepEmail, code: deepCode, k: deepToken }));
   }
   if (!reduceMotion()) {
     anim(brand, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 900, easing: EASE_OUT });
