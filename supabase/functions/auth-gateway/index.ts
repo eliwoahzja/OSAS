@@ -1,20 +1,4 @@
-/**
- * auth-gateway — Edge Function for sign-in with failed-attempt lockout.
- *
- * The frontend calls this instead of Supabase Auth's /token endpoint directly
- * (with a legacy fallback when the function is not deployed yet). It:
- *   1. verifies the email + password with the service-role client,
- *   2. records every attempt in auth_login_attempts / account_locks,
- *   3. after MAX_FAILED_ATTEMPTS wrong passwords, bans the user (banned_until),
- *      generates a one-time unlock code, emails it and returns { locked: true },
- *   4. exposes POST { action:'unlock' } to verify the emailed code and unban.
- *
- * Secrets (supabase secrets set ...):
- *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   — required
- *   Maileroo (recommended):  MAILEROO_API_KEY, optional MAILEROO_FROM
- *   or SMTP:                 SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM
- *   Optional: ALLOWED_ORIGIN, APP_URL (unlock link shown in the email)
- */
+/** Sign-in gateway with lockout, emailed unlock codes and QR verify. */
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import qrcode from 'npm:qrcode-generator@1.4.4';
 
@@ -62,7 +46,6 @@ function randomCode(len: number, alphabet: string): string {
   return out;
 }
 
-/** "NSVF-N4D7"-style unlock code (4 chars, dash, 4 more). */
 const newUnlockCode = () => `${randomCode(4, CODE_ALPHABET)}-${randomCode(4, CODE_ALPHABET)}`;
 
 /* ---------- QR code (PNG) for the "Verify Now" email ---------- */
@@ -118,11 +101,9 @@ const unlockLink = (email: string, pageToken: string, code?: string) =>
   `${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}&k=${encodeURIComponent(pageToken)}` +
   (code ? `&code=${encodeURIComponent(code)}` : '');
 
-/** Public URL of the QR PNG for this email+code+page-token (served by this function). */
 const qrUrlFor = (email: string, code: string, pageToken: string) =>
   `${SUPABASE_URL}/functions/v1/auth-gateway?action=qr&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}&k=${encodeURIComponent(pageToken)}`;
 
-/** Long random page-access token handed out only inside the emailed link. */
 const newPageToken = () => randomCode(24, 'abcdefhkmnprstuvwxyz23456789');
 
 const json = (data: unknown, status = 200) =>
@@ -284,7 +265,6 @@ async function isLocked(svc: any, userId: string): Promise<boolean> {
   return Boolean(lock && lock.locked_at);
 }
 
-/** Ban via the admin API — Supabase rejects sign-ins for banned users. */
 async function setBanned(svc: any, userId: string, banned: boolean): Promise<unknown> {
   const dur = banned ? '876000h' : 'none'; // 100 years ≈ indefinite
   return svc.auth.admin.updateUserById(userId, { ban_duration: dur });
@@ -361,7 +341,6 @@ Deno.serve(async (req) => {
   const email = String(payload.email || '').trim().toLowerCase();
   const action = String(payload.action || 'sign-in');
 
-  // ---------------- sign-in ----------------
   if (action === 'sign-in') {
     const password = String(payload.password || '');
     if (!EMAIL_RE.test(email) || !password) return json({ error: 'Enter your email and password.' }, 400);
@@ -370,7 +349,7 @@ Deno.serve(async (req) => {
     if (findErr) return json({ error: findErr.message }, 500);
     const user = (listed?.users || []).find((u: any) => String(u.email || '').toLowerCase() === email);
     if (!user) {
-      // Same response as a wrong password: do not reveal whether the account exists.
+      // Same response as a wrong password: never reveal account existence.
       return json({ error: 'Incorrect email or password.' }, 401);
     }
 
@@ -385,8 +364,7 @@ Deno.serve(async (req) => {
     await svc.from(attemptsTable).insert({ user_id: user.id, email, ok: !!ok });
     if (ok) {
       await upsertLock(svc, { user_id: user.id, email, failed_attempts: 0, locked_at: null, unlock_tries: 0 });
-      // The password was correct: end the short-lived session the check created —
-      // the real session must come from the emailed OTP step in the app.
+      // End the check session; the real one comes from the emailed OTP step.
       try { await svc.auth.admin.signOut(signed.session.access_token); } catch { /* ignore */ }
       return json({ ok: true, email, user: { id: user.id, role: user.app_metadata?.role || 'client', name: user.user_metadata?.name || email } });
     }
@@ -421,7 +399,6 @@ Deno.serve(async (req) => {
     return json({ ok: false, email, attempts: next, remaining, error: `Incorrect email or password. ${remaining} ${remaining === 1 ? 'try' : 'tries'} left before the account locks.` }, 401);
   }
 
-  // ---------------- unlock (type the code) — page invite token required ----------------
   if (action === 'unlock') {
     const code = String(payload.code || '').trim().toUpperCase();
     const k = String(payload.k || '').trim();
@@ -429,7 +406,6 @@ Deno.serve(async (req) => {
     if (!k) return json({ error: 'Open the unlock page from the "Verify Now" link in your email.' }, 403);
     if (!/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(normalized)) return json({ error: 'Enter the unlock code exactly as it appears in the email (e.g. NSVF-N4D7).' }, 400);
 
-    // Identify the account purely from the lock row (no password involved).
     let targetEmail = String(payload.email || '').trim().toLowerCase();
     let lock: LockRow | null = null;
     if (EMAIL_RE.test(targetEmail)) {
@@ -449,7 +425,6 @@ Deno.serve(async (req) => {
       if (!lock) return json({ error: 'That unlock code is not valid or has expired. Sign in again to get a fresh email, or contact the OSAS office.' }, 400);
     }
 
-    // The page token must match the one embedded in the emailed link/QR.
     if (!lock.page_token_hash) return json({ error: 'This unlock page invite is no longer valid. Sign in again to receive a fresh email.' }, 403);
     const pageHash = await sha256Hex(`osas-page:${lock.user_id}:${k}`);
     if (pageHash !== lock.page_token_hash) return json({ error: 'This unlock page invite is not valid. Use the "Verify Now" button in the latest email.' }, 403);
@@ -488,7 +463,6 @@ Deno.serve(async (req) => {
     return json({ ok: true, email: targetEmail, reset_token: resetToken, message: 'Account unlocked. You can now change your password.' });
   }
 
-  // ---------------- change password after unlock (reset token required) ----------------
   if (action === 'change-password') {
     const resetToken = String(payload.reset_token || '').trim();
     const password = String(payload.password || '');
@@ -513,7 +487,6 @@ Deno.serve(async (req) => {
     return json({ ok: true, message: 'Password updated. Sign in with your new password.' });
   }
 
-  // ---------------- resend unlock code ----------------
   if (action === 'resend-unlock') {
     if (!EMAIL_RE.test(email)) return json({ error: 'Enter the email of the locked account.' }, 400);
     const { data: listed, error: findErr } = await svc.auth.admin.listUsers({ page: 1, perPage: 200 });

@@ -185,9 +185,9 @@ function revealChildren(form, { base = 80, step = 55, max = 420 } = {}) {
   if (reduceMotion() || !form) return;
   [...form.children].forEach((el, i) => {
     anim(el, [
-      { opacity: 0, transform: 'translateY(14px) scale(.985)' },
+      { opacity: 0, transform: 'translateY(8px)' },
       { opacity: 1, transform: 'none' },
-    ], { duration: 560, delay: base + Math.min(i * step, max), easing: EASE_OUT });
+    ], { duration: 320, delay: base + Math.min(i * step, max), easing: 'ease-out' });
   });
 }
 
@@ -581,8 +581,7 @@ export function showLogin({ onSuccess }) {
   }
 
   function openUnlockScreen(params = {}) {
-    // The unlock page may ONLY be reached via the emailed "Verify Now" link/QR:
-    // the link carries a one-time invite token (k). No token -> explain and send back.
+    // Invite-only: reachable via the emailed Verify Now link/QR token.
     const pageToken = String(params.k || '').trim();
     const prefillEmail = String(params.email || '').toLowerCase();
     const linkedCode = String(params.code || '').toUpperCase();
@@ -613,8 +612,6 @@ export function showLogin({ onSuccess }) {
       autocomplete: 'username', required: true, value: prefillEmail,
       ...(linkedCode ? { readonly: 'readonly' } : {}),
     });
-    // GitHub-style code input: individual cells, two groups of 4 (XXXX-XXXX),
-    // backed by a hidden input that holds the full value.
     const codeInput = h('input', {
       type: 'text', class: 'lg-hidden-real', maxlength: '9', required: true,
       'aria-label': 'Unlock code', autocomplete: 'off', spellcheck: 'false', tabindex: '-1',
@@ -695,8 +692,7 @@ export function showLogin({ onSuccess }) {
       }
     }
 
-    /* ---------------- tabs: Scan QR | Type code ---------------- */
-    let cameraStream = null;
+        let cameraStream = null;
     let scanLoop = null;
     let jsQRlib = null;
 
@@ -721,6 +717,43 @@ export function showLogin({ onSuccess }) {
       return jsQRlib;
     }
 
+    async function decodeImageFile(file) {
+      try {
+        const url = URL.createObjectURL(file);
+        const img = await new Promise((resolve, reject) => {
+          const i = new Image();
+          i.onload = () => resolve(i);
+          i.onerror = reject;
+          i.src = url;
+        });
+        const w = img.naturalWidth, hh = img.naturalHeight;
+        let text = null;
+        if (w && hh) {
+          const cv = document.createElement('canvas');
+          const scale = Math.min(1.5, 1600 / Math.max(w, hh)) || 1;
+          cv.width = Math.round(w * scale); cv.height = Math.round(hh * scale);
+          cv.getContext('2d', { willReadFrequently: true }).drawImage(img, 0, 0, cv.width, cv.height);
+          if ('BarcodeDetector' in window) {
+            try {
+              const det = new window.BarcodeDetector({ formats: ['qr_code'] });
+              const found = await det.detect(cv);
+              if (found && found.length) text = found[0].rawValue;
+            } catch { /* try jsQR */ }
+          }
+          if (!text) {
+            const lib = await loadJsQR();
+            if (lib) {
+              const data = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height);
+              const r = lib(data.data, cv.width, cv.height);
+              if (r && r.data) text = r.data;
+            }
+          }
+        }
+        URL.revokeObjectURL(url);
+        return text;
+      } catch { return null; }
+    }
+
     async function decodeFrame(video) {
       const w = video.videoWidth, hh = video.videoHeight;
       if (!w || !hh) return null;
@@ -742,7 +775,6 @@ export function showLogin({ onSuccess }) {
     }
 
     function onQrDecoded(text) {
-      // Expect .../#/unlock?email=..&code=..&k=..
       let scannedToken = pageToken;
       const m = /[?&]email=([^&]+)[&].*?code=([^&\s]+)/i.exec(text) || /[?&]code=([^&\s]+).*?[?&]email=([^&]+)/i.exec(text);
       let addr2 = prefillEmail, code = '';
@@ -756,8 +788,7 @@ export function showLogin({ onSuccess }) {
         if (m) { /* fallback pair order */ }
       }
       if (!code && m) {
-        // pair order fallback: first attempt assumed email,code
-        const a = decodeURIComponent(m[1] || ''), b = decodeURIComponent(m[2] || '');
+          const a = decodeURIComponent(m[1] || ''), b = decodeURIComponent(m[2] || '');
         if (a.includes('@')) addr2 = a.toLowerCase();
         if (b.replace(/[^A-Z0-9]/gi, '').length >= 8) code = b.toUpperCase();
       }
@@ -799,13 +830,28 @@ export function showLogin({ onSuccess }) {
       }, 350);
     }
 
+    const fileInput = h('input', { type: 'file', accept: 'image/*', class: 'lg-sr-only', 'aria-label': 'Upload a QR screenshot' });
+    fileInput.addEventListener('change', async () => {
+      const f = fileInput.files && fileInput.files[0];
+      fileInput.value = '';
+      if (!f) return;
+      err.clear();
+      stopCamera();
+      const res = await decodeImageFile(f);
+      if (!res) { err.show('No QR code found in that image. Upload the screenshot with the QR code.'); return; }
+      onQrDecoded(res);
+    });
     const scanPane = h('div', { class: 'lg-pane' },
       h('div', { class: 'lg-scan-box' },
         h('video', { id: 'lg-scan-video', class: 'lg-scan-video', playsinline: '', muted: '', autoplay: '' }),
         h('div', { id: 'lg-scan-placeholder', class: 'lg-scan-placeholder' }, fa('qrcode')),
         h('p', { class: 'lg-hint' }, 'Point your camera at the QR code in your email.'),
       ),
-      h('button', { id: 'lg-scan-start', type: 'button', class: 'lg-btn', onclick: startCamera }, 'Open camera & scan'),
+      h('div', { class: 'lg-btn-col' },
+        h('button', { id: 'lg-scan-start', type: 'button', class: 'lg-btn', onclick: startCamera }, 'Scan with camera'),
+        h('button', { type: 'button', class: 'lg-btn lg-btn--ghost', onclick: () => fileInput.click() }, fa('image'), ' Upload QR screenshot'),
+      ),
+      fileInput,
     );
 
     const codePane = h('div', { class: 'lg-pane lg-hidden' },
@@ -861,14 +907,12 @@ export function showLogin({ onSuccess }) {
     );
     card.appendChild(form);
 
-    // Arrived from the QR/email link with the code included: verify immediately.
     if (linkedCode && prefillEmail) {
       switchTab('code');
       applyCodeValue(linkedCode.replace(/-/g, ''));
       setTimeout(() => verify(prefillEmail, codeInput.value), 350);
       return () => {};
     }
-    // Otherwise open on the scan tab (falls back to typing in any error case).
     return () => { switchTab('scan'); };
   }
 
@@ -1124,11 +1168,11 @@ export function showLogin({ onSuccess }) {
     stepTo(() => openUnlockScreen({ email: deepEmail, code: deepCode, k: deepToken }));
   }
   if (!reduceMotion()) {
-    anim(brand, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 900, easing: EASE_OUT });
+    anim(brand, [{ opacity: 0, transform: 'translateX(-24px)' }, { opacity: 1, transform: 'none' }], { duration: 550, easing: 'ease-out' });
     [...brandInner.children].forEach((el, i) => {
       anim(el, [{ opacity: 0, transform: 'translateY(18px)' }, { opacity: 1, transform: 'none' }], { duration: 700, delay: 250 + i * 90, easing: EASE_OUT });
     });
-    anim(card, [{ opacity: 0, transform: 'translateY(32px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 800, delay: 150, easing: EASE_OUT });
+    anim(card, [{ opacity: 0, transform: 'translateY(14px)' }, { opacity: 1, transform: 'none' }], { duration: 450, delay: 100, easing: 'ease-out' });
     revealChildren(card.firstElementChild, { base: 350, step: 60 });
   }
   focusFirst();

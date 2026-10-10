@@ -435,78 +435,64 @@ body.h-screen { height: 100vh; height: 100dvh; }
 .stagger-sibling > *:nth-child(6) { animation-delay: 390ms; }
 .stagger-sibling > *:nth-child(n+7) { animation-delay: 460ms; }
 
-/* --- Stat cards: entrance + refined hover lift --- */
-@keyframes statPop {
-  0%   { opacity: 0; transform: translateY(16px) scale(.97); }
-  70%  { opacity: 1; }
-  100% { opacity: 1; transform: none; }
-}
-.animate-stat { opacity: 0; animation: statPop .55s cubic-bezier(.22,1,.36,1) forwards; animation-delay: var(--stagger, 0ms); }
-.card-lift { transition: transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s ease; }
-.card-lift:hover { transform: translateY(-4px) scale(1.005); box-shadow: 0 14px 32px rgba(36, 26, 34, .10); }
-.card-lift:active { transition-duration: .1s; transform: translateY(-1px) scale(.995); }
 
-/* --- Table rows: quicker, snappier stagger with soft blur --- */
+@keyframes statPop {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+.animate-stat { opacity: 0; animation: statPop .32s ease-out forwards; animation-delay: var(--stagger, 0ms); }
+.card-lift { transition: transform .28s cubic-bezier(.22,1,.36,1), box-shadow .28s ease; }
+.card-lift:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(36, 26, 34, .08); }
+.card-lift:active { transition-duration: .1s; }
+
+
 @keyframes rowFade {
-  from { opacity: 0; transform: translateY(5px); filter: blur(1.5px); }
-  60%  { filter: blur(0); }
-  to   { opacity: 1; transform: none; filter: blur(0); }
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: none; }
 }
 .animate-row { animation: rowFade .3s cubic-bezier(.22,1,.36,1) both; }
 tbody tr:hover .row-hover-nudge { transform: translateX(2px); }
 
-/* --- Toasts: spring slide-in with overshoot, progress life-line, fade exit --- */
+/* Toasts */
 #toast-root { display: flex; flex-direction: column; gap: 10px; }
 @keyframes toastIn {
-  0%   { opacity: 0; transform: translateX(120%) scale(.92); }
-  60%  { opacity: 1; transform: translateX(-6px) scale(1.01); }
-  80%  { transform: translateX(2px) scale(1); }
-  100% { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: none; }
 }
 @keyframes toastOut {
   from { opacity: 1; transform: none; max-height: 120px; }
   to   { opacity: 0; transform: translateX(30px) scale(.95); max-height: 0; margin-top: -10px; }
 }
-@keyframes toastLife { from { width: 100%; } to { width: 0%; } }
 #toast-root > div {
-  animation: toastIn .45s cubic-bezier(.22,1,.36,1);
+  animation: toastIn .18s ease-out;
   overflow: hidden;
   will-change: transform, opacity;
 }
 #toast-root > div.toast-exit { animation: toastOut .32s cubic-bezier(.6,.05,.26,.99) forwards; pointer-events: none; }
-#toast-root > div .toast-life {
-  position: absolute; left: 14px; right: 14px; bottom: 0; height: 2.5px;
-  border-radius: 999px; background: rgba(255,255,255,.35);
-  transform-origin: left center;
-  animation: toastLife linear forwards;
-}
-#toast-root > div.toast-error .toast-life { background: rgba(248,113,113,.8); }
 
-/* --- Buttons: micro-interactions --- */
+
 .btn-primary, .btn-ghost { transition: transform .15s cubic-bezier(.22,1,.36,1), background-color .2s ease, box-shadow .25s ease, border-color .2s ease; }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(219,39,119,.28); }
 .btn-primary:active, .btn-ghost:active { transform: scale(.97); }
 .btn-ghost:hover { transform: translateY(-1px); }
 
-/* --- Sidebar links: smooth icon trend + active pill grow --- */
+
 #sidebar-nav a { transition: background-color .25s ease; }
 #sidebar-nav a .nav-bg { transition: opacity .25s ease; }
 #sidebar-nav a .nav-indicator { transition: height .3s cubic-bezier(.22,1,.36,1), opacity .25s ease; }
 
-/* --- Chart entrance: pieces settle in --- */
+
 @keyframes segGrow { from { opacity: 0; stroke-width: 0; } to { opacity: 1; } }
 .donut-seg { transition: stroke-dashoffset 1s cubic-bezier(.65,0,.35,1), opacity .4s ease; }
 
-/* --- Modal: spring settle --- */
+
 @keyframes modalSettle {
-  0%   { opacity: 0; transform: translateY(26px) scale(.94); }
-  70%  { opacity: 1; transform: translateY(-3px) scale(1.005); }
-  100% { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(10px) scale(.99); }
+  to   { opacity: 1; transform: none; }
 }
 .osas-modal-card { transition: transform .3s cubic-bezier(.34,.4,.24,1), opacity .25s ease; }
-.osas-modal-overlay.active .osas-modal-card { animation: modalSettle .42s cubic-bezier(.22,1,.36,1); }
+.osas-modal-overlay.active .osas-modal-card { animation: modalSettle .22s ease-out; }
 
-/* --- Number count-up helper (js/ui.js toggles is-done) --- */
 .count-num { font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -548,15 +534,15 @@ tbody tr:hover .row-hover-nudge { transform: translateX(2px); }
 .lg-pane { margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .lg-scan-placeholder .fa-solid { animation: none; } }
 
-/* ---- GitHub-style code boxes (unlock page) ---- */
-.lg-otp { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 6px; }
-.lg-otp-group { display: flex; gap: 8px; }
-.lg-otp-dash { color: #D1CDC6; font-size: 18px; display: flex; align-items: center; }
+
+.lg-otp { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 6px; max-width: 100%; }
+.lg-otp-group { display: flex; gap: 6px; min-width: 0; }
+.lg-otp-dash { color: #D1CDC6; font-size: 16px; display: flex; align-items: center; flex: none; }
 .lg-otp-cell {
-  width: 46px; height: 56px; text-align: center;
-  font-size: 24px; font-weight: 800; font-family: 'Courier New', monospace;
+  width: clamp(30px, 10vw, 46px); height: clamp(44px, 13vw, 56px); text-align: center;
+  font-size: clamp(18px, 5.5vw, 24px); font-weight: 700; font-family: 'Courier New', monospace;
   color: #27272a; background: #fff; border: 1.5px solid #D6D0C8; border-radius: 10px;
-  outline: none; caret-color: #7A1B38;
+  outline: none; caret-color: #7A1B38; padding: 0; min-width: 0;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   -webkit-appearance: none; appearance: none;
 }
@@ -564,12 +550,16 @@ tbody tr:hover .row-hover-nudge { transform: translateX(2px); }
 .lg-otp-cell.is-error { border-color: #DC2626; box-shadow: 0 0 0 4px rgba(220,38,38,.12); animation: lgOtpShake .4s ease; }
 @keyframes lgOtpShake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
 .lg-sr-only { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-@media (max-width: 480px) {
-  .lg-otp-cell { width: 38px; height: 50px; font-size: 20px; }
-  .lg-otp { gap: 7px; } .lg-otp-group { gap: 6px; }
+@media (max-width: 360px) {
+  .lg-otp { gap: 5px; }
+  .lg-otp-group { gap: 4px; }
+  .lg-otp-dash { font-size: 14px; }
 }
+.lg-btn-col { display: grid; gap: 10px; margin-top: 12px; }
+.lg-btn--ghost { background: #fff; color: #7A1B38; border: 1.5px solid #E3D5DB; }
+.lg-btn--ghost:hover { border-color: #7A1B38; }
 
-/* ---- Post-unlock password step ---- */
+
 .lg-pwstep .lg-pwstep-icon { color: #15803D; background: #F0FDF4; }
 .lg-pwstep .lg-row { margin-top: 14px; }
 .lg-hidden-real { display: none; }

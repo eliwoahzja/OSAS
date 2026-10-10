@@ -227,7 +227,6 @@ function responseIsLocked({ data }) {
   return Boolean(data && (data.locked === true));
 }
 
-// Unlock flow: verify the emailed code (e.g. NSVF-N4D7) to unlock the account.
 export function accountLocked(res) {
   return responseIsLocked(res);
 }
@@ -253,7 +252,6 @@ export async function unlockWithCode(email, code, pageToken) {
   return d;
 }
 
-// Optional post-unlock step: set a new password with the one-time reset token.
 export async function changePasswordAfterUnlock(resetToken, password) {
   const res = await authFnPost({ action: 'change-password', reset_token: String(resetToken || '').trim(), password: String(password || '') });
   if (!res) throw new Error('Cannot reach the unlock service. Check your internet connection and try again.');

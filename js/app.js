@@ -463,7 +463,7 @@ function drawStats(box, s) {
     const items = cards.children;
     for (let i = 0; i < items.length; i++) {
       items[i].classList.add('animate-stat');
-      items[i].style.setProperty('--stagger', `${60 + i * 70}ms`);
+      items[i].style.setProperty('--stagger', `${i * 60}ms`);
     }
   });
   const summarySection = h('section', {},

@@ -557,9 +557,8 @@ export function errorBanner(message, onRetry) {
 
 const REDUCED_MOTION = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-function dismissToast(node, life) {
+function dismissToast(node) {
   if (!node.parentNode) return;
-  if (life) { try { life.style.animationPlayState = 'paused'; } catch {} }
   node.classList.add('toast-exit');
   if (REDUCED_MOTION()) node.remove();
   else setTimeout(() => node.remove(), 340);
@@ -569,7 +568,6 @@ export function toast(msg, kind = 'success') {
   const root = document.getElementById('toast-root');
   if (!root) return;
   const lifeSec = kind === 'error' ? 8 : 4.5;
-  const life = h('span', { class: 'toast-life', style: { animationDuration: `${lifeSec}s` } });
   const node = h('div', {
     class: 'relative bg-gray-900/95 backdrop-blur text-white text-[13px] font-semibold px-4 py-3 pb-3.5 rounded-xl shadow-lg flex items-center gap-3'
       + (kind === 'error' ? ' toast-error border-l-4 border-red-500' : ''),
@@ -581,14 +579,14 @@ export function toast(msg, kind = 'success') {
     h('button', {
       class: 'text-gray-400 hover:text-white clickable shrink-0 transition-colors',
       'aria-label': 'Dismiss',
-      onclick: () => dismissToast(node, life),
+      onclick: () => dismissToast(node),
     }, '✕'),
     life,
   );
   // Cap the queue so rapid saves don't stack a tower of toasts.
   while (root.children.length >= 4) root.firstElementChild.remove();
   root.appendChild(node);
-  setTimeout(() => dismissToast(node, life), lifeSec * 1000);
+  setTimeout(() => dismissToast(node), lifeSec * 1000);
 }
 
 export function dataTable(columns, rows, { onRowClick } = {}) {
@@ -636,9 +634,8 @@ export function statCard({ label, value, sub, iconName, tone = 'pink', blob = 'b
       + (href ? ' clickable focus:outline-none focus:ring-2 focus:ring-pink-200' : ''),
   };
   if (href) attrs.href = href;
-  const valueEl = h('p', { class: 'text-[32px] font-extrabold text-gray-900 mt-2 leading-none count-num' });
-  const m = /^\s*[0-9][0-9,]*(?:\s*)$/.exec(String(value));
-  const rawNumber = m ? Number(String(value).replace(/,/g, '')) : null;
+  const valueEl = h('p', { class: 'text-[32px] font-extrabold text-gray-900 mt-2 leading-none' });
+  const setValue = (v) => { valueEl.textContent = typeof v === 'number' ? v.toLocaleString('en-US') : v; };
   setValue(value);
 
   const card = h(tag, attrs,
@@ -650,21 +647,7 @@ export function statCard({ label, value, sub, iconName, tone = 'pink', blob = 'b
       sub ? h('p', { class: 'text-[11px] text-gray-500 mt-5 leading-snug' }, sub) : null,
     ),
   );
-  animateValue();
   return card;
 
-  function setValue(v) { valueEl.textContent = typeof v === 'number' ? v.toLocaleString('en-US') : v; }
-  function animateValue() {
-    if (rawNumber === null || REDUCED_MOTION() || !Number.isFinite(rawNumber)) return;
-    const dur = Math.min(900, 320 + rawNumber * 2);
-    const t0 = performance.now();
-    const tick = (t) => {
-      const k = Math.min(1, (t - t0) / dur);
-      const eased = 1 - Math.pow(1 - k, 3);
-      setValue(Math.round(rawNumber * eased));
-      if (k < 1) requestAnimationFrame(tick);
-      else setValue(rawNumber);
-    };
-    requestAnimationFrame(tick);
-  }
+
 }
