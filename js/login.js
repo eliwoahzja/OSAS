@@ -930,9 +930,7 @@ export function showLogin({ onSuccess }) {
       type: 'button', class: 'lg-link lg-inline',
       onclick: async (e) => {
         const b = e.currentTarget;
-        const em = document.querySelector('#login-overlay .lg-pane:not(.lg-hidden) input[type="email"], #login-overlay input[type="email"]');
-        const addr2 = em ? em.value.trim().toLowerCase() : (lastUnlockEmail || '');
-        if (!addr2) { err.show('Enter the email of the locked account first.'); return; }
+        const addr2 = String(sendNewCodeButton.emailRef && sendNewCodeButton.emailRef() || '').trim().toLowerCase();
         if (!addr2) { err.show('Enter the email of the locked account first.'); return; }
         b.disabled = true; b.textContent = 'Sending…';
         try {
@@ -946,6 +944,7 @@ export function showLogin({ onSuccess }) {
         setTimeout(() => { b.disabled = false; b.textContent = 'Email me a new code'; }, 3000);
       },
     }, 'Email me a new code');
+    sendNewCodeButton.emailRef = () => addr || lastUnlockEmail;
     return btn;
   }
 
