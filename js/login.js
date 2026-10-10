@@ -630,7 +630,8 @@ export function showLogin({ onSuccess }) {
       for (let i = 0; i < 8; i++) {
         const cell = h('input', {
           type: 'text', class: 'lg-otp-cell', maxlength: '1', inputmode: 'text',
-          autocomplete: 'off', spellcheck: 'false', 'aria-label': `Unlock code character ${i + 1}`,
+          autocapitalize: 'characters', autocomplete: 'off', spellcheck: 'false',
+          'aria-label': `Unlock code character ${i + 1}`,
         });
         cell.addEventListener('input', () => {
           cell.value = cell.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 1);

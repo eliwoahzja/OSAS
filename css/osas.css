@@ -543,6 +543,7 @@ tbody tr:hover .row-hover-nudge { transform: translateX(2px); }
   font-size: clamp(18px, 5.5vw, 24px); font-weight: 700; font-family: 'Courier New', monospace;
   color: #27272a; background: #fff; border: 1.5px solid #D6D0C8; border-radius: 10px;
   outline: none; caret-color: #7A1B38; padding: 0; min-width: 0;
+  text-transform: uppercase;
   transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   -webkit-appearance: none; appearance: none;
 }
