@@ -565,7 +565,7 @@ export function showLogin({ onSuccess }) {
         ? h('p', { class: 'lg-lead lg-center lg-lead-sub' }, 'Click “Unlock my account” and type the code from the email (for example ', h('span', { class: 'lg-code-ex' }, 'NSVF-N4D7'), ').')
         : null,
     );
-    const goUnlock = h('button', { type: 'button', class: 'lg-btn', onclick: () => { closeModal(true); openUnlockScreen(addr); } }, 'Unlock my account');
+    const goUnlock = h('button', { type: 'button', class: 'lg-btn', onclick: () => { closeModal(true); openUnlockScreen({ email: addr }); } }, 'Verify Now');
     const back = h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => closeModal() }, 'Close');
     const structured = h('div', { class: 'lg-locked-body lg-center' }, goUnlock, back);
     const modal = h('div', { class: 'lg-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Account locked' }, locked, structured);
@@ -582,7 +582,10 @@ export function showLogin({ onSuccess }) {
     return h('div', { class: 'lg-locked-icon' }, fa('lock'));
   }
 
-  function openUnlockScreen(addr = '') {
+  function openUnlockScreen(params = {}) {
+    // params: { email?, code? } — code present means the QR/link carried it.
+    const prefillEmail = String(params.email || '').toLowerCase();
+    const linkedCode = String(params.code || '').toUpperCase();
     stopTimers();
     card.innerHTML = '';
     const err = mkErr();
@@ -590,73 +593,216 @@ export function showLogin({ onSuccess }) {
 
     const email = h('input', {
       type: 'email', class: 'lg-input', placeholder: 'you@saac.edu.ph',
-      autocomplete: 'username', required: true, value: addr,
+      autocomplete: 'username', required: true, value: prefillEmail,
+      ...(linkedCode ? { readonly: 'readonly' } : {}),
     });
     const codeInput = h('input', {
       type: 'text', class: 'lg-input lg-code', maxlength: '9', placeholder: 'NSVF-N4D7',
       required: true, 'aria-label': 'Unlock code', autocomplete: 'off', spellcheck: 'false',
     });
-    // Formats XXXX-XXXX while typing (auto-dash, uppercase, a-z/A-Z0-9 only).
+    // Formats XXXX-XXXX while typing (auto-dash, uppercase, A-Z0-9 only).
     codeInput.addEventListener('input', () => {
       const raw = codeInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-      const hadDash = codeInput.dataset.dash === '1';
       const compact = raw.replace(/-/g, '').slice(0, 8);
-      let out = compact;
-      if (hadDash || (compact.length > 4)) out = compact.length > 4 ? `${compact.slice(0, 4)}-${compact.slice(4)}` : compact;
-      codeInput.dataset.dash = raw.includes('-') ? '1' : '0';
-      codeInput.value = out;
+      codeInput.value = compact.length > 4 ? `${compact.slice(0, 4)}-${compact.slice(4)}` : compact;
       err.clear();
     });
-    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Unlock Account');
 
-    const resendWrap = h('div', { class: 'lg-row' },
-      h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => stepTo(() => renderCredentials()) }, '← Back to sign in'),
-      sendNewCodeButton(addr, err, notice),
+    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Verify & Unlock');
+
+    async function verify(addr2, code, opts = {}) {
+      err.clear();
+      notice.classList.add('lg-hidden');
+      if (!authGwAvailable()) { err.show('The unlock service is not available right now. Please contact the OSAS office.'); return; }
+      if (!addr2) { err.show('Enter the email of the locked account.'); email.focus(); return; }
+      if (String(code).replace(/[^A-Z0-9]/g, '').length < 8) { err.show('Enter the 8-character unlock code from your email, e.g. NSVF-N4D7.'); codeInput.focus(); return; }
+      const btn = opts.btn || submit;
+      const original = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.classList.add('is-loading'); btn.textContent = 'Verifying…'; }
+      try {
+        await auth.unlockWithCode(addr2, code);
+        notice.textContent = 'Account unlocked! Signing you in…';
+        notice.classList.remove('lg-hidden');
+        err.clear();
+        if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); btn.textContent = original; }
+        stopCamera();
+        setTimeout(() => stepTo(() => renderCredentials(addr2, 'Account unlocked. Sign in to continue.')), 1300);
+      } catch (ex) {
+        if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); btn.textContent = original; }
+        err.show(ex.message || 'Could not unlock the account.');
+        if (opts.fromScan) switchTab('code');
+        codeInput.select();
+      }
+    }
+
+    /* ---------------- tabs: Scan QR | Type code ---------------- */
+    let cameraStream = null;
+    let scanLoop = null;
+    let jsQRlib = null;
+
+    function stopCamera() {
+      if (scanLoop) { clearInterval(scanLoop); scanLoop = null; }
+      if (cameraStream) {
+        cameraStream.getTracks().forEach((t) => t.stop());
+        cameraStream = null;
+      }
+      const v = document.getElementById('lg-scan-video');
+      if (v) v.srcObject = null;
+      const ph = document.getElementById('lg-scan-placeholder');
+      if (ph) ph.classList.remove('lg-hidden');
+    }
+
+    async function loadJsQR() {
+      if (jsQRlib !== null) return jsQRlib;
+      try {
+        const mod = await import('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/+esm');
+        jsQRlib = mod.default || mod;
+      } catch { jsQRlib = false; }
+      return jsQRlib;
+    }
+
+    async function decodeFrame(video) {
+      const w = video.videoWidth, hh = video.videoHeight;
+      if (!w || !hh) return null;
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = hh;
+      cv.getContext('2d', { willReadFrequently: true }).drawImage(video, 0, 0);
+      if ('BarcodeDetector' in window) {
+        try {
+          const det = new window.BarcodeDetector({ formats: ['qr_code'] });
+          const found = await det.detect(cv);
+          if (found && found.length) return found[0].rawValue;
+        } catch { /* fall through to jsQR */ }
+      }
+      const lib = await loadJsQR();
+      if (!lib) return null;
+      const img = cv.getContext('2d').getImageData(0, 0, w, hh);
+      const res = lib(img.data, w, hh);
+      return res && res.data ? res.data : null;
+    }
+
+    function onQrDecoded(text) {
+      // Expect .../#/unlock?email=..&code=..
+      const m = /[?&]email=([^&]+)[&].*?code=([^&\s]+)/i.exec(text) || /[?&]code=([^&\s]+).*?[?&]email=([^&]+)/i.exec(text);
+      let addr2 = prefillEmail, code = '';
+      try {
+        const url = new URL(text);
+        const q = new URLSearchParams(url.hash.includes('?') ? url.hash.slice(url.hash.indexOf('?') + 1) : url.search);
+        if (q.get('email')) addr2 = q.get('email').toLowerCase();
+        if (q.get('code')) code = q.get('code').toUpperCase();
+      } catch {
+        if (m) { /* fallback pair order */ }
+      }
+      if (!code && m) {
+        // pair order fallback: first attempt assumed email,code
+        const a = decodeURIComponent(m[1] || ''), b = decodeURIComponent(m[2] || '');
+        if (a.includes('@')) addr2 = a.toLowerCase();
+        if (b.replace(/[^A-Z0-9]/gi, '').length >= 8) code = b.toUpperCase();
+      }
+      if (!code) { err.show('That QR code does not contain an unlock code.'); return; }
+      stopCamera();
+      verify(addr2, code, { fromScan: true });
+    }
+
+    async function startCamera() {
+      const ph = document.getElementById('lg-scan-placeholder');
+      const video = document.getElementById('lg-scan-video');
+      const scanBtn = document.getElementById('lg-scan-start');
+      if (!video) return;
+      err.clear();
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        err.show('This browser cannot open the camera. Type the code instead.');
+        switchTab('code');
+        return;
+      }
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      } catch {
+        err.show('Camera access was denied. Allow the camera, or type the code instead.');
+        switchTab('code');
+        return;
+      }
+      video.srcObject = cameraStream;
+      await video.play().catch(() => {});
+      if (ph) ph.classList.add('lg-hidden');
+      if (scanBtn) scanBtn.classList.add('lg-hidden');
+      if (scanLoop) clearInterval(scanLoop);
+      scanLoop = setInterval(async () => {
+        if (!cameraStream) return;
+        try {
+          const text = await decodeFrame(video);
+          if (text) onQrDecoded(text);
+        } catch { /* keep scanning */ }
+      }, 350);
+    }
+
+    const scanPane = h('div', { class: 'lg-pane' },
+      h('div', { class: 'lg-scan-box' },
+        h('video', { id: 'lg-scan-video', class: 'lg-scan-video', playsinline: '', muted: '', autoplay: '' }),
+        h('div', { id: 'lg-scan-placeholder', class: 'lg-scan-placeholder' }, fa('qrcode')),
+        h('p', { class: 'lg-hint' }, 'Point your camera at the QR code in your email.'),
+      ),
+      h('button', { id: 'lg-scan-start', type: 'button', class: 'lg-btn', onclick: startCamera }, 'Open camera & scan'),
     );
 
-    const form = h('form', {
-      class: 'lg-form',
-      onsubmit: async (e) => {
-        e.preventDefault();
-        err.clear();
-        notice.classList.add('lg-hidden');
-        const addr2 = email.value.trim().toLowerCase();
-        if (!authGwAvailable()) { err.show('The unlock service is not available right now. Please contact the OSAS office.'); return; }
-        if (!addr2) { err.show('Enter the email of the locked account.'); email.focus(); return; }
-        if (codeInput.value.replace(/[^A-Z0-9]/g, '').length < 8) { err.show('Enter the 8-character unlock code from your email, e.g. NSVF-N4D7.'); codeInput.focus(); return; }
-        submit.disabled = true;
-        submit.classList.add('is-loading');
-        submit.textContent = 'Unlocking…';
-        try {
-          await auth.unlockWithCode(addr2, codeInput.value);
-          notice.textContent = 'Account unlocked! You can sign in again with your password.';
-          notice.classList.remove('lg-hidden');
-          submit.disabled = false;
-          submit.classList.remove('is-loading');
-          submit.textContent = 'Unlock Account';
-          setTimeout(() => stepTo(() => renderCredentials(addr2, 'Account unlocked. Sign in to continue.')), 1400);
-        } catch (ex) {
-          err.show(ex.message || 'Could not unlock the account.');
-          submit.disabled = false;
-          submit.classList.remove('is-loading');
-          submit.textContent = 'Unlock Account';
-          codeInput.select();
-        }
+    const codePane = h('div', { class: 'lg-pane lg-hidden' },
+      h('form', {
+        class: 'lg-form',
+        onsubmit: (e) => {
+          e.preventDefault();
+          verify(email.value.trim().toLowerCase(), codeInput.value);
+        },
       },
-    },
-      h('p', { class: 'lg-eyebrow lg-center' }, 'Retry access'),
-      h('div', { class: 'lg-locked-icon' }, fa('unlock-keyhole')),
-      h('h2', { class: 'lg-title lg-center' }, 'Unlock your account'),
-      h('p', { class: 'lg-lead lg-center' }, 'Type the unlock code we emailed you. It looks like ', h('span', { class: 'lg-code-ex' }, 'NSVF-N4D7'), '.'),
-      field({ label: 'Email', icon: 'user', input: email }),
-      field({ label: 'Unlock code', icon: 'shield-halved', input: codeInput }),
-      notice,
+        field({ label: 'Email', icon: 'user', input: email }),
+        field({ label: 'Unlock code', icon: 'shield-halved', input: codeInput }),
+        notice,
+        submit,
+      ),
+    );
+
+    const tabScan = h('button', { type: 'button', class: 'lg-utab is-active', onclick: () => switchTab('scan') }, fa('qrcode'), h('span', {}, 'Scan QR code'));
+    const tabCode = h('button', { type: 'button', class: 'lg-utab', onclick: () => switchTab('code') }, fa('keyboard'), h('span', {}, 'Type code'));
+
+    function switchTab(which) {
+      stopCamera();
+      tabScan.classList.toggle('is-active', which === 'scan');
+      tabCode.classList.toggle('is-active', which === 'code');
+      scanPane.classList.toggle('lg-hidden', which !== 'scan');
+      codePane.classList.toggle('lg-hidden', which !== 'code');
+      err.clear();
+      if (which === 'scan') {
+        const startBtn = document.getElementById('lg-scan-start');
+        if (startBtn) startBtn.classList.remove('lg-hidden');
+      } else {
+        setTimeout(() => (email.readOnly ? codeInput : email).focus(), 80);
+      }
+    }
+
+    const form = h('div', { class: 'lg-form lg-verify' },
+      h('p', { class: 'lg-eyebrow lg-center' }, 'Account security'),
+      h('div', { class: 'lg-locked-icon' }, fa('user-shield')),
+      h('h2', { class: 'lg-title lg-center' }, 'Verify it\u2019s you'),
+      h('p', { class: 'lg-lead lg-center' }, 'Your account was locked. Verify your identity to unlock it', prefillEmail ? h('strong', {}, ` — ${prefillEmail}`) : '.'),
+      h('div', { class: 'lg-utabs' }, tabScan, tabCode),
       err.el,
-      submit,
-      resendWrap,
+      scanPane,
+      codePane,
+      h('div', { class: 'lg-row' },
+        h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => { stopCamera(); stepTo(() => renderCredentials(prefillEmail)); } }, '← Back to sign in'),
+        authGwAvailable() ? sendNewCodeButton(prefillEmail, err, notice) : h('span'),
+      ),
     );
     card.appendChild(form);
-    return () => email.focus({ preventScroll: true });
+
+    // Arrived from the QR/email link with the code included: verify immediately.
+    if (linkedCode && prefillEmail) {
+      switchTab('code');
+      codeInput.value = linkedCode.length === 8 ? `${linkedCode.slice(0, 4)}-${linkedCode.slice(4)}` : linkedCode;
+      setTimeout(() => verify(prefillEmail, codeInput.value), 350);
+      return () => {};
+    }
+    // Otherwise open on the scan tab (falls back to typing in any error case).
+    return () => { switchTab('scan'); };
   }
 
   function authGwAvailable() {
@@ -842,10 +988,15 @@ export function showLogin({ onSuccess }) {
   const overlay = h('div', { id: 'login-overlay', class: 'lg-root' }, brand, side);
   document.body.appendChild(overlay);
   const focusFirst = renderCredentials();
-  // Email deep-link: ".../#/unlock" opens the unlock screen directly.
-  if ((location.hash || '').replace(/\/$/, '').toLowerCase() === '#/unlock') {
+  // Email/QR deep-link: ".../#/unlock?email=..&code=.." opens the verify
+  // screen and auto-verifies when the code is included (QR scan flow).
+  const unlockHash = (location.hash || '').replace(/\/$/, '');
+  if (/^#\/unlock/i.test(unlockHash)) {
+    const q = new URLSearchParams(unlockHash.includes('?') ? unlockHash.slice(unlockHash.indexOf('?') + 1) : '');
+    const deepEmail = (q.get('email') || '').toLowerCase();
+    const deepCode = (q.get('code') || '').toUpperCase();
     try { history.replaceState(null, '', location.pathname + location.search); } catch {}
-    stepTo(() => openUnlockScreen());
+    stepTo(() => openUnlockScreen({ email: deepEmail, code: deepCode }));
   }
   if (!reduceMotion()) {
     anim(brand, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 900, easing: EASE_OUT });

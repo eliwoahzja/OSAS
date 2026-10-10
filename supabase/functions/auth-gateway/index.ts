@@ -16,6 +16,7 @@
  *   Optional: ALLOWED_ORIGIN, APP_URL (unlock link shown in the email)
  */
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import qrcode from 'npm:qrcode-generator@1.4.4';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -63,6 +64,62 @@ function randomCode(len: number, alphabet: string): string {
 
 /** "NSVF-N4D7"-style unlock code (4 chars, dash, 4 more). */
 const newUnlockCode = () => `${randomCode(4, CODE_ALPHABET)}-${randomCode(4, CODE_ALPHABET)}`;
+
+/* ---------- QR code (PNG) for the "Verify Now" email ---------- */
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c; }
+  return t;
+})();
+const crc32 = (buf: Uint8Array): number => {
+  let c = 0xFFFFFFFF;
+  for (const b of buf) c = CRC_TABLE[(c ^ b) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+};
+function pngChunk(type: string, data: Uint8Array): Uint8Array {
+  const len = new Uint8Array(4);
+  new DataView(len.buffer).setUint32(0, data.length);
+  const td = new Uint8Array([...new TextEncoder().encode(type), ...data]);
+  const crc = new Uint8Array(4);
+  new DataView(crc.buffer).setUint32(0, crc32(td));
+  return new Uint8Array([...len, ...td, ...crc]);
+}
+async function qrPng(text: string, scale = 8, margin = 4): Promise<Uint8Array> {
+  const qr = qrcode(0, 'M');
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const size = (n + margin * 2) * scale;
+  const raw = new Uint8Array(size * (size + 1));
+  for (let y = 0; y < size; y++) {
+    const row = y * (size + 1);
+    raw[row] = 0;
+    const my = Math.floor(y / scale) - margin;
+    for (let x = 0; x < size; x++) {
+      const mx = Math.floor(x / scale) - margin;
+      const dark = my >= 0 && my < n && mx >= 0 && mx < n && qr.isDark(my, mx);
+      raw[row + 1 + x] = dark ? 0 : 255;
+    }
+  }
+  const cs = new CompressionStream('deflate');
+  const writer = cs.writable.getWriter();
+  writer.write(raw);
+  writer.close();
+  const idat = new Uint8Array(await new Response(cs.readable).arrayBuffer());
+  const ihdr = new Uint8Array(13);
+  const dv = new DataView(ihdr.buffer);
+  dv.setUint32(0, size);
+  dv.setUint32(4, size);
+  ihdr[8] = 8; // bit depth
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  return new Uint8Array([...sig, ...pngChunk('IHDR', ihdr), ...pngChunk('IDAT', idat), ...pngChunk('IEND', new Uint8Array(0))]);
+}
+const unlockLink = (email: string, code: string) =>
+  `${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
+
+/** Public URL of the QR PNG for this email+code (served by this function). */
+const qrUrlFor = (email: string, code: string) =>
+  `${SUPABASE_URL}/functions/v1/auth-gateway?action=qr&email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`;
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...CORS } });
@@ -173,24 +230,35 @@ function logoRow(): string {
   </td></tr>`;
 }
 
-function unlockEmailHtml(code: string): string {
-  const link = `${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock`;
+function unlockEmailHtml(email: string, code: string, qrUrl: string): string {
+  const link = `${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}`;
   return `<div style="background:#f5f1ea;padding:30px 14px;font-family:Arial,Helvetica,sans-serif">
   <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #e7e0d4">
     <table style="width:100%;border-collapse:collapse">${logoRow()}</table>
     <div style="padding:26px 28px">
       <span style="display:inline-block;background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;font-size:11px;font-weight:700;letter-spacing:1px;padding:4px 12px;border-radius:999px">SECURITY NOTICE</span>
       <h2 style="margin:12px 0 6px;color:#27272a;font-size:19px">Your account was locked</h2>
-      <p style="margin:0 0 16px;color:#3f3f46;font-size:14px;line-height:1.6">Someone entered the wrong password too many times, so the account was locked to keep it safe. Use the unlock code below to regain access.</p>
-      <table style="width:100%;border-collapse:collapse;background:#FAF6F7;border:1px solid #EBD5DB;border-radius:12px;margin:0 0 18px">
-        <tr><td align="center" style="padding:18px 10px">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7280">Your unlock code</div>
-          <div style="font-family:'Courier New',monospace;font-size:32px;font-weight:800;letter-spacing:.24em;padding-left:.24em;color:#7A1B38;margin-top:8px">${code}</div>
-        </td></tr>
+      <p style="margin:0 0 18px;color:#3f3f46;font-size:14px;line-height:1.6">Someone entered the wrong password too many times, so the account was locked to keep it safe. Verify it&rsquo;s you to unlock it.</p>
+      <p style="margin:0 0 20px;text-align:center">
+        <a href="${link}" style="display:inline-block;background:#7A1B38;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 30px;border-radius:10px">Verify Now</a>
+      </p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px">
+        <tr>
+          <td align="center" style="padding:16px 10px;background:#FAF6F7;border:1px solid #EBD5DB;border-radius:12px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7280;margin-bottom:12px">Option 1 &mdash; Scan to verify</div>
+            <img src="${qrUrl}" width="168" height="168" alt="Scan this QR code to verify" style="display:block;width:168px;height:168px;border-radius:8px;background:#fff" />
+            <div style="font-size:11.5px;color:#6B7280;margin-top:10px;line-height:1.5">Open the Verify Now page and scan this code<br/>with your camera to unlock instantly.</div>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:16px 10px;background:#FAF6F7;border:1px solid #EBD5DB;border-radius:12px;margin-top:12px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#6B7280">Option 2 &mdash; Type your code</div>
+            <div style="font-family:'Courier New',monospace;font-size:30px;font-weight:800;letter-spacing:.24em;padding-left:.24em;color:#7A1B38;margin-top:8px">${code}</div>
+            <div style="font-size:11.5px;color:#6B7280;margin-top:6px">Enter this code on the Verify Now page.</div>
+          </td>
+        </tr>
       </table>
-      <p style="margin:0 0 14px;color:#3f3f46;font-size:14px;line-height:1.6">Open the sign-in screen, choose <strong>Account locked?</strong> and type the code exactly as shown (the dash matters).</p>
-      <p><a href="${link}" style="display:inline-block;background:#7A1B38;color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:11px 20px;border-radius:10px">Unlock my account</a></p>
-      <p style="margin:14px 0 0;color:#6b7280;font-size:12.5px;line-height:1.6">The code works once and expires in ${UNLOCK_CODE_TTL_MIN} minutes. If you did not try to sign in, someone may be guessing your password — please contact the OSAS office.</p>
+      <p style="margin:0;color:#6b7280;font-size:12.5px;line-height:1.6">The code works once and expires in ${UNLOCK_CODE_TTL_MIN} minutes. If you did not try to sign in, someone may be guessing your password &mdash; please contact the OSAS office.</p>
     </div>
     <div style="background:#faf7f2;padding:14px 28px;border-top:1px solid #eee6d9;color:#8b8176;font-size:11px;line-height:1.6">Automated message from the OSAS Dashboard. Please do not reply.</div>
   </div>
@@ -241,13 +309,33 @@ async function issueUnlockCode(svc: any, lock: LockRow): Promise<{ sent: boolean
   const via = await mailProvider();
   if (!via) return { sent: false, isNew: true, error: 'Email is not configured on auth-gateway (MAILEROO_API_KEY or SMTP secrets).' };
   const subject = '[SAAC OSAS] Your account unlock code';
-  const html = unlockEmailHtml(code);
+  const html = unlockEmailHtml(lock.email, code, qrUrlFor(lock.email, code));
   const sendRes = await sendMail(lock.email, subject, html);
   return { sent: sendRes.ok, isNew: true, error: sendRes.ok ? undefined : sendRes.error };
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  if (req.method === 'GET') {
+    const url = new URL(req.url);
+    if (url.searchParams.get('action') === 'qr') {
+      const email = String(url.searchParams.get('email') || '').trim().toLowerCase();
+      const code = String(url.searchParams.get('code') || '').trim().toUpperCase();
+      if (!EMAIL_RE.test(email) || !/^[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(code)) {
+        return new Response('Bad request', { status: 400, headers: CORS });
+      }
+      try {
+        const png = await qrPng(`${APP_URL}${APP_URL.endsWith('/') ? '' : '/'}#/unlock?email=${encodeURIComponent(email)}&code=${encodeURIComponent(code)}`);
+        return new Response(png, {
+          status: 200,
+          headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400', ...CORS },
+        });
+      } catch {
+        return new Response('QR generation failed', { status: 500, headers: CORS });
+      }
+    }
+    return new Response('Not found', { status: 404, headers: CORS });
+  }
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   let payload: Record<string, any>;
@@ -303,7 +391,7 @@ Deno.serve(async (req) => {
         unlock_tries: 0,
         unlock_sent_at: new Date().toISOString(),
       }).eq('user_id', user.id);
-      const sendRes = await sendMail(email, '[SAAC OSAS] Your account unlock code', unlockEmailHtml(code));
+      const sendRes = await sendMail(email, '[SAAC OSAS] Your account unlock code', unlockEmailHtml(email, code, qrUrlFor(email, code)));
       return json({
         locked: true, email, attempts: next, remaining: 0,
         unlock_sent: sendRes.ok,

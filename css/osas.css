@@ -520,3 +520,30 @@ tbody tr:hover .row-hover-nudge { transform: translateX(2px); }
   .card-lift, .btn-primary, .btn-ghost { transition: none !important; }
   #toast-root > div { animation-duration: .01s; }
 }
+
+/* ---- Verify screen: Scan QR / Type code ---- */
+.lg-utabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+.lg-utab {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 10px; border-radius: 12px; border: 1px solid #E4DCDF; background: #fff;
+  color: #6B7280; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  transition: background .18s ease, color .18s ease, border-color .18s ease, transform .12s ease;
+}
+.lg-utab:hover { border-color: #CDBFC4; color: #7A1B38; }
+.lg-utab:active { transform: scale(.97); }
+.lg-utab.is-active { background: #7A1B38; border-color: #7A1B38; color: #fff; box-shadow: 0 6px 16px rgba(122,27,56,.25); }
+.lg-scan-box {
+  position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: 320px;
+  border-radius: 18px; overflow: hidden; background: #16121a;
+  border: 1px solid #E4DCDF; display: flex; align-items: center; justify-content: center;
+}
+.lg-scan-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.lg-scan-placeholder { color: rgba(255,255,255,.45); font-size: 56px; }
+.lg-scan-placeholder .fa-solid { animation: lgScanPulse 2.2s ease-in-out infinite; }
+@keyframes lgScanPulse { 0%,100% { opacity: .45; transform: scale(1); } 50% { opacity: .85; transform: scale(1.06); } }
+.lg-scan-box::after {
+  content: ''; position: absolute; inset: 18%; border: 2px solid rgba(255,255,255,.55);
+  border-radius: 14px; pointer-events: none; box-shadow: 0 0 0 999px rgba(0,0,0,.28);
+}
+.lg-pane { margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .lg-scan-placeholder .fa-solid { animation: none; } }
