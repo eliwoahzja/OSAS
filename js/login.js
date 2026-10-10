@@ -235,6 +235,9 @@ export function showLogin({ onSuccess }) {
     });
     code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 5); err.clear(); });
 
+    const rememberBox = h('input', { type: 'checkbox', class: 'lg-check-input', id: 'lg-remember-device' });
+    const remember = h('label', { class: 'lg-check', for: 'lg-remember-device' }, rememberBox, h('span', {}, 'Remember this device'));
+
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, submitLabel);
     const resendBtn = h('button', { type: 'button', class: 'lg-link lg-inline', disabled: true }, '');
     const note = h('p', { class: 'lg-hint' });
@@ -282,7 +285,7 @@ export function showLogin({ onSuccess }) {
         submit.classList.add('is-loading');
         submit.textContent = 'Verifying…';
         try {
-          await verify(code.value);
+          await verify(code.value, rememberBox.checked);
           stop();
           clearCooldown(kind, email);
         } catch (e2) {
@@ -298,6 +301,7 @@ export function showLogin({ onSuccess }) {
       h('h2', { class: 'lg-title' }, title),
       h('p', { class: 'lg-lead' }, lead, ' ', h('strong', {}, email)),
       field({ label: 'Verification code', icon: 'shield-halved', input: code }),
+      remember,
       err.el,
       submit,
       h('div', { class: 'lg-row' },
@@ -375,6 +379,7 @@ export function showLogin({ onSuccess }) {
         submit.textContent = 'Checking…';
         try {
           const r = await auth.signIn(email.value, password.value);
+          if (r.done) { finish(); return; }
           if (r.step === 'pin') {
             stepTo(() => renderPin(r.email));
           } else {
@@ -537,7 +542,7 @@ export function showLogin({ onSuccess }) {
       kind: 'login', email: addr,
       eyebrow: 'Two-step verification', title: 'Check your email',
       lead: 'We sent a verification code to', submitLabel: 'Verify & Sign In',
-      verify: async (code) => { await auth.verifyCode(addr, code); finish(); },
+      verify: async (code, remember) => { await auth.verifyCode(addr, code, remember, auth.pendingPasswordFor(addr)); finish(); },
       resend: () => auth.sendCode(addr),
       back: { label: '← Use a different account', fn: () => stepTo(() => renderCredentials(addr)) },
     });

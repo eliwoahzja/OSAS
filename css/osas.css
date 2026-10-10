@@ -563,3 +563,6 @@ tbody tr:hover .row-hover-nudge { transform: translateX(2px); }
 .lg-pwstep .lg-pwstep-icon { color: #15803D; background: #F0FDF4; }
 .lg-pwstep .lg-row { margin-top: 14px; }
 .lg-hidden-real { display: none; }
+
+.lg-check { display: flex; align-items: center; gap: 10px; margin-top: 2px; font-size: 13.5px; color: #57534e; cursor: pointer; user-select: none; }
+.lg-check-input { width: 17px; height: 17px; accent-color: #7A1B38; cursor: pointer; }

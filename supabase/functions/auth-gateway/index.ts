@@ -30,6 +30,54 @@ const UNLOCK_RESEND_COOLDOWN_MIN = 2;
 
 const attemptsTable = 'auth_login_attempts';
 const locksTable = 'account_locks';
+const devicesTable = 'trusted_devices';
+
+const DEVICE_TTL_DAYS = 30;
+/** Device token format: "userId:secret" signed with a server secret. */
+const serverSecret = Deno.env.get('AUTH_GW_SECRET') || SERVICE_ROLE_KEY;
+
+async function hmacHex(secret: string, text: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(text));
+  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function randomToken(len: number): string {
+  const bytes = new Uint8Array(len);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function trustedUserId(svc: any, token: string): Promise<string | null> {
+  if (!token) return null;
+  const [userId, secret] = token.split(':', 2);
+  if (!userId || !secret) return null;
+  const hash = await hmacHex(serverSecret, `${userId}:${secret}`);
+  const { data } = await svc.from(devicesTable).select('user_id, expires_at')
+    .eq('token_hash', hash).maybeSingle();
+  const row = data as { user_id: string; expires_at: string } | null;
+  if (!row || row.user_id !== userId || row.expires_at < new Date().toISOString()) return null;
+  await svc.from(devicesTable).update({ last_used_at: new Date().toISOString() })
+    .eq('user_id', userId).eq('token_hash', hash);
+  return row.user_id;
+}
+
+async function issueDeviceToken(svc: any, userId: string, email: string): Promise<string> {
+  const secret = randomToken(24);
+  const hash = await hmacHex(serverSecret, `${userId}:${secret}`);
+  const expires = new Date(Date.now() + DEVICE_TTL_DAYS * 86400000).toISOString();
+  await svc.from(devicesTable).upsert({
+    user_id: userId, token_hash: hash, expires_at: expires,
+    label: String(email).slice(0, 120), last_used_at: new Date().toISOString(),
+  });
+  return `${userId}:${secret}`;
+}
+
+async function revokeDevices(svc: any, userId: string): Promise<void> {
+  await svc.from(devicesTable).delete().eq('user_id', userId);
+}
+
+const deviceToken = (t: string) => String(t || '').trim();
 
 const sha256Hex = (text: string): Promise<string> =>
   crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)).then((buf) =>
@@ -301,6 +349,17 @@ async function issueUnlockCode(svc: any, lock: LockRow): Promise<{ sent: boolean
   return { sent: sendRes.ok, isNew: true, error: sendRes.ok ? undefined : sendRes.error };
 }
 
+async function findUserByEmail(svc: any, email: string): Promise<{ user: any; error: string | null }> {
+  try {
+    const { data: listed, error } = await svc.auth.admin.listUsers({ page: 1, perPage: 500 });
+    if (error) return { user: null, error: error.message };
+    const user = (listed?.users || []).find((u: any) => String(u.email || '').toLowerCase() === email);
+    return { user: user || null, error: null };
+  } catch (e) {
+    return { user: null, error: String((e as Error).message || e) };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method === 'GET') {
@@ -345,6 +404,41 @@ Deno.serve(async (req) => {
     const password = String(payload.password || '');
     if (!EMAIL_RE.test(email) || !password) return json({ error: 'Enter your email and password.' }, 400);
 
+    // Trusted device: a valid device token skips failed-attempt counting and OTP
+    // and immediately returns a real session (device must not be locked).
+    const dt = deviceToken(String(payload.device_token || ''));
+    if (dt) {
+      const trustedId = await trustedUserId(svc, dt);
+      if (trustedId) {
+        const { data: listed } = await svc.auth.admin.listUsers({ page: 1, perPage: 200 });
+        const trustedUser = (listed?.users || []).find((u: any) => u.id === trustedId);
+        if (trustedUser && String(trustedUser.email || '').toLowerCase() === email) {
+          if (await isLocked(svc, trustedId)) {
+            await revokeDevices(svc, trustedId);
+            const e = { locked: true, email };
+            return json({ ...e, error: 'This account is locked. Check your email for a Verify Now link.' }, 401);
+          }
+          const { data: signed2, error: signErr2 } = await svc.auth.signInWithPassword({ email, password });
+          if (!signErr2 && signed2 && signed2.session) {
+            return json({
+              ok: true, trusted: true, session: {
+                access_token: signed2.session.access_token,
+                refresh_token: signed2.session.refresh_token,
+                expires_at: signed2.session.expires_at,
+                user: {
+                  id: trustedUser.id, email,
+                  role: trustedUser.app_metadata?.role || 'client',
+                  name: trustedUser.user_metadata?.name || email,
+                },
+              },
+            });
+          }
+          await revokeDevices(svc, trustedId);
+          return json({ error: 'This device is no longer authorized for this account. Sign in with the emailed code.' }, 401);
+        }
+      }
+    }
+
     const { data: listed, error: findErr } = await svc.auth.admin.listUsers({ page: 1, perPage: 200 });
     if (findErr) return json({ error: findErr.message }, 500);
     const user = (listed?.users || []).find((u: any) => String(u.email || '').toLowerCase() === email);
@@ -376,6 +470,7 @@ Deno.serve(async (req) => {
     const remaining = Math.max(0, MAX_FAILED_ATTEMPTS - next);
     if (next >= MAX_FAILED_ATTEMPTS) {
       await setBanned(svc, user.id, true);
+      await revokeDevices(svc, user.id);
       const code = newUnlockCode();
       const pageToken = newPageToken();
       const hash = await sha256Hex(`osas-unlock:${user.id}:${code}`);
@@ -482,6 +577,7 @@ Deno.serve(async (req) => {
 
     const { error: updErr } = await svc.auth.admin.updateUserById(userId, { password });
     if (updErr) return json({ error: updErr.message || 'Could not set the new password.' }, 500);
+    await revokeDevices(svc, userId);
     await svc.from(locksTable).update({ reset_token_hash: null, reset_token_expires_at: null, failed_attempts: 0 }).eq('user_id', userId);
     await svc.from(attemptsTable).insert({ user_id: userId, email: targetEmail, ok: true, locked: false });
     return json({ ok: true, message: 'Password updated. Sign in with your new password.' });
@@ -498,6 +594,60 @@ Deno.serve(async (req) => {
     const issued = await issueUnlockCode(svc, lock);
     if (!issued.sent && issued.error && !issued.isNew) return json({ error: issued.error }, 429);
     return json({ ok: true, sent: issued.sent, ...(issued.error ? { note: issued.error } : {}), message: issued.sent ? 'A fresh unlock code was emailed.' : undefined });
+  }
+
+  if (action === 'verify-trusted') try {
+    const password = String(payload.password || '');
+    const code = String(payload.code || '').replace(/\s+/g, '');
+    const remember = payload.remember === true;
+    if (!EMAIL_RE.test(email) || !/^[0-9]{5}$/.test(code) || !password) {
+      return json({ error: 'Enter the 5-digit code from your email.' }, 400);
+    }
+    const { user, error: findErr } = await findUserByEmail(svc, email);
+    if (findErr) return json({ error: 'Sign-in is unavailable right now. Try again.' }, 503);
+    if (!user) return json({ error: 'Incorrect email or password.' }, 401);
+
+    const { data: signed, error: signErr } = await svc.auth.signInWithPassword({ email, password });
+    if (signErr || !signed || !signed.session) {
+      return json({ error: 'Your session expired. Enter your email and password again.' }, 401);
+    }
+    const { error: otpErr } = await svc.auth.verifyOtp({
+      email, token: code, type: 'email',
+    });
+    if (otpErr) {
+      try { await svc.auth.admin.signOut(signed.session.access_token); } catch {}
+      return json({ error: 'That code is incorrect or has expired. Request a new one.' }, 401);
+    }
+    const r: Record<string, unknown> = {
+      ok: true,
+      session: {
+        access_token: signed.session.access_token,
+        refresh_token: signed.session.refresh_token,
+        expires_at: (signed.session as any).expires_at,
+        user: {
+          id: user.id, email,
+          role: user.app_metadata?.role || 'client',
+          name: user.user_metadata?.name || email,
+        },
+      },
+    };
+    if (remember) {
+      try { await svc.auth.admin.signOut(signed.session.access_token); } catch {}
+      const { data: resigned } = await svc.auth.signInWithPassword({ email, password });
+      if (resigned && resigned.session) {
+        r.session = {
+          access_token: resigned.session.access_token,
+          refresh_token: resigned.session.refresh_token,
+          expires_at: (resigned.session as any).expires_at,
+          user: r.session ? (r.session as any).user : undefined,
+        };
+      }
+      r.device_token = await issueDeviceToken(svc, user.id, email);
+      await svc.from(locksTable).upsert({ user_id: user.id, email, failed_attempts: 0, locked_at: null, unlock_tries: 0 });
+    }
+    return json(r);
+  } catch {
+    return json({ error: 'Verification failed. Please try again.' }, 500);
   }
 
   return json({ error: 'Unknown action.' }, 400);

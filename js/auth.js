@@ -1,6 +1,8 @@
 let client = null;
 let listeners = [];
 let checkingPassword = false;
+let pendingPassword = '';
+let pendingPasswordEmail = '';
 let session = null;
 let pendingPin = null;
 const PIN_OK_KEY = 'osas.pin.ok';
@@ -20,6 +22,18 @@ async function sha256Hex(text) {
 
 function pinPassed(userId) {
   try { return sessionStorage.getItem(PIN_OK_KEY) === String(userId); } catch { return false; }
+}
+
+const DEVICE_KEY = 'osas.deviceToken';
+
+function readDeviceToken() {
+  try { return localStorage.getItem(DEVICE_KEY) || ''; } catch { return ''; }
+}
+function writeDeviceToken(t) {
+  try { t ? localStorage.setItem(DEVICE_KEY, t) : localStorage.removeItem(DEVICE_KEY); } catch {}
+}
+export function forgetDevice() {
+  writeDeviceToken('');
 }
 
 function saveSession(s) {
@@ -121,6 +135,22 @@ function friendly(err, fallback) {
   return m || fallback;
 }
 
+function persistGatewaySession(s) {
+  saveSession({
+    provider: 'supabase',
+    user: s.user,
+    access_token: s.access_token,
+    refresh_token: s.refresh_token,
+  });
+  if (s.refresh_token) trySetGatewayRefresh(s.refresh_token, s.expires_at);
+}
+
+let gatewayRefresh = null;
+function trySetGatewayRefresh(refreshToken, expiresAt) {
+  gatewayRefresh = { refreshToken, expiresAt: Number(expiresAt) || 0 };
+  try { localStorage.setItem('osas.gwRefresh', JSON.stringify(gatewayRefresh)); } catch {}
+}
+
 export function onAuthChange(fn) {
   listeners.push(fn);
   return () => { listeners = listeners.filter((f) => f !== fn); };
@@ -161,9 +191,15 @@ export async function signIn(email, password) {
   // Preferred path: the auth-gateway Edge Function tracks failed attempts and
   // locks the account after too many wrong passwords (see EMAIL-WIRING.md).
   if (authFnAvailable()) {
-    const res = await authFnPost({ action: 'sign-in', email: addr, password });
+    const dt = readDeviceToken();
+    const res = await authFnPost(dt ? { action: 'sign-in', email: addr, password, device_token: dt } : { action: 'sign-in', email: addr, password });
     if (res) {
       const d = (res && res.data) || {};
+      if (d.trusted && d.session && d.session.access_token) {
+        persistGatewaySession(d.session);
+        return { done: true };
+      }
+      if (d.invalid_device || (d.error && /no longer authorized/i.test(d.error))) writeDeviceToken('');
       if (res.status >= 500 || (res.status === 0)) {
         // fall through to legacy path below
       } else {
@@ -191,6 +227,8 @@ export async function signIn(email, password) {
           return { step: 'pin', email: addr, gateway: true };
         }
         await sendCode(addr);
+        pendingPassword = password;
+        pendingPasswordEmail = addr;
         return { step: 'otp', email: addr };
       }
     }
@@ -220,6 +258,8 @@ export async function signIn(email, password) {
     checkingPassword = false;
   }
   await sendCode(addr);
+  pendingPassword = password;
+  pendingPasswordEmail = addr;
   return { step: 'otp', email: addr };
 }
 
@@ -258,6 +298,11 @@ export async function changePasswordAfterUnlock(resetToken, password) {
   const d = res.data || {};
   if (!res.ok || d.error) throw new Error(d.error || 'Could not set the new password.');
   return d;
+}
+
+export function pendingPasswordFor(addr) {
+  if (pendingPasswordEmail && pendingPasswordEmail !== String(addr || '').toLowerCase()) return '';
+  return pendingPassword;
 }
 
 export const MAX_LOGIN_ATTEMPTS = AUTH_ATTEMPTS_MAX; // shown in the UI (locks after 5)
@@ -299,6 +344,8 @@ export async function verifyPin(pin) {
 function pendingEmail() { return (pendingPin && pendingPin.email) || ''; }
 
 export async function cancelPin() {
+  pendingPassword = '';
+  pendingPasswordEmail = '';
   if (!pendingPin) return;
   pendingPin = null;
   try { if (client) await client.auth.signOut(); } catch {}
@@ -333,6 +380,8 @@ export async function register({ name, email, password }) {
 }
 
 export async function verifySignup(email, code) {
+  pendingPassword = '';
+  pendingPasswordEmail = '';
   const c = await requireClient();
   const token = String(code || '').replace(/\s+/g, '');
   const { data, error } = await c.auth.verifyOtp({
@@ -376,7 +425,21 @@ function layerEmailError(error, fallback) {
   return fallback;
 }
 
-export async function verifyCode(email, code) {
+export async function verifyCode(email, code, remember = false, password = '') {
+  const addr = String(email).trim().toLowerCase();
+  if (authFnAvailable() && password) {
+    pendingPassword = '';
+    pendingPasswordEmail = '';
+    const res = await authFnPost({ action: 'verify-trusted', email: addr, code: String(code || '').replace(/\s+/g, ''), password, remember: remember === true });
+    if (res) {
+      const d = (res && res.data) || {};
+      if (!res.ok || d.error) throw new Error(d.error || 'That code is incorrect or has expired. Request a new one.');
+      persistGatewaySession(d.session);
+      if (d.device_token) writeDeviceToken(d.device_token);
+      else writeDeviceToken('');
+      return session;
+    }
+  }
   const c = await requireClient();
   const token = String(code || '').replace(/\s+/g, '');
   const { data, error } = await c.auth.verifyOtp({
