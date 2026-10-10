@@ -36,8 +36,11 @@ export function forgetDevice() {
   writeDeviceToken('');
 }
 
+let adoptingGateway = false;
+
 function saveSession(s) {
   session = s;
+  if (adoptingGateway) return;
   listeners.forEach((fn) => {
     try { fn(s); } catch {}
   });
@@ -135,14 +138,29 @@ function friendly(err, fallback) {
   return m || fallback;
 }
 
-function persistGatewaySession(s) {
-  saveSession({
-    provider: 'supabase',
-    user: s.user,
-    access_token: s.access_token,
-    refresh_token: s.refresh_token,
-  });
-  if (s.refresh_token) trySetGatewayRefresh(s.refresh_token, s.expires_at);
+async function persistGatewaySession(s) {
+  // Session minted by the gateway: adopt it in the anon client store and stop its
+  // own session events from wiping it during adoption.
+  adoptingGateway = true;
+  try {
+    if (s.refresh_token) {
+      const c = await getClient();
+      if (c) {
+        try {
+          await c.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token });
+        } catch { /* token store only; short lives are fine */ }
+      }
+    } else {
+      saveSession({
+        provider: 'supabase',
+        user: s.user,
+        access_token: s.access_token,
+        refresh_token: s.refresh_token,
+      });
+    }
+  } finally {
+    setTimeout(() => { adoptingGateway = false; }, 80);
+  }
 }
 
 let gatewayRefresh = null;
@@ -196,7 +214,7 @@ export async function signIn(email, password) {
     if (res) {
       const d = (res && res.data) || {};
       if (d.trusted && d.session && d.session.access_token) {
-        persistGatewaySession(d.session);
+        await persistGatewaySession(d.session);
         return { done: true };
       }
       if (d.invalid_device || (d.error && /no longer authorized/i.test(d.error))) writeDeviceToken('');
@@ -434,7 +452,7 @@ export async function verifyCode(email, code, remember = false, password = '') {
     if (res) {
       const d = (res && res.data) || {};
       if (!res.ok || d.error) throw new Error(d.error || 'That code is incorrect or has expired. Request a new one.');
-      persistGatewaySession(d.session);
+      await persistGatewaySession(d.session);
       if (d.device_token) writeDeviceToken(d.device_token);
       else writeDeviceToken('');
       return session;
