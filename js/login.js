@@ -692,7 +692,7 @@ export function showLogin({ onSuccess }) {
       } catch (ex) {
         if (btn) { btn.disabled = false; btn.classList.remove('is-loading'); btn.textContent = original; }
         err.show(ex.message || 'Could not unlock the account.');
-        if (opts.fromScan) switchTab('code');
+
         codeCells.forEach((c) => { c.classList.add('is-error'); setTimeout(() => c.classList.remove('is-error'), 900); });
         (codeCells.find((c) => !c.value) || codeCells[0]).focus();
       }
@@ -712,6 +712,8 @@ export function showLogin({ onSuccess }) {
       if (v) v.srcObject = null;
       const ph = document.getElementById('lg-scan-placeholder');
       if (ph) ph.classList.remove('lg-hidden');
+      const status = document.getElementById('lg-scan-status');
+      if (status) status.textContent = 'Point your camera at the QR code in your email.';
     }
 
     async function loadJsQR() {
@@ -760,24 +762,39 @@ export function showLogin({ onSuccess }) {
       } catch { return null; }
     }
 
-    async function decodeFrame(video) {
-      const w = video.videoWidth, hh = video.videoHeight;
-      if (!w || !hh) return null;
-      const cv = document.createElement('canvas');
-      cv.width = w; cv.height = hh;
-      cv.getContext('2d', { willReadFrequently: true }).drawImage(video, 0, 0);
+    let scanPhase = 0;
+    async function decodeCanvas(cv) {
       if ('BarcodeDetector' in window) {
         try {
           const det = new window.BarcodeDetector({ formats: ['qr_code'] });
           const found = await det.detect(cv);
           if (found && found.length) return found[0].rawValue;
-        } catch { /* fall through to jsQR */ }
+        } catch { }
       }
       const lib = await loadJsQR();
       if (!lib) return null;
-      const img = cv.getContext('2d').getImageData(0, 0, w, hh);
-      const res = lib(img.data, w, hh);
+      const ctx = cv.getContext('2d');
+      const img = ctx.getImageData(0, 0, cv.width, cv.height);
+      const res = lib(img.data, cv.width, cv.height);
       return res && res.data ? res.data : null;
+    }
+
+    async function decodeFrame(video) {
+      const w = video.videoWidth, hh = video.videoHeight;
+      if (!w || !hh) return null;
+      const crops = [
+        { x: 0, y: 0, w, h: hh },
+        { x: (w - w / 1.6) / 2, y: (hh - hh / 1.6) / 2, w: w / 1.6, h: hh / 1.6 },
+        { x: 0, y: hh * 0.17, w, h: hh * 0.66 },
+      ];
+      const c = crops[scanPhase % crops.length];
+      scanPhase++;
+      const cv = document.createElement('canvas');
+      const outW = Math.min(1100, Math.round(c.w * 1.4)) || 1;
+      cv.width = outW;
+      cv.height = Math.max(1, Math.round((c.h / c.w) * outW));
+      cv.getContext('2d', { willReadFrequently: true }).drawImage(video, c.x, c.y, c.w, c.h, 0, 0, cv.width, cv.height);
+      try { return await decodeCanvas(cv); } catch { return null; }
     }
 
     function onQrDecoded(text) {
@@ -798,7 +815,7 @@ export function showLogin({ onSuccess }) {
         if (a.includes('@')) addr2 = a.toLowerCase();
         if (b.replace(/[^A-Z0-9]/gi, '').length >= 8) code = b.toUpperCase();
       }
-      if (!code) { err.show('That QR code does not contain an unlock code.'); return; }
+      if (!code) { err.show('That QR does not hold an unlock code \u2014 open your latest lock email and use its QR or code.'); return; }
       if (!scannedToken) { err.show('That QR code is missing its verify invite. Use the latest email.'); return; }
       stopCamera();
       verify(addr2, code, { fromScan: true, token: scannedToken });
@@ -827,12 +844,23 @@ export function showLogin({ onSuccess }) {
       if (ph) ph.classList.add('lg-hidden');
       if (scanBtn) scanBtn.classList.add('lg-hidden');
       if (scanLoop) clearInterval(scanLoop);
+      let ticks = 0;
+      const status = document.getElementById('lg-scan-status');
       scanLoop = setInterval(async () => {
         if (!cameraStream) return;
+        ticks++;
+        if (status && ticks % 4 === 0) {
+          status.textContent = ticks >= 12
+            ? 'Still looking\u2026 steady the camera, raise your screen brightness, or use Upload / Type code below.'
+            : 'Looking for the QR code\u2026 hold steady.';
+        }
         try {
           const text = await decodeFrame(video);
-          if (text) onQrDecoded(text);
-        } catch { /* keep scanning */ }
+          if (text) {
+            if (status) status.textContent = 'QR found \u2014 verifying\u2026';
+            onQrDecoded(text);
+          }
+        } catch { }
       }, 350);
     }
 
@@ -851,7 +879,7 @@ export function showLogin({ onSuccess }) {
       h('div', { class: 'lg-scan-box' },
         h('video', { id: 'lg-scan-video', class: 'lg-scan-video', playsinline: '', muted: '', autoplay: '' }),
         h('div', { id: 'lg-scan-placeholder', class: 'lg-scan-placeholder' }, fa('qrcode')),
-        h('p', { class: 'lg-hint' }, 'Point your camera at the QR code in your email.'),
+        h('p', { id: 'lg-scan-status', class: 'lg-hint' }, 'Point your camera at the QR code in your email.'),
       ),
       h('div', { class: 'lg-btn-col' },
         h('button', { id: 'lg-scan-start', type: 'button', class: 'lg-btn', onclick: startCamera }, 'Scan with camera'),
