@@ -335,17 +335,20 @@ export async function sendNotification(raw = {}) {
 }
 
 export async function getDashboardStats() {
+  // First-aid stock is school-confidential: only administrators fetch it
+  // (the dashboard charts that use it are administrators-only too).
+  const includeSupplies = auth.isAdmin();
   if (isDemoMode()) {
     return computeStats(
       listMock('incidents'), listMock('inspections'), listMock('drills'),
-      listMock('supplies'), listMock('emergency_contacts'),
+      includeSupplies ? listMock('supplies') : [], listMock('emergency_contacts'),
     );
   }
   const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
     restFetch('GET', 'incidents', { query: { select: '*' } }),
     restFetch('GET', 'inspections', { query: { select: '*' } }),
     restFetch('GET', 'drills', { query: { select: '*' } }),
-    restFetch('GET', 'supplies', { query: { select: '*' } }),
+    includeSupplies ? restFetch('GET', 'supplies', { query: { select: '*' } }) : [],
     restFetch('GET', 'emergency_contacts', { query: { select: 'id' } }),
   ]);
   return computeStats(

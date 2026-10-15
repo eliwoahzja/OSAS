@@ -350,7 +350,8 @@ function greeting() {
 
 function drawStats(box, s) {
   box.innerHTML = '';
-  if (auth.isAdmin()) {
+  const admin = auth.isAdmin();
+  if (admin) {
   if (s.supplies_low_items && s.supplies_low_items.length > 0) {
     const lowCount = s.supplies_low_items.length;
     const maxItems = 4;
@@ -462,18 +463,27 @@ function drawStats(box, s) {
     cards,
   ));
 
+  // First-aid stock is school-confidential: only the Administrator workspace
+  // renders these two charts, and only the admin dashboard fetches the rows.
+  const analyticsCharts = [
+    barChart(s.incident_breakdown || [], { title: 'Incidents by Type' }),
+    pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
+  ];
+  if (admin) {
+    analyticsCharts.unshift(
+      pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
+      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', isDonut: true }),
+    );
+  }
   box.appendChild(h('section', { class: 'space-y-5' },
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
-      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident, Inspection & Supplies Health'),
-      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'Pie chart breakdown of supplies inventory, stock health, incidents, and inspection status.'),
+      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, admin ? 'Incident, Inspection & Supplies Health' : 'Incident & Inspection Health'),
+      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, admin
+        ? 'Pie chart breakdown of supplies inventory, stock health, incidents, and inspection status.'
+        : 'Chart breakdown of reported incidents and inspection status.'),
     ),
-    h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' },
-      pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
-      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', isDonut: true }),
-      barChart(s.incident_breakdown || [], { title: 'Incidents by Type' }),
-      pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
-    ),
+    h('div', { class: `grid md:grid-cols-2 ${admin ? 'xl:grid-cols-4' : ''} gap-5` }, ...analyticsCharts),
   ));
 
   const yearsData = s.years_by_year || [];
@@ -520,7 +530,7 @@ async function renderDashboard(el) {
       h('div', { class: 'h-7 w-80 bg-gray-200/90 rounded-xl' }),
       h('div', { class: 'h-4 w-96 max-w-full bg-gray-100 rounded-full' }),
     ),
-    skeletonAnalyticsGrid(),
+    skeletonAnalyticsGrid(auth.isAdmin() ? 4 : 2),
   ));
   skeletonBox.appendChild(skeletonTrendChart());
   statsWrap.appendChild(skeletonBox);

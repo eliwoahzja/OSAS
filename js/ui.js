@@ -230,10 +230,10 @@ export function skeletonSupplyAlert() {
   );
 }
 
-export function skeletonAnalyticsGrid() {
-  const grid = h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' });
+export function skeletonAnalyticsGrid(count = 4) {
+  const grid = h('div', { class: `grid md:grid-cols-2 ${count > 2 ? 'xl:grid-cols-4' : 'xl:grid-cols-2'} gap-5` });
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
@@ -251,7 +251,7 @@ export function skeletonAnalyticsGrid() {
     )
   );
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
@@ -268,7 +268,7 @@ export function skeletonAnalyticsGrid() {
     )
   );
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
@@ -290,7 +290,7 @@ export function skeletonAnalyticsGrid() {
     )
   );
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
