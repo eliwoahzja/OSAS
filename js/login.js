@@ -247,7 +247,7 @@ export function showLogin({ onSuccess }) {
       if (left > 0) {
         resendBtn.disabled = true;
         resendBtn.textContent = `Resend code in ${fmt(left)}`;
-        note.textContent = `Each resend takes a little longer to unlock (up to 8 min). The next wait will be ${waitLabel(n)}.`;
+        note.textContent = `Each resend takes a little longer (up to 8 min). The next wait will be ${waitLabel(n)}.`;
       } else {
         stop();
         resendBtn.disabled = false;
