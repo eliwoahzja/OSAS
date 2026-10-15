@@ -7,11 +7,47 @@ import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { AUDIENCES } from './drills.js';
 
+// The school covers Grade 7 to Grade 10.
+export const GRADE_OPTIONS = [7, 8, 9, 10];
+
+function normalizeGrade(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const m = String(value).match(/\d{1,2}/);
+  return m ? Number(m[0]) : null;
+}
+
+// Grades an audience_group string targets. `null` = every grade
+// (campus-wide groups such as "All Parents & Guardians").
+export function gradesFromAudience(audience) {
+  const a = String(audience || '').toLowerCase();
+  if (!a) return null;
+  const range = /grades?\s*(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})/.exec(a);
+  if (range) {
+    const lo = Number(range[1]);
+    const hi = Number(range[2]);
+    if (lo > hi) return null;
+    return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
+  }
+  const single = /grades?\s*(\d{1,2})/.exec(a);
+  if (single) return [Number(single[1])];
+  if (/senior high/.test(a)) return [11, 12];
+  return null;
+}
+
+// Grades a notification reaches. Prefers the real student grade field; falls
+// back to the stored audience_group for event notices (never display text).
+export function notificationGrades(row) {
+  const s = Array.isArray(row.students) ? row.students[0] : row.students;
+  const fromStudent = normalizeGrade(s && s.grade);
+  if (fromStudent) return [fromStudent];
+  return gradesFromAudience(row.audience_group);
+}
+
 export async function parentNotifications(el) {
   return renderNotifications(el);
 }
 
-async function renderNotifications(el, currentType = 'all') {
+async function renderNotifications(el, currentType = 'all', currentGrade = 'all') {
   el.innerHTML = '';
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
   el.appendChild(wrap);
@@ -70,11 +106,11 @@ async function renderNotifications(el, currentType = 'all') {
       ].map((k) =>
         h('button', {
           class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k.key === currentType ? (k.key === 'incident_alert' ? 'bg-red-600 text-white border-red-600' : 'bg-pink-600 text-white border-pink-600') : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
-          onclick: () => renderNotifications(el, k.key),
+          onclick: () => renderNotifications(el, k.key, currentGrade),
         }, k.label)));
     realHolder.appendChild(filterRow);
 
-    const filteredRows = rows
+    const typeRows = rows
       .filter((r) => {
         const rawTitle = String(r.title || '');
         const rawMsg = String(r.message || '');
@@ -91,11 +127,37 @@ async function renderNotifications(el, currentType = 'all') {
         return true;
       });
 
+    // Grade filter (administrators): combines with the type tabs — both match.
+    const gradeNum = currentGrade === 'all' ? null : Number(currentGrade);
+    const filteredRows = gradeNum === null ? typeRows : typeRows.filter((r) => {
+      const grades = notificationGrades(r);
+      return grades === null || grades.includes(gradeNum);
+    });
+
+    if (isAdmin()) {
+      realHolder.appendChild(h('div', { class: 'flex flex-wrap items-center gap-2' },
+        h('span', { class: 'text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-0.5' }, 'Grade'),
+        [{ key: 'all', label: 'All Grades' }, ...GRADE_OPTIONS.map((g) => ({ key: String(g), label: `Grade ${g}` }))]
+          .map((g) => h('button', {
+            class: `px-3.5 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${g.key === currentGrade ? 'bg-pink-50 text-pink-700 border-pink-200' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
+            'aria-pressed': g.key === currentGrade ? 'true' : 'false',
+            onclick: () => renderNotifications(el, currentType, g.key),
+          }, g.label)),
+        h('span', { class: 'ml-auto text-[11px] font-bold text-gray-400 whitespace-nowrap' },
+          `${filteredRows.length} notification${filteredRows.length === 1 ? '' : 's'} shown`)));
+    }
+
     const realTableWrap = h('div');
     realHolder.appendChild(realTableWrap);
 
     if (!filteredRows.length) {
-      realTableWrap.appendChild(emptyBanner({ icon: 'notifications', title: 'No notifications found', text: 'Use "New Notification" to send an incident alert or event notice to parents.' }));
+      realTableWrap.appendChild(emptyBanner({
+        icon: 'notifications',
+        title: gradeNum === null ? 'No notifications found' : `No notifications for Grade ${gradeNum}`,
+        text: gradeNum === null
+          ? 'Use "New Notification" to send an incident alert or event notice to parents.'
+          : `Nothing matches Grade ${gradeNum} with this type tab. Try "All Grades" or another tab.`,
+      }));
       return;
     }
     const columns = [
