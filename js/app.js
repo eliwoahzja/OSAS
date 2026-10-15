@@ -7,6 +7,7 @@ import {
 import * as api from './api.js';
 import * as auth from './auth.js';
 import * as modules from './modules.js';
+import { roleLabel, incidentLabels } from './labels.js';
 import { showLogin } from './login.js';
 
 const NAV = [
@@ -42,6 +43,9 @@ const VIEWS = {
 const viewEl = () => document.getElementById('view');
 const titleEl = () => document.getElementById('page-title');
 
+// Students file reports; administrators log incidents. Same page, one label map.
+const navLabel = (item) => (item && item.route === 'incident-logging' ? incidentLabels(auth.isAdmin()).nav : (item && item.label));
+
 function renderSidebar() {
   const nav = document.getElementById('sidebar-nav');
   nav.innerHTML = '';
@@ -53,7 +57,7 @@ function renderSidebar() {
     },
       h('div', { class: 'nav-indicator absolute left-0 top-1/2 -translate-y-1/2 w-1 h-0 bg-pink-500 rounded-r-md transition-all duration-300 opacity-0 group-hover:h-1/2 group-hover:opacity-50' }),
       icon(item.icon, 'text-sm w-5 text-center relative z-10 transition-transform duration-200 group-hover:scale-110'),
-      h('span', { class: 'text-[13px] relative z-10' }, item.label),
+      h('span', { class: 'text-[13px] relative z-10' }, navLabel(item)),
       h('div', { class: 'nav-bg absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl' })
     );
     nav.appendChild(h('li', { class: 'mb-1' }, a));
@@ -155,7 +159,7 @@ async function route() {
   document.getElementById('sidebar-backdrop').classList.add('hidden');
   if (r !== 'dashboard') clearInterval(statsTimer);
   const view = VIEWS[r];
-  const title = (NAV.find((n) => n.route === r) || {}).label || 'Dashboard';
+  const title = navLabel(NAV.find((n) => n.route === r)) || 'Dashboard';
   titleEl().textContent = title;
   highlightSidebar(r);
 
@@ -297,12 +301,13 @@ function enterApp() {
   const user = auth.currentUser() || { name: 'Guest', email: '', role: 'client' };
   const initials = (user.name || user.email || 'LA').split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
   const isAdmin = auth.isAdmin();
-  document.getElementById('workspace-label').textContent = isAdmin ? 'Administrator' : 'Client';
-  document.getElementById('workspace-kicker').textContent = isAdmin ? 'Administrator Workspace' : 'Client Workspace';
+  const label = roleLabel(isAdmin ? 'admin' : 'client');
+  document.getElementById('workspace-label').textContent = label;
+  document.getElementById('workspace-kicker').textContent = `${label} Workspace`;
   document.getElementById('user-handle').textContent = user.email || '';
   document.querySelectorAll('[data-user-initials]').forEach((el) => { el.textContent = initials; });
   document.querySelectorAll('[data-user-name]').forEach((el) => { el.textContent = user.name || 'User'; });
-  document.querySelectorAll('[data-user-role]').forEach((el) => { el.textContent = isAdmin ? 'Administrator' : 'Client'; });
+  document.querySelectorAll('[data-user-role]').forEach((el) => { el.textContent = label; });
   syncAvatarUI();
   renderSidebar();
   route();
