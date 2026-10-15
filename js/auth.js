@@ -4,10 +4,6 @@ let checkingPassword = false;
 let session = null;
 let pendingPin = null;
 const PIN_OK_KEY = 'osas.pin.ok';
-const PIN_MAX_TRIES = 5;
-const PIN_LOCK_MS = 30000;
-let pinTries = 0;
-let pinLockedUntil = 0;
 
 const pinAccounts = () => (window.OSAS && window.OSAS.PIN_ACCOUNTS) || {};
 const needsPin = (email) => Object.prototype.hasOwnProperty.call(pinAccounts(), String(email || '').toLowerCase());
@@ -144,7 +140,6 @@ export async function signIn(email, password) {
     }
     if (needsPin(addr) && signed && signed.session) {
       pendingPin = { email: addr, session: toSession(signed.session), userId: signed.session.user.id };
-      pinTries = 0;
       return { step: 'pin', email: addr };
     }
     await c.auth.signOut();
@@ -155,25 +150,11 @@ export async function signIn(email, password) {
   return { step: 'otp', email: addr };
 }
 
-export function pinLockSeconds() {
-  return Math.max(0, Math.ceil((pinLockedUntil - Date.now()) / 1000));
-}
-
 export async function verifyPin(pin) {
   if (!pendingPin) throw new Error('Your sign-in expired. Enter your email and password again.');
-  const wait = pinLockSeconds();
-  if (wait > 0) throw Object.assign(new Error(`Too many wrong PINs. Try again in ${wait}s.`), { locked: true });
   const expected = pinAccounts()[pendingPin.email];
   const actual = await sha256Hex(`osas-pin:${pendingPin.email}:${String(pin)}`);
-  if (actual !== expected) {
-    pinTries += 1;
-    if (pinTries >= PIN_MAX_TRIES) {
-      pinTries = 0;
-      pinLockedUntil = Date.now() + PIN_LOCK_MS;
-      throw Object.assign(new Error(`Too many wrong PINs. Try again in ${PIN_LOCK_MS / 1000}s.`), { locked: true });
-    }
-    throw new Error(`Wrong PIN. ${PIN_MAX_TRIES - pinTries} ${PIN_MAX_TRIES - pinTries === 1 ? 'try' : 'tries'} left.`);
-  }
+  if (actual !== expected) throw new Error('Wrong PIN. Try again.');
   const ok = pendingPin;
   pendingPin = null;
   try { sessionStorage.setItem(PIN_OK_KEY, String(ok.userId)); } catch {}

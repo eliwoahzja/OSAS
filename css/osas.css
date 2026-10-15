@@ -389,7 +389,6 @@ html { -webkit-tap-highlight-color: transparent; }
 .lg-key:active:not(:disabled) { transform: scale(.92); background: #EFD7DE; }
 .lg-key:disabled { opacity: .45; cursor: not-allowed; }
 .lg-key-ghost { background: transparent; border-color: transparent; font-size: 18px; color: #6B7280; }
-.lg-pin.is-locked .lg-keypad { opacity: .6; }
 @media (prefers-reduced-motion: reduce) { .lg-pin-ring { animation: none; } .lg-key, .lg-pin-dot { transition: none; } }
 
 .lg-key { touch-action: manipulation; -webkit-user-select: none; user-select: none; transition: background .08s, transform .08s, border-color .08s; }
