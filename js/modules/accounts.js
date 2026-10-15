@@ -3,6 +3,7 @@ import {
   formatDateTime, skeletonTable,
 } from '../ui.js';
 import * as auth from '../auth.js';
+import { roleLabel } from '../labels.js';
 
 function fnUrl() {
   const base = window.OSAS.NOTIFY_FN_URL || '';
@@ -32,7 +33,7 @@ function openEditModal(user, isSelf, onSaved) {
   const email = h('input', { type: 'email', class: inputCls, value: user.email || '', required: true, autocomplete: 'off' });
   const password = h('input', { type: 'text', class: inputCls, placeholder: 'Leave blank to keep the current password', autocomplete: 'new-password' });
   const role = h('select', { class: inputCls },
-    h('option', { value: 'client' }, 'Client — standard tabs only'),
+    h('option', { value: 'client' }, 'Student — standard tabs only'),
     h('option', { value: 'admin' }, 'Administrator — all tabs + account management'),
   );
   role.value = user.role === 'admin' ? 'admin' : 'client';
@@ -118,7 +119,7 @@ function openCreateModal(onCreated) {
   const email = h('input', { type: 'email', class: inputCls, placeholder: 'name@saac.edu.ph', required: true, autocomplete: 'off' });
   const password = h('input', { type: 'text', class: inputCls, placeholder: 'At least 8 characters', required: true, autocomplete: 'new-password' });
   const role = h('select', { class: inputCls },
-    h('option', { value: 'client' }, 'Client — standard tabs only'),
+    h('option', { value: 'client' }, 'Student — standard tabs only'),
     h('option', { value: 'admin' }, 'Administrator — all tabs + account management'),
   );
   const err = h('p', { class: 'hidden text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
@@ -187,7 +188,7 @@ export async function accounts(el) {
       holder.appendChild(dataTable([
         { label: 'Name', render: (u) => h('span', { class: 'font-semibold text-gray-900' }, u.name) },
         { label: 'Email', key: 'email' },
-        { label: 'Type', render: (u) => pill(u.role === 'admin' ? 'Administrator' : 'Client', u.role === 'admin' ? 'pink' : 'blue') },
+        { label: 'Type', render: (u) => pill(roleLabel(u.role), u.role === 'admin' ? 'pink' : 'blue') },
         { label: 'Last sign-in', render: (u) => (u.last_sign_in_at ? formatDateTime(u.last_sign_in_at) : 'Never') },
         { label: 'Actions', cls: 'sticky right-0 bg-white', render: (u) => h('div', { class: 'flex items-center gap-2' },
           h('button', {
@@ -210,7 +211,7 @@ export async function accounts(el) {
 
   wrap = moduleShell({
     icon: 'user-plus', title: 'Accounts',
-    subtitle: 'Administrators see every tab. Clients only see the standard tabs (no Risk Assessment, Safety Reports, Emergency Roles or Accounts).',
+    subtitle: 'Administrators see every tab. Students only see the standard tabs (no Risk Assessment, Safety Reports, Emergency Roles or Accounts).',
     actionLabel: 'Create account', actionIcon: 'user-plus',
     onAction: () => openCreateModal(load),
     children: [holder],

@@ -10,7 +10,7 @@ A web dashboard for logging campus incidents, scheduling drills, tracking safety
 
 | Module | What is implemented |
 |---|---|
-| **Incident logging** | Type, severity (`low` / `medium` / `high`), location, reporter, optional student. Optional urgent email to that student's parent/guardian. |
+| **Incident logging** | Type, severity (`low` / `medium` / `high`), location, reporter (**auto-filled from the signed-in account**, read-only), optional student. Optional urgent email to that student's parent/guardian. Students see this module as *Report Incident*. |
 | **Drill scheduling** | Fire, earthquake, lockdown and evacuation drills. Optional event notice emailed to an audience (all parents, or a grade). |
 | **Evacuation plans** | Floor-plan upload to Supabase Storage with exits, routes, assembly point and version. |
 | **Safety inspections** | Checklist per area. An item whose last check is older than its frequency is shown as **overdue** automatically. |
@@ -18,7 +18,7 @@ A web dashboard for logging campus incidents, scheduling drills, tracking safety
 | **Risk assessment** (admin) | Six 1–5 factors: `Score = (Threat × Vulnerability × (Exploit Likelihood × Exploit Impact) × Asset Value) − Security Controls`, floored at 0. Bands: Low 1–250, Moderate 251–500, High 501–750, Critical 751+. An admin must write the root-cause rationale before saving. |
 | **Parent notifications** | *Urgent incident alert* (that student's guardian only, or an admin-only campus-wide alert that does **not** name the student) and *event notice*. |
 | **Safety reports** (admin) | Compliance metrics, **CSV export** (incidents, inspections, drills, supplies) and print / save as PDF. |
-| **Accounts** (admin) | Create / list / delete Administrator and Client accounts. |
+| **Accounts** (admin) | Create / list / delete Administrator and Student accounts. |
 | **Emergency roles / contacts** | Directory of guardians (per student) and school responders. |
 
 The dashboard refreshes itself every 15 seconds (polling, not websockets).
@@ -67,12 +67,12 @@ Sign-in is two steps: **email + password**, then a **one-time code emailed to th
 
 **Two account types**
 
-| | Administrator | Client |
+| | Administrator | Student |
 |---|---|---|
 | Dashboard, Emergency Contacts, Drill Scheduling, Evacuation Plans, Incident Logging, Safety Inspections, Parent Notifications, First Aid Supplies | yes | yes |
 | Risk Assessment, Safety Reports, Emergency Roles, **Accounts** (create/delete users) | yes | no |
 
-Admin tabs sit under their own *Administrator* heading in the sidebar and are not shown (or reachable) for clients.
+Admin tabs sit under their own *Administrator* heading in the sidebar and are not shown (or reachable) for students. The stored role value stays `client` (Supabase `app_metadata.role` and `users.role`); the UI maps it to the label **Student** through `js/labels.js`. In the Student workspace the incident page is worded *Report Incident* / *Save Report*, and the two supply charts on the dashboard are administrators-only.
 
 **One-time setup**
 

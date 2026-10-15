@@ -230,10 +230,10 @@ export function skeletonSupplyAlert() {
   );
 }
 
-export function skeletonAnalyticsGrid() {
-  const grid = h('div', { class: 'grid md:grid-cols-2 xl:grid-cols-4 gap-5' });
+export function skeletonAnalyticsGrid(count = 4) {
+  const grid = h('div', { class: `grid md:grid-cols-2 ${count > 2 ? 'xl:grid-cols-4' : 'xl:grid-cols-2'} gap-5` });
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
@@ -251,7 +251,7 @@ export function skeletonAnalyticsGrid() {
     )
   );
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
@@ -268,7 +268,7 @@ export function skeletonAnalyticsGrid() {
     )
   );
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
@@ -290,7 +290,7 @@ export function skeletonAnalyticsGrid() {
     )
   );
 
-  grid.appendChild(
+  if (grid.children.length < count) grid.appendChild(
     h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
@@ -607,6 +607,65 @@ export function dataTable(columns, rows, { onRowClick } = {}) {
   return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
     h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
   );
+}
+
+function svgNode(tag, attrs = {}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined) continue;
+    el.setAttribute(k, String(v));
+  }
+  return el;
+}
+
+// One styled checkbox / radio for the whole app.
+// A real <input> stays in the DOM (visually hidden, still focusable and
+// announced by screen readers); the visible box is drawn next to it.
+export function checkbox({
+  id, name, value, checked = false, indeterminate = false, disabled = false,
+  type = 'checkbox', tone = 'pink', onDark = false, ariaLabel = null, onChange,
+} = {}) {
+  const input = h('input', {
+    type, id, name, value,
+    class: `lg-check-input${tone === 'danger' ? ' lg-check-danger' : ''}`,
+    checked, disabled: disabled || null,
+    'aria-label': ariaLabel,
+    onchange: (e) => { if (onChange) onChange(e.target.checked, e); },
+  });
+  if (indeterminate) input.indeterminate = true;
+
+  const mark = svgNode('svg', { class: 'lg-check-mark', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' });
+  mark.appendChild(svgNode('path', { d: 'M5 12.5l4.4 4.5L19 7.5', fill: 'none' }));
+
+  return h('span', { class: `lg-check${onDark ? ' on-dark' : ''}` },
+    input,
+    h('span', { class: 'lg-check-box', 'aria-hidden': 'true' },
+      mark,
+      h('span', { class: 'lg-check-dash', 'aria-hidden': 'true' })));
+}
+
+// Checklist-row variant: the whole row is the tap target (min 44px tall), with
+// a soft pink tint while selected. `done` mutes + strikes the label.
+export function checkRow({
+  id, name, value, label, hint, checked = false, indeterminate = false, disabled = false,
+  type = 'checkbox', tone = 'pink', onDark = false, done = false, class: extraClass = '', onChange,
+} = {}) {
+  const row = h('label', {
+    for: id,
+    class: `lg-check-row${onDark ? ' on-dark' : ''}${done ? ' is-done' : ''}${disabled ? ' is-disabled' : ''}${extraClass ? ` ${extraClass}` : ''}`,
+  });
+  row.classList.toggle('is-checked', !!checked);
+  row.appendChild(checkbox({
+    id, name, value, checked, indeterminate, disabled, type, tone, onDark,
+    onChange: (v, e) => {
+      row.classList.toggle('is-checked', v);
+      if (onChange) onChange(v, e);
+    },
+  }));
+  row.appendChild(h('span', { class: 'lg-check-text' },
+    h('span', { class: 'lg-check-title' }, label),
+    hint ? h('span', { class: 'lg-check-hint' }, hint) : null));
+  return row;
 }
 
 const STAT_TONES = {

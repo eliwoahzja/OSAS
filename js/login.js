@@ -247,7 +247,7 @@ export function showLogin({ onSuccess }) {
       if (left > 0) {
         resendBtn.disabled = true;
         resendBtn.textContent = `Resend code in ${fmt(left)}`;
-        note.textContent = `Each resend takes a little longer to unlock (up to 8 min). The next wait will be ${waitLabel(n)}.`;
+        note.textContent = `Each resend takes a little longer (up to 8 min). The next wait will be ${waitLabel(n)}.`;
       } else {
         stop();
         resendBtn.disabled = false;
@@ -418,8 +418,7 @@ export function showLogin({ onSuccess }) {
     card.innerHTML = '';
     const LEN = 4;
     let value = '';
-    let locked = false;
-    let lockTimer = null;
+    let busy = false;
 
     const err = mkErr();
     const dots = Array.from({ length: LEN }, () => h('span', { class: 'lg-pin-dot' }));
@@ -428,26 +427,10 @@ export function showLogin({ onSuccess }) {
 
     const paint = () => dots.forEach((d, i) => d.classList.toggle('is-filled', i < value.length));
 
-    const stopLock = () => { if (lockTimer) { clearInterval(lockTimer); timers.delete(lockTimer); lockTimer = null; } };
-    const setLocked = (on) => { locked = on; keys.forEach((k) => { k.disabled = on; }); form.classList.toggle('is-locked', on); };
-    const startLock = () => {
-      setLocked(true);
-      stopLock();
-      const tick = () => {
-        const left = auth.pinLockSeconds();
-        if (left <= 0) { stopLock(); setLocked(false); err.clear(); return; }
-        err.show(`Too many wrong PINs. Try again in ${left}s.`, { quiet: true });
-      };
-      tick();
-      lockTimer = setInterval(tick, 1000);
-      timers.add(lockTimer);
-    };
-
     async function submitPin() {
-      locked = true;
+      busy = true;
       try {
         await auth.verifyPin(value);
-        stopLock();
         dotRow.classList.add('is-ok');
         scan.classList.add('is-ok');
         scan.replaceChildren(fa('check'));
@@ -463,20 +446,21 @@ export function showLogin({ onSuccess }) {
           ], { duration: 460, easing: 'ease-out' });
         }
         setTimeout(() => { dotRow.classList.remove('is-bad'); paint(); }, 420);
-        if (ex.locked) { startLock(); } else { locked = false; err.show(ex.message || 'Could not verify the PIN.'); }
+        busy = false;
+        err.show(ex.message || 'Could not verify the PIN.');
         if (/expired/i.test(ex.message || '')) setTimeout(() => stepTo(() => renderCredentials(addr)), 1200);
       }
     }
 
     function press(d) {
-      if (locked || value.length >= LEN) return;
+      if (busy || value.length >= LEN) return;
       err.clear();
       value += d;
       paint();
       if (value.length === LEN) submitPin();
     }
     function back() {
-      if (locked || !value) return;
+      if (busy || !value) return;
       value = value.slice(0, -1);
       paint();
     }
@@ -522,7 +506,6 @@ export function showLogin({ onSuccess }) {
       h('button', { type: 'button', class: 'lg-link', onclick: async () => { await auth.cancelPin(); stepTo(() => renderCredentials(addr)); } }, '← Use a different account'),
     );
     card.appendChild(form);
-    if (auth.pinLockSeconds() > 0) startLock();
     return () => {};
   }
 

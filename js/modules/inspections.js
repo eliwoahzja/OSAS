@@ -1,5 +1,5 @@
 import {
-  h, icon, pill, formatDate, openModal, toast,
+  h, icon, pill, formatDate, openModal, toast, errorBanner,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
@@ -195,6 +195,12 @@ export async function emergencyRoles(el) {
 }
 
 export async function firstAidSupplies(el) {
+  // Defence in depth: the route is administrators-only, but never render the
+  // stock tables for anyone else even if this is reached directly.
+  if (!isAdmin()) {
+    el.replaceChildren(errorBanner('First aid supplies are visible to administrators only.'));
+    return;
+  }
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'item', label: 'Item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },

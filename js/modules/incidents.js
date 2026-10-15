@@ -1,9 +1,10 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal,
+  capitalize, toast, openModal, checkRow,
 } from '../ui.js';
 import * as api from '../api.js';
-import { isAdmin } from '../auth.js';
+import { isAdmin, currentUser } from '../auth.js';
+import { incidentLabels } from '../labels.js';
 import { loadTable } from './table-loader.js';
 
 export const INCIDENT_TYPES = ['medical', 'slips/falls', 'fire-related', 'security', 'equipment failure'];
@@ -134,6 +135,7 @@ function contactForm(el) {
 }
 
 export async function incidentLogging(el) {
+  const L = incidentLabels(isAdmin());
   const columns = [
     { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'date', label: 'Date / Time', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
@@ -147,23 +149,32 @@ export async function incidentLogging(el) {
 
   return loadTable(el, {
     table: 'incidents', columns, iconName: 'report',
-    title: 'Incident Logging',
-    subtitle: 'Record medical, fire, security, and structural incidents. Incidents tied to a student can auto-notify their parents.',
-    actionLabel: 'Log Incident',
+    title: L.nav,
+    subtitle: L.subtitle,
+    actionLabel: L.action,
     searchKeys: ['type', 'location', 'description', 'reporter', 'status'],
     searchPlaceholder: 'Search by type, location, or reporter…',
-    empty: { title: 'No incidents logged yet', text: 'Log the first incident — parent alerts can be sent straight from the form.' },
+    empty: { title: L.emptyTitle, text: L.emptyText },
     onAction: () => incidentForm(el),
   });
 }
 
+// The reporter is always the signed-in account — nobody types it.
+function reporterName() {
+  const me = currentUser() || {};
+  const name = String(me.name || '').trim();
+  if (name && !name.includes('@')) return name;
+  return String(me.email || '').trim() || 'OSAS Staff';
+}
+
 function incidentForm(el) {
+  const L = incidentLabels(isAdmin());
   let closeModal = () => {};
   const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
-    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Log New Incident')),
+    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, L.modalTitle)),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
   const grid = form.querySelector('.grid');
-  const f = { type: 'medical', location: '', description: '', reporter: '', severity: 'medium', studentId: '', notifyParent: false };
+  const f = { type: 'medical', location: '', description: '', severity: 'medium', studentId: '', notifyParent: false };
 
   const sel = (label, options, val, onChange) => {
     return h('div', {}, h('label', { class: labelCls }, label),
@@ -178,7 +189,16 @@ function incidentForm(el) {
   grid.appendChild(sel('Type', INCIDENT_TYPES, f.type, (v) => { f.type = v; }));
   grid.appendChild(sel('Severity', SEVERITIES, f.severity, (v) => { f.severity = v; }));
   grid.appendChild(txt('Location', 'e.g. Gymnasium', (v) => { f.location = v; }));
-  grid.appendChild(txt('Reporter', 'Who reported it?', (v) => { f.reporter = v; }));
+  const reporter = reporterName();
+  grid.appendChild(h('div', {}, h('label', { class: labelCls, for: 'incident-reporter' }, 'Reporter'),
+    h('div', { class: 'relative' },
+      h('input', {
+        id: 'incident-reporter', class: `${inputCls} bg-gray-50 pr-9 text-gray-500 cursor-not-allowed`,
+        value: reporter, readonly: true, 'aria-readonly': 'true',
+      }),
+      icon('lock', 'text-[11px] text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2'),
+    ),
+    h('p', { class: 'lg-field-hint' }, 'Auto-filled from your account')));
   grid.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Description'),
     h('textarea', { class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'What happened?', oninput: (e) => { f.description = e.target.value; } })));
 
@@ -202,15 +222,19 @@ function incidentForm(el) {
     if (!f.studentId) { notifyWrap.classList.add('hidden'); return; }
     if (!isAdmin()) return;
     notifyWrap.classList.remove('hidden');
-    notifyWrap.appendChild(h('input', { type: 'checkbox', id: 'incident-notify', class: 'w-4 h-4 accent-pink-600', onchange: (e) => { f.notifyParent = e.target.checked; } }));
-    notifyWrap.appendChild(h('label', { for: 'incident-notify', class: 'text-[13px] font-semibold text-gray-700' },
-      'Notify parent? ', h('span', { class: 'text-gray-400 font-normal' }, 'Emails an urgent incident alert linked to this incident.')));
+    notifyWrap.appendChild(checkRow({
+      id: 'incident-notify',
+      label: 'Notify parent?',
+      hint: 'Emails an urgent incident alert linked to this incident.',
+      checked: f.notifyParent,
+      onChange: (v) => { f.notifyParent = v; },
+    }));
   };
 
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
-    h('button', { type: 'submit', class: 'btn-primary' }, icon('send', 'text-base'), 'Save Incident'),
+    h('button', { type: 'submit', class: 'btn-primary' }, icon('send', 'text-base'), L.submit),
     h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
 
   form.addEventListener('submit', async (e) => {
@@ -229,7 +253,7 @@ function incidentForm(el) {
         date: new Date().toISOString().slice(0, 10),
         time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
         type: f.type, location: f.location.trim(), description: f.description.trim(),
-        reporter: f.reporter.trim() || 'OSAS Staff', severity: f.severity,
+        reporter, severity: f.severity,
         status: 'open', student_id: f.studentId || null,
       });
       if (f.notifyParent && f.studentId && isAdmin()) {
@@ -242,9 +266,9 @@ function incidentForm(el) {
           message: f.description.trim(),
           contact_method: 'email',
         });
-        toast(res.ok ? `Incident ${created.id} logged — parent alert sent via ${res.channel || 'email'}.` : `Incident ${created.id} logged ⚠ ${res.error || 'Parent alert could not be sent.'}`, res.ok ? 'success' : 'error');
+        toast(res.ok ? L.alertSent(created.id, res.channel) : L.alertFailed(created.id, res.error), res.ok ? 'success' : 'error');
       } else {
-        toast(`Incident ${created.id} logged.`);
+        toast(L.saved(created.id));
       }
       closeModal();
       incidentLogging(el);
@@ -252,7 +276,7 @@ function incidentForm(el) {
       errBox.textContent = err.message;
       errBox.classList.remove('hidden');
       btn.disabled = false;
-      btn.textContent = 'Save Incident';
+      btn.textContent = L.submit;
     }
   });
 

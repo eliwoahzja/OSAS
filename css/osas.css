@@ -389,10 +389,73 @@ html { -webkit-tap-highlight-color: transparent; }
 .lg-key:active:not(:disabled) { transform: scale(.92); background: #EFD7DE; }
 .lg-key:disabled { opacity: .45; cursor: not-allowed; }
 .lg-key-ghost { background: transparent; border-color: transparent; font-size: 18px; color: #6B7280; }
-.lg-pin.is-locked .lg-keypad { opacity: .6; }
 @media (prefers-reduced-motion: reduce) { .lg-pin-ring { animation: none; } .lg-key, .lg-pin-dot { transition: none; } }
 
 .lg-key { touch-action: manipulation; -webkit-user-select: none; user-select: none; transition: background .08s, transform .08s, border-color .08s; }
+
+/* ---- Styled checkbox / radio (see checkbox() + checkRow() in js/ui.js) ---- */
+.lg-check { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
+.lg-check-input {
+  position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; border: 0;
+  opacity: 0; pointer-events: none;
+}
+.lg-check-input:focus { outline: none; }
+.lg-check-box {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 21px; height: 21px; border-radius: 6px; background: #FFFFFF;
+  border: 1.5px solid #D8CFD3; box-shadow: 0 1px 2px rgba(36, 26, 34, .05);
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.lg-check:hover .lg-check-box, .lg-check-row:hover .lg-check-box { border-color: #EC9EBB; background: #FFF7FB; }
+.lg-check-input:focus-visible + .lg-check-box { outline: 2px solid #DB2777; outline-offset: 2px; }
+.lg-check-mark { display: block; width: 14px; height: 14px; }
+.lg-check-mark path {
+  stroke: #FFFFFF; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 26; stroke-dashoffset: 26;
+}
+.lg-check-dash {
+  position: absolute; width: 11px; height: 3px; border-radius: 999px; background: #FFFFFF;
+  opacity: 0; transform: scaleX(.4); transition: opacity .14s ease, transform .14s ease;
+}
+.lg-check-input:checked + .lg-check-box { background: #DB2777; border-color: #DB2777; }
+.lg-check-input:checked + .lg-check-box .lg-check-mark path {
+  stroke-dashoffset: 0; transition: stroke-dashoffset .19s cubic-bezier(.22, 1, .36, 1);
+}
+.lg-check-input:indeterminate + .lg-check-box { background: #DB2777; border-color: #DB2777; }
+.lg-check-input:indeterminate + .lg-check-box .lg-check-mark { display: none; }
+.lg-check-input:indeterminate + .lg-check-box .lg-check-dash { opacity: 1; transform: scaleX(1); }
+.lg-check-input:disabled + .lg-check-box { opacity: .5; background: #F4F1F2; border-color: #E3DCDE; }
+.lg-check-input:checked:disabled + .lg-check-box { background: #E9B9CA; border-color: #E9B9CA; }
+.lg-check-danger:checked + .lg-check-box, .lg-check-danger:indeterminate + .lg-check-box { background: #DC2626; border-color: #DC2626; }
+.lg-check-row .lg-check-input[type="radio"] + .lg-check-box { border-radius: 999px; }
+.lg-check-row .lg-check-input[type="radio"] + .lg-check-box .lg-check-dash { width: 9px; height: 9px; border-radius: 999px; }
+.lg-check-row .lg-check-input[type="radio"]:checked + .lg-check-box .lg-check-mark { display: none; }
+.lg-check-row .lg-check-input[type="radio"]:checked + .lg-check-box .lg-check-dash { opacity: 1; transform: none; }
+
+.lg-check-row {
+  position: relative; display: flex; align-items: center; gap: 12px; width: 100%;
+  min-height: 44px; padding: 10px 14px; border-radius: 14px; cursor: pointer;
+  border: 1px solid #EFE7E9; background: #FDFBF9;
+  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
+}
+.lg-check-row:hover { border-color: #F3C4D7; background: #FDF6F9; }
+.lg-check-row.is-checked { background: #FDF2F8; border-color: #F9A8D4; box-shadow: 0 1px 2px rgba(219, 39, 119, .08); }
+.lg-check-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lg-check-title { font-size: 13px; font-weight: 600; color: #374151; line-height: 1.35; }
+.lg-check-hint { font-size: 11.5px; color: #9CA3AF; line-height: 1.35; }
+.lg-check-row.is-checked .lg-check-hint { color: #BE6E93; }
+.lg-check-row.is-done .lg-check-title { color: #9CA3AF; text-decoration: line-through; }
+.lg-check-row.is-disabled { cursor: not-allowed; opacity: .7; }
+.lg-check-row.on-dark { background: rgba(255, 255, 255, .05); border-color: rgba(255, 255, 255, .14); }
+.lg-check-row.on-dark:hover { background: rgba(255, 255, 255, .09); border-color: rgba(255, 255, 255, .25); }
+.lg-check-row.on-dark.is-checked { background: rgba(219, 39, 119, .22); border-color: rgba(236, 72, 153, .55); }
+.lg-check-row.on-dark .lg-check-title { color: #F3F4F6; }
+.lg-check.on-dark .lg-check-box { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .34); }
+.lg-check.on-dark .lg-check-input:checked + .lg-check-box,
+.lg-check.on-dark .lg-check-input:indeterminate + .lg-check-box { background: #EC4899; border-color: #EC4899; }
+@media (prefers-reduced-motion: reduce) {
+  .lg-check-box, .lg-check-mark path, .lg-check-dash, .lg-check-row { transition: none !important; }
+}
 html, body { overscroll-behavior: none; }
 body.h-screen { height: 100vh; height: 100dvh; }
 #view { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
