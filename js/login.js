@@ -226,18 +226,23 @@ export function showLogin({ onSuccess }) {
   const card = h('div', { class: 'lg-card' });
   const side = h('section', { class: 'lg-side' }, card);
 
-  function otpForm({ kind, email, eyebrow, title, lead, submitLabel, verify, resend, back }) {
+  function otpForm({ kind, email, eyebrow, title, lead, submitLabel, verify, resend, back, remember = false }) {
     const err = mkErr();
     const code = h('input', {
       type: 'text', class: 'lg-input lg-code', inputmode: 'numeric', autocomplete: 'one-time-code',
-      maxlength: '10', placeholder: '••••••', required: true, 'aria-label': 'Verification code',
+      maxlength: '4', placeholder: '••••', required: true, 'aria-label': '4-digit verification code',
       'aria-describedby': 'otp-format-hint',
     });
-    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 10); err.clear(); });
+    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 4); err.clear(); });
 
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, submitLabel);
     const resendBtn = h('button', { type: 'button', class: 'lg-link lg-inline', disabled: true }, '');
     const note = h('p', { class: 'lg-hint' });
+    const rememberDevice = remember ? h('label', { class: 'lg-remember' },
+      h('input', { type: 'checkbox', class: 'lg-remember-input' }),
+      h('span', { class: 'lg-remember-box', 'aria-hidden': 'true' }),
+      h('span', {}, 'Remember this device for 30 days'),
+    ) : null;
 
     let ticker = null;
     const stop = () => { if (ticker) { clearInterval(ticker); timers.delete(ticker); ticker = null; } };
@@ -277,12 +282,12 @@ export function showLogin({ onSuccess }) {
       onsubmit: async (e) => {
         e.preventDefault();
         err.clear();
-        if (code.value.length < 6) { err.show('Enter the full code from your email.'); return; }
+        if (code.value.length !== 4) { err.show('Enter the 4-digit code from your email.'); return; }
         submit.disabled = true;
         submit.classList.add('is-loading');
         submit.textContent = 'Verifying…';
         try {
-          await verify(code.value);
+          await verify(code.value, Boolean(rememberDevice && rememberDevice.querySelector('input').checked));
           stop();
           clearCooldown(kind, email);
         } catch (e2) {
@@ -299,6 +304,7 @@ export function showLogin({ onSuccess }) {
       h('p', { class: 'lg-lead' }, lead, ' ', h('strong', {}, email)),
       field({ label: 'Verification code', icon: 'shield-halved', input: code }),
       err.el,
+      rememberDevice,
       submit,
       h('div', { class: 'lg-row' },
         back ? h('button', { type: 'button', class: 'lg-link lg-inline', onclick: back.fn }, back.label) : h('span'),
@@ -377,6 +383,8 @@ export function showLogin({ onSuccess }) {
           const r = await auth.signIn(email.value, password.value);
           if (r.step === 'pin') {
             stepTo(() => renderPin(r.email));
+          } else if (r.step === 'signed-in') {
+            finish();
           } else {
             armCooldown('login', r.email);
             stepTo(() => renderOtp(r.email));
@@ -407,7 +415,7 @@ export function showLogin({ onSuccess }) {
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'A 6-digit verification code will be emailed to you after your password is accepted.'),
+      h('p', { class: 'lg-hint' }, 'A 4-digit verification code will be emailed to you after your password is accepted.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
@@ -423,7 +431,7 @@ export function showLogin({ onSuccess }) {
     const err = mkErr();
     const dots = Array.from({ length: LEN }, () => h('span', { class: 'lg-pin-dot' }));
     const dotRow = h('div', { class: 'lg-pin-dots', role: 'status', 'aria-live': 'polite', 'aria-label': 'PIN entry' }, dots);
-    const scan = h('div', { class: 'lg-pin-scan' }, h('span', { class: 'lg-pin-ring' }), h('span', { class: 'lg-pin-ring lg-pin-ring-2' }), fa('fingerprint'));
+    const scan = h('div', { class: 'lg-pin-scan' }, h('span', { class: 'lg-pin-ring' }), h('span', { class: 'lg-pin-ring lg-pin-ring-2' }), fa('lock'));
 
     const paint = () => dots.forEach((d, i) => d.classList.toggle('is-filled', i < value.length));
 
@@ -516,7 +524,8 @@ export function showLogin({ onSuccess }) {
       kind: 'login', email: addr,
       eyebrow: 'Two-step verification', title: 'Check your email',
       lead: 'We sent a verification code to', submitLabel: 'Verify & Sign In',
-      verify: async (code) => { await auth.verifyCode(addr, code); finish(); },
+      remember: true,
+      verify: async (code, shouldRemember) => { await auth.verifyCode(addr, code); if (shouldRemember) auth.rememberDevice(addr); finish(); },
       resend: () => auth.sendCode(addr),
       back: { label: '← Use a different account', fn: () => stepTo(() => renderCredentials(addr)) },
     });

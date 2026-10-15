@@ -4,6 +4,8 @@ let checkingPassword = false;
 let session = null;
 let pendingPin = null;
 const PIN_OK_KEY = 'osas.pin.ok';
+const DEVICE_TRUST_KEY = 'osas.device.trust';
+const DEVICE_TRUST_MS = 30 * 24 * 60 * 60 * 1000;
 
 const pinAccounts = () => (window.OSAS && window.OSAS.PIN_ACCOUNTS) || {};
 const needsPin = (email) => Object.prototype.hasOwnProperty.call(pinAccounts(), String(email || '').toLowerCase());
@@ -16,6 +18,21 @@ async function sha256Hex(text) {
 
 function pinPassed(userId) {
   try { return sessionStorage.getItem(PIN_OK_KEY) === String(userId); } catch { return false; }
+}
+
+function trustedDevice(email) {
+  try {
+    const record = JSON.parse(localStorage.getItem(DEVICE_TRUST_KEY) || '{}')[String(email || '').toLowerCase()];
+    return Boolean(record && record.expiresAt > Date.now());
+  } catch { return false; }
+}
+
+export function rememberDevice(email) {
+  try {
+    const records = JSON.parse(localStorage.getItem(DEVICE_TRUST_KEY) || '{}');
+    records[String(email || '').toLowerCase()] = { expiresAt: Date.now() + DEVICE_TRUST_MS };
+    localStorage.setItem(DEVICE_TRUST_KEY, JSON.stringify(records));
+  } catch {}
 }
 
 function saveSession(s) {
@@ -141,6 +158,10 @@ export async function signIn(email, password) {
     if (needsPin(addr) && signed && signed.session) {
       pendingPin = { email: addr, session: toSession(signed.session), userId: signed.session.user.id };
       return { step: 'pin', email: addr };
+    }
+    if (trustedDevice(addr)) {
+      saveSession(toSession(signed.session));
+      return { step: 'signed-in', email: addr };
     }
     await c.auth.signOut();
   } finally {
