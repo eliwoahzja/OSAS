@@ -265,6 +265,11 @@ pre::-webkit-scrollbar-thumb:hover,
 .lg-hint { font-size: 12.5px; color: #6B7280; line-height: 1.5; text-align: center; }
 .lg-field-hint { font-size: 11.5px; color: #9CA3AF; line-height: 1.4; margin-top: 5px; }
 .lg-error { font-size: 13px; color: #B91C1C; background: #FEF2F2; border: 1px solid #FECACA; border-radius: 12px; padding: 10px 14px; }
+.lg-remember { display: flex; align-items: center; justify-content: center; gap: 9px; color: #6B7280; font-size: 13px; cursor: pointer; user-select: none; }
+.lg-remember-input { position: absolute; opacity: 0; pointer-events: none; }
+.lg-remember-box { width: 18px; height: 18px; border: 1px solid #D8CFD3; border-radius: 5px; background: #fff; box-shadow: 0 1px 2px rgba(36,26,34,.05); transition: background .15s, border-color .15s; }
+.lg-remember-input:checked + .lg-remember-box { border-color: #7A1B38; background: #7A1B38; box-shadow: inset 0 0 0 4px #fff; }
+.lg-remember-input:focus-visible + .lg-remember-box { outline: 2px solid #DB2777; outline-offset: 2px; }
 .lg-hidden { display: none !important; }
 @media (max-width: 900px) {
   .lg-root, .lg-root.lg-flipped { flex-direction: column; }
