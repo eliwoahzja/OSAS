@@ -609,6 +609,65 @@ export function dataTable(columns, rows, { onRowClick } = {}) {
   );
 }
 
+function svgNode(tag, attrs = {}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v === null || v === undefined) continue;
+    el.setAttribute(k, String(v));
+  }
+  return el;
+}
+
+// One styled checkbox / radio for the whole app.
+// A real <input> stays in the DOM (visually hidden, still focusable and
+// announced by screen readers); the visible box is drawn next to it.
+export function checkbox({
+  id, name, value, checked = false, indeterminate = false, disabled = false,
+  type = 'checkbox', tone = 'pink', onDark = false, ariaLabel = null, onChange,
+} = {}) {
+  const input = h('input', {
+    type, id, name, value,
+    class: `lg-check-input${tone === 'danger' ? ' lg-check-danger' : ''}`,
+    checked, disabled: disabled || null,
+    'aria-label': ariaLabel,
+    onchange: (e) => { if (onChange) onChange(e.target.checked, e); },
+  });
+  if (indeterminate) input.indeterminate = true;
+
+  const mark = svgNode('svg', { class: 'lg-check-mark', viewBox: '0 0 24 24', 'aria-hidden': 'true', focusable: 'false' });
+  mark.appendChild(svgNode('path', { d: 'M5 12.5l4.4 4.5L19 7.5', fill: 'none' }));
+
+  return h('span', { class: `lg-check${onDark ? ' on-dark' : ''}` },
+    input,
+    h('span', { class: 'lg-check-box', 'aria-hidden': 'true' },
+      mark,
+      h('span', { class: 'lg-check-dash', 'aria-hidden': 'true' })));
+}
+
+// Checklist-row variant: the whole row is the tap target (min 44px tall), with
+// a soft pink tint while selected. `done` mutes + strikes the label.
+export function checkRow({
+  id, name, value, label, hint, checked = false, indeterminate = false, disabled = false,
+  type = 'checkbox', tone = 'pink', onDark = false, done = false, class: extraClass = '', onChange,
+} = {}) {
+  const row = h('label', {
+    for: id,
+    class: `lg-check-row${onDark ? ' on-dark' : ''}${done ? ' is-done' : ''}${disabled ? ' is-disabled' : ''}${extraClass ? ` ${extraClass}` : ''}`,
+  });
+  row.classList.toggle('is-checked', !!checked);
+  row.appendChild(checkbox({
+    id, name, value, checked, indeterminate, disabled, type, tone, onDark,
+    onChange: (v, e) => {
+      row.classList.toggle('is-checked', v);
+      if (onChange) onChange(v, e);
+    },
+  }));
+  row.appendChild(h('span', { class: 'lg-check-text' },
+    h('span', { class: 'lg-check-title' }, label),
+    hint ? h('span', { class: 'lg-check-hint' }, hint) : null));
+  return row;
+}
+
 const STAT_TONES = {
   pink: 'bg-pink-50 text-pink-600', blue: 'bg-blue-50 text-blue-600', green: 'bg-emerald-50 text-emerald-600',
   amber: 'bg-amber-50 text-amber-600', red: 'bg-red-50 text-red-600', purple: 'bg-purple-50 text-purple-600',

@@ -1,6 +1,6 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal,
+  capitalize, toast, openModal, checkRow,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
@@ -202,9 +202,13 @@ function incidentForm(el) {
     if (!f.studentId) { notifyWrap.classList.add('hidden'); return; }
     if (!isAdmin()) return;
     notifyWrap.classList.remove('hidden');
-    notifyWrap.appendChild(h('input', { type: 'checkbox', id: 'incident-notify', class: 'w-4 h-4 accent-pink-600', onchange: (e) => { f.notifyParent = e.target.checked; } }));
-    notifyWrap.appendChild(h('label', { for: 'incident-notify', class: 'text-[13px] font-semibold text-gray-700' },
-      'Notify parent? ', h('span', { class: 'text-gray-400 font-normal' }, 'Emails an urgent incident alert linked to this incident.')));
+    notifyWrap.appendChild(checkRow({
+      id: 'incident-notify',
+      label: 'Notify parent?',
+      hint: 'Emails an urgent incident alert linked to this incident.',
+      checked: f.notifyParent,
+      onChange: (v) => { f.notifyParent = v; },
+    }));
   };
 
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });

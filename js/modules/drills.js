@@ -1,6 +1,6 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  toast, openModal,
+  toast, openModal, checkRow,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
@@ -61,10 +61,14 @@ function drillForm(el) {
     h('p', { class: 'lg-field-hint' }, 'Format: HH:MM, 24-hour')));
   grid.appendChild(txt('Person in Charge', 'e.g. Mr. Lim', (v) => { f.person_in_charge = v; }));
 
-  const notifyD = h('div', { class: 'sm:col-span-2 flex items-center gap-3' },
-    h('input', { type: 'checkbox', id: 'drill-notify', class: 'w-4 h-4 accent-pink-600', onchange: (e) => { f.notify = e.target.checked; renderAudience(); } }),
-    h('label', { for: 'drill-notify', class: 'text-[13px] font-semibold text-gray-700' },
-      'Notify parents? ', h('span', { class: 'text-gray-400 font-normal' }, 'Creates an event notice for the selected audience.')));
+  const notifyD = checkRow({
+    id: 'drill-notify',
+    label: 'Notify parents?',
+    hint: 'Creates an event notice for the selected audience.',
+    checked: f.notify,
+    class: 'sm:col-span-2',
+    onChange: (v) => { f.notify = v; renderAudience(); },
+  });
   grid.appendChild(notifyD);
 
   const audienceWrap = h('div');

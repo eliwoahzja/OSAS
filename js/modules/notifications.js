@@ -1,7 +1,7 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
   capitalize, toast, openModal, moduleShell, skeletonHeader, skeletonTableWithColumns,
-  dataTable, emptyBanner, errorBanner,
+  dataTable, emptyBanner, errorBanner, checkRow,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
@@ -226,17 +226,15 @@ function composer(el) {
         inc.map((i) => h('option', { value: i.id, selected: i.id === f.related_incident_id }, `${i.id} · ${capitalize(i.type)} — ${i.location}`)));
       fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Related Incident Log (optional)'), incSel));
 
-      const recipientChoice = (value, title, hint, checked) => h('label', { class: 'flex items-start gap-2.5 cursor-pointer' },
-        h('input', {
-          type: 'radio',
-          name: 'incident-recipients',
-          class: 'mt-0.5 w-4 h-4 accent-red-600 cursor-pointer',
-          checked,
-          onchange: () => { f.notify_all_parents = value === 'all'; renderFields(); },
-        }),
-        h('span', { class: 'text-xs text-gray-700 select-none' },
-          h('span', { class: 'font-bold block text-gray-900' }, title),
-          h('span', { class: 'text-gray-500 block text-[11px] mt-0.5' }, hint)));
+      const recipientChoice = (value, title, hint, checked) => checkRow({
+        id: `incident-recipients-${value}`,
+        type: 'radio',
+        name: 'incident-recipients',
+        label: title,
+        hint,
+        checked,
+        onChange: () => { f.notify_all_parents = value === 'all'; renderFields(); },
+      });
       const broadcastToggle = h('div', { class: 'sm:col-span-2 space-y-2.5 p-3 rounded-xl bg-gray-50 border border-gray-200' },
         h('span', { class: 'block text-[11px] font-bold uppercase tracking-wider text-gray-500' }, 'Who should receive this email?'),
         recipientChoice('student', 'Only the selected student\u2019s parent / guardian', 'Recommended. The email names the student.', !f.notify_all_parents),
