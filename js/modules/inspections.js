@@ -165,7 +165,12 @@ const inspectionFields = [
   { key: 'last_inspected', label: 'Last inspected', type: 'date' },
   { key: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'pending', options: ['pending', 'passed', 'fail', 'overdue'].map((v) => ({ value: v, label: v })) },
   { key: 'inspector', label: 'Inspector' },
+  { key: 'risk_level', label: 'Risk classification', type: 'select', options: [
+    { value: '', label: 'Not recorded' },
+    ...['Low', 'Moderate', 'High', 'Critical'].map((v) => ({ value: v, label: v })),
+  ] },
   { key: 'notes', label: 'Findings / follow-up notes', type: 'textarea', wide: true },
+  { key: 'corrective_actions', label: 'Corrective actions', type: 'textarea', wide: true },
 ];
 const inspectionDetails = [
   ...inspectionFields.map(({ key, label, type }) => ({ key, label, type })),
@@ -313,6 +318,7 @@ export async function emergencyRoles(el) {
 
 const supplyFields = [
   { key: 'item', label: 'Item name', required: true, maxLength: 255 },
+  { key: 'category', label: 'Supply category' },
   { key: 'quantity', label: 'Quantity', type: 'number', min: 0, required: true },
   { key: 'unit', label: 'Unit', maxLength: 20 },
   { key: 'location', label: 'Storage location', required: true, maxLength: 255 },
