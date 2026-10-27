@@ -11,7 +11,6 @@ export const AUDIENCES = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11
 
 export async function drillScheduling(el) {
   const columns = [
-    { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'type', label: 'Drill Type', render: (r) => pill(r.type) },
     { key: 'date', label: 'Schedule', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
     { key: 'building', label: 'Building / Area' },
@@ -99,7 +98,7 @@ function drillForm(el) {
     btn.disabled = true;
     btn.textContent = 'Saving…';
     try {
-      const created = await api.insertRow('drills', {
+      await api.insertRow('drills', {
         type: f.type, date: f.date, time: f.time,
         building: f.building.trim(), person_in_charge: f.person_in_charge.trim(),
         status: 'upcoming', notes: '',
@@ -116,9 +115,9 @@ function drillForm(el) {
           message: `A ${f.type.toLowerCase()} drill is scheduled for ${formatDate(f.date)} at ${f.time} in the ${f.building}. Students will practice the relevant safety procedures.`,
           event_start_at: startAt, event_end_at: endAt,
         });
-        toast(res.ok ? `Drill scheduled — event notice emailed to ${f.audience}.` : `Drill ${created.id} scheduled ⚠ ${res.error || 'Event notice could not be sent.'}`, res.ok ? 'success' : 'error');
+        toast(res.ok ? `Drill scheduled — event notice emailed to ${f.audience}.` : `Drill scheduled, but the event notice could not be sent: ${res.error || 'Email delivery failed.'}`, res.ok ? 'success' : 'error');
       } else {
-        toast(`Drill ${created.id} scheduled.`);
+        toast('Drill scheduled.');
       }
       closeModal();
       drillScheduling(el);
@@ -135,7 +134,6 @@ function drillForm(el) {
 
 export async function evacuationPlans(el) {
   const columns = [
-    { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'building', label: 'Building', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.building) },
     { key: 'floor', label: 'Floor' },
     { key: 'exits', label: 'Exits', render: (r) => h('span', { class: 'text-gray-600' }, r.exits || '—') },
@@ -212,7 +210,6 @@ function planDetailModal(row) {
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100 flex items-center gap-3' },
       h('span', { class: 'material-symbols-rounded text-xl text-pink-500' }, 'map'),
       h('h3', { class: 'text-sm font-bold text-gray-900 flex-1' }, `${row.building} — ${row.floor}`),
-      h('span', { class: 'text-[11px] font-mono text-gray-400' }, row.id),
     ),
     h('div', { class: 'p-6' }, infoGrid, fileSection),
     h('div', { class: 'px-6 pb-5 flex justify-end' },
