@@ -6,7 +6,7 @@ import * as api from '../api.js';
 import { isAdmin, currentUser } from '../auth.js';
 import { incidentLabels } from '../labels.js';
 import { loadTable } from './table-loader.js';
-import { viewRecord, recordForm, rowActions } from './record-actions.js';
+import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
 
 export const INCIDENT_TYPES = ['medical', 'slips/falls', 'fire-related', 'security', 'equipment failure'];
 export const SEVERITIES = ['low', 'medium', 'high'];
@@ -46,7 +46,7 @@ export async function emergencyContacts(el) {
     { key: 'student', label: 'Linked student' },
     { key: 'priority', label: 'Priority' },
     { key: 'status_label', label: 'Status' },
-  ], admin ? [{ label: 'Edit contact', onClick: () => edit(r) }] : []);
+  ], admin ? [{ label: 'Edit contact', onClick: () => edit(r) }, { label: 'Delete contact', onClick: () => confirmDelete({ title: r.name, table: 'emergency_contacts', record: r, onSaved: () => emergencyContacts(el) }) }] : []);
   const toggle = async (r, button) => {
     if (!isAdmin() || typeof r.active !== 'boolean') return;
     button.disabled = true;
@@ -83,6 +83,7 @@ export async function emergencyContacts(el) {
     searchPlaceholder: 'Search by person, organization, phone or email…',
     selectFilters: [
       { key: 'category', label: 'All contact types', options: [{ value: 'student', label: 'Parents / Guardians' }, { value: 'school', label: 'School / agency' }] },
+      { key: 'active', label: 'All statuses', options: [{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }] },
     ],
     empty: { title: 'No emergency contacts', text: 'Administrators add verified school and emergency responders here.' },
   });
