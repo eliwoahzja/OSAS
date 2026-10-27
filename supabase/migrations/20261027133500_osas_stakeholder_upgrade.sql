@@ -1,6 +1,6 @@
 -- OSAS stakeholder upgrade. Additive changes only. Do not execute schema.sql on a live project.
 -- Review and apply on the OSAS Supabase project after a backup, never an unrelated project.
-BEGIN;
+-- Supabase migrations execute transactionally; do not nest explicit BEGIN/COMMIT.
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean LANGUAGE sql STABLE SET search_path = '' AS $$
@@ -116,4 +116,3 @@ BEGIN
   END LOOP;
 END $policy$;
 
-COMMIT;
