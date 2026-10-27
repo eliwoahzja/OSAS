@@ -27,10 +27,10 @@ export const SUMMARY = {
     { label: 'Resolved', value: rows.filter((r) => r.status === 'resolved').length, icon: 'task_alt', chipCls: 'bg-emerald-50 text-emerald-600' },
   ],
   inspections: (rows) => [
-    { label: 'Total items', value: rows.length, icon: 'fact_check', chipCls: 'bg-pink-50 text-pink-600' },
-    { label: 'Passed', value: rows.filter((r) => r.status === 'passed').length, icon: 'check_circle', chipCls: 'bg-emerald-50 text-emerald-600' },
-    { label: 'Due soon', value: rows.filter((r) => r.status === 'due soon').length, icon: 'schedule', chipCls: 'bg-amber-50 text-amber-700' },
-    { label: 'Overdue', value: rows.filter((r) => r.status === 'overdue').length, icon: 'warning', chipCls: 'bg-red-50 text-red-600' },
+    { label: 'Total Items', description: 'All inspection items', value: rows.length, icon: 'fact_check', chipCls: 'bg-blue-50 text-blue-600' },
+    { label: 'Passed', description: 'Completed & safe', value: rows.filter((r) => r.status === 'passed').length, icon: 'check_circle', chipCls: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Due Soon', description: 'Within 7 days', value: rows.filter((r) => r.status === 'due soon').length, icon: 'schedule', chipCls: 'bg-amber-50 text-amber-700' },
+    { label: 'Overdue', description: 'Past due date', value: rows.filter((r) => r.status === 'overdue').length, icon: 'warning', chipCls: 'bg-red-50 text-red-600' },
   ],
   risks: (rows) => [
     { label: 'Assessed hazards', value: rows.length, icon: 'security', chipCls: 'bg-pink-50 text-pink-600' },
@@ -55,7 +55,7 @@ export const SUMMARY = {
 export async function loadTable(el, {
   table, columns, empty, iconName, title, subtitle,
   actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters = {}, searchKeys = [],
-  searchPlaceholder, selectFilters = [], onRowClick, adminAction = false, dateFilter, transformRows, onRetry, selection, onFilteredRows,
+  searchPlaceholder, selectFilters = [], onRowClick, adminAction = false, dateFilter, transformRows, onRetry, selection, onFilteredRows, paginationStyle = 'standard',
 }) {
   el.innerHTML = '';
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
@@ -86,7 +86,7 @@ export async function loadTable(el, {
     if (transformRows) rows = transformRows(rows);
   } catch (e) {
     holder.replaceChildren(errorBanner(e.message, onRetry || (() => {
-      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick, adminAction, dateFilter, transformRows, onRetry, selection, onFilteredRows });
+      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick, adminAction, dateFilter, transformRows, onRetry, selection, onFilteredRows, paginationStyle });
     })));
     return;
   }
@@ -129,8 +129,9 @@ export async function loadTable(el, {
 
   const parts = [];
   if (SUMMARY[table]) parts.push(moduleStats(SUMMARY[table](rows)));
+  let toolbar;
   if (searchKeys.length || selectFilters.length) {
-    parts.push(h('div', { class: 'osas-table-toolbar flex flex-wrap items-center gap-3' },
+    toolbar = h('div', { class: 'osas-table-toolbar flex flex-wrap items-center gap-3' },
       h('div', { class: 'relative flex-1 min-w-[240px]' },
         icon('search', 'text-gray-400 text-sm absolute left-3.5 top-1/2 -translate-y-1/2'),
         h('input', {
@@ -142,28 +143,45 @@ export async function loadTable(el, {
         onchange: (e) => { state.sel[d.key] = e.target.value; state.page = 1; renderTable(); },
       },
       h('option', { value: '', selected: true }, d.label),
-      d.options.map((o) => h('option', { value: o.value }, o.label))))));
+      d.options.map((o) => h('option', { value: o.value }, o.label)))));
+    parts.push(toolbar);
   }
 
   if (dateFilter) {
-    parts.push(h('div', { class: 'flex flex-wrap gap-3 items-end' },
+    let toggle;
+    const range = h('div', { class: 'table-date-controls flex flex-wrap gap-3 items-end', hidden: Boolean(dateFilter.compact) },
       ...['from', 'to'].map((key) => h('label', { class: 'text-xs text-gray-500' },
         dateFilter.label + (key === 'from' ? ' from' : ' to'),
         h('input', { type: 'date', class: inputCls, 'aria-label': dateFilter.label + (key === 'from' ? ' from' : ' to'),
-          onchange: (e) => { state[key] = e.target.value; state.page = 1; renderTable(); },
+          onchange: (e) => {
+            state[key] = e.target.value; state.page = 1;
+            toggle?.classList.toggle('date-range-active', Boolean(state.from || state.to));
+            renderTable();
+          },
         }))),
-      h('button', { type: 'button', class: 'btn-ghost', onclick: (e) => {
+      h('button', { type: 'button', class: 'btn-ghost', onclick: () => {
         state.from = ''; state.to = ''; state.page = 1;
-        e.currentTarget.parentElement.querySelectorAll('input').forEach((input) => { input.value = ''; });
+        range.querySelectorAll('input').forEach((input) => { input.value = ''; });
+        toggle?.classList.remove('date-range-active');
         renderTable();
       } }, 'Clear dates'),
-    ));
+      dateFilter.compact ? h('button', { type: 'button', class: 'btn-primary', onclick: () => {
+        range.hidden = true; toggle.setAttribute('aria-expanded', 'false'); toggle.focus();
+      } }, 'Done') : null);
+    if (dateFilter.compact) {
+      toggle = h('button', { type: 'button', class: 'btn-ghost table-date-toggle', 'aria-label': 'Select Date Range', 'aria-expanded': 'false',
+        onclick: () => { range.hidden = !range.hidden; toggle.setAttribute('aria-expanded', String(!range.hidden)); },
+      }, icon('calendar_month'), 'Select Date Range');
+      if (toolbar) toolbar.appendChild(toggle);
+      else parts.push(toggle);
+    }
+    parts.push(range);
   }
   const selectedRows = () => rows.filter((r) => state.selected.has(r.id));
   const selectionBar = h('div', { class: 'table-selection-bar', 'aria-label': 'Selected records' });
   if (selection) parts.push(selectionBar);
   const tableWrap = h('div');
-  const pager = h('div', { class: 'flex flex-wrap justify-between items-center gap-3 text-sm text-gray-600' });
+  const pager = h('div', { class: 'table-pager flex flex-wrap justify-between items-center gap-3 text-sm text-gray-600' });
   parts.push(tableWrap, pager);
   realHolder.replaceChildren(...parts);
 
@@ -211,14 +229,22 @@ export async function loadTable(el, {
     if (!filtered.length) {
       tableWrap.appendChild(emptyBanner({ icon: 'search', title: 'No matches', text: 'Try a different search or clear the filters.' }));
     }
+    const navigation = h('div', { class: 'flex items-center gap-2' },
+      h('button', { type: 'button', class: 'btn-ghost', 'aria-label': 'Previous', disabled: state.page === 1,
+        onclick: () => { state.page--; renderTable(); } }, paginationStyle === 'numbered' ? icon('chevron_left') : 'Previous'),
+      ...(paginationStyle === 'numbered'
+        ? Array.from({ length: pages }, (_, i) => i + 1).filter((page) => page === 1 || page === pages || Math.abs(page - state.page) <= 1)
+          .map((page, index, visible) => h('span', { class: 'inline-flex items-center gap-2' },
+            index > 0 && page > visible[index - 1] + 1 ? h('span', {}, '…') : null,
+            h('button', { type: 'button', class: page === state.page ? 'btn-primary page-number' : 'btn-ghost page-number',
+              'aria-label': 'Page ' + page, 'aria-current': page === state.page ? 'page' : null,
+              onclick: () => { state.page = page; renderTable(); } }, String(page))))
+        : [h('span', {}, `Page ${state.page} of ${pages}`)]),
+      h('button', { type: 'button', class: 'btn-ghost', 'aria-label': 'Next', disabled: state.page === pages,
+        onclick: () => { state.page++; renderTable(); } }, paginationStyle === 'numbered' ? icon('chevron_right') : 'Next'));
     pager.replaceChildren(
-      h('span', { 'aria-live': 'polite' }, `Showing ${filtered.length ? start + 1 : 0}–${start + shown.length} of ${filtered.length}`),
-      h('div', { class: 'flex items-center gap-2' },
-        h('button', { type: 'button', class: 'btn-ghost', disabled: state.page === 1, onclick: () => { state.page--; renderTable(); } }, 'Previous'),
-        h('span', {}, `Page ${state.page} of ${pages}`),
-        h('button', { type: 'button', class: 'btn-ghost', disabled: state.page === pages, onclick: () => { state.page++; renderTable(); } }, 'Next'),
-      ),
-    );
+      h('span', { 'aria-live': 'polite' }, `Showing ${filtered.length ? start + 1 : 0}–${start + shown.length} of ${filtered.length}`), navigation);
+
   };
 
   renderTable();

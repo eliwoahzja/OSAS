@@ -9,13 +9,13 @@ const displayTime = (value) => {
   });
 };
 
-export function createActivityPanel({ table, recordId, heading = 'Recent Activity', onView }) {
+export function createActivityPanel({ table, recordId, heading = 'Recent Activity', onView, limit = 5 }) {
   const panel = h('section', { class: 'inspection-panel', 'aria-label': heading });
   const refresh = async () => {
     panel.replaceChildren(h('h3', { class: 'font-bold text-gray-900 mb-3' }, heading),
       h('p', { class: 'text-sm text-gray-500', role: 'status' }, 'Loading saved activity…'));
     try {
-      const events = await api.listActivity(table, { recordId, limit: recordId ? 20 : 5 });
+      const events = await api.listActivity(table, { recordId, limit: recordId ? 20 : limit });
       if (!panel.isConnected) return;
       panel.lastElementChild.remove();
       if (!events.length) {
@@ -30,7 +30,7 @@ export function createActivityPanel({ table, recordId, heading = 'Recent Activit
           label = 'Status updated to ' + (event.new_value?.status || 'Not recorded');
         }
         panel.appendChild(h('button', {
-          type: 'button', class: 'inspection-shortcut',
+          type: 'button', class: 'inspection-shortcut activity-entry', 'data-action': action, 'data-status': String(record.status || '').toLowerCase(),
           onclick: () => onView?.({ ...record, event_at: displayTime(event.changed_at), event_action: label }, event),
         }, icon(action === 'delete' ? 'trash-can' : action === 'insert' ? 'add' : 'rate_review'),
         h('span', {}, label, h('small', {}, record.item || record.role || 'Saved record'),

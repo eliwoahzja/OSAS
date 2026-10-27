@@ -158,7 +158,7 @@ export function rowActions(onView, onEdit, { compact = false, onMore, onDelete }
   if (isAdmin() && onEdit) buttons.push(h('button', {
     type: 'button', class: compact ? 'btn-ghost record-action-icon' : 'btn-ghost text-xs', title: 'Edit record',
     'aria-label': 'Edit record', onclick: onEdit,
-  }, icon('rate_review', 'text-xs'), compact ? null : 'Edit'));
+  }, icon('pen', 'text-xs'), compact ? null : 'Edit'));
   if (isAdmin() && (onMore || onDelete)) buttons.push(h('button', {
     type: 'button', class: 'btn-ghost record-action-icon',
     title: onMore ? 'More actions' : 'Delete record',

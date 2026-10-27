@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { schoolToday, supplyStatus, inspectionDue, inspectionStatus } from '../js/safety-status.js';
+import { schoolToday, supplyStatus, supplyTone, inspectionDue, inspectionStatus } from '../js/safety-status.js';
 
 const today = '2026-10-27';
 const supply = { quantity: 12, reorder_threshold: 5, expiry: '2027-06-10' };
@@ -34,4 +34,13 @@ test('inspection urgency handles due today, seven days, overdue and failed check
   assert.equal(inspectionStatus({ ...inspection, last_inspected: '2026-10-25' }, today), 'overdue');
   assert.equal(inspectionStatus({ ...inspection, status: 'fail' }, today), 'fail');
   assert.equal(inspectionStatus({ status: 'pending' }, today), 'pending');
+});
+
+test('stock warning colors distinguish reorder warnings from critical shortages', () => {
+  assert.equal(supplyTone({ ...supply, quantity: 3, reorder_threshold: 4 }, today), 'amber');
+  assert.equal(supplyTone({ ...supply, quantity: 2, reorder_threshold: 4 }, today), 'red');
+  assert.equal(supplyTone({ ...supply, quantity: 0 }, today), 'red');
+  assert.equal(supplyTone(supply, today), 'green');
+  assert.equal(supplyTone({ ...supply, quantity: 1, expiry: today }, today), 'amber');
+  assert.equal(supplyTone({ ...supply, quantity: 4, expiry: '2026-10-26' }, today), 'red');
 });

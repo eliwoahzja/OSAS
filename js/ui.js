@@ -155,7 +155,8 @@ export function pill(status, tone) {
   const t = tone || TONES[key] || 'gray';
   const cls = TONE_CLASSES[t] || TONE_CLASSES.gray;
   return h('span', {
-    class: `inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${cls}`,
+    class: `status-pill inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${cls}`,
+    'data-tone': t, 'data-status': key,
   }, String(status ?? '—'));
 }
 
@@ -184,6 +185,13 @@ export function moduleShell({ icon: iconName, title, subtitle, actionLabel, acti
 
 export function moduleStats(chips) {
   if (!chips || !chips.length) return null;
+  if (chips.some((c) => c.description)) return h('div', { class: 'reference-stats' },
+    chips.map((c) => h('div', { class: 'reference-stat' },
+      h('div', { class: 'reference-stat-icon ' + c.chipCls }, icon(c.icon, 'text-xl')),
+      h('div', { class: 'reference-stat-copy' },
+        h('p', { class: 'reference-stat-label' }, c.label),
+        h('strong', { class: 'reference-stat-value' }, String(c.value)),
+        h('small', { class: 'reference-stat-description' }, c.description)))));
   return h('div', { class: 'flex flex-wrap gap-2.5' },
     chips.map((c, i) =>
       h('div', {
@@ -607,14 +615,14 @@ export function dataTable(columns, rows, { onRowClick } = {}) {
       onclick: onRowClick ? () => onRowClick(r) : undefined,
     });
     for (const col of columns) {
-      row.appendChild(h('td', { class: 'px-5 py-3.5 text-[13px] align-middle' },
+      row.appendChild(h('td', { class: 'px-5 py-3.5 text-[13px] align-middle ' + (col.cellCls || '') },
         col.render ? col.render(r) : (r[col.key] ?? '—')));
     }
     tbody.appendChild(row);
   });
   table.appendChild(tbody);
 
-  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
+  return h('div', { class: 'data-table-frame bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
     h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
   );
 }

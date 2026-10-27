@@ -19,6 +19,14 @@ export function supplyStatus(record, today = schoolToday()) {
   return 'In Stock';
 }
 
+export function supplyTone(record, today = schoolToday()) {
+  const status = supplyStatus(record, today);
+  if (status === 'Expired') return 'red';
+  if (status === 'Expiring Soon') return 'amber';
+  if (status === 'Low Stock') return Number(record.quantity) <= Number(record.reorder_threshold) / 2 ? 'red' : 'amber';
+  return 'green';
+}
+
 const INTERVALS = {
   daily: 1, weekly: 7, biweekly: 14, monthly: 30, quarterly: 91,
   'semi-annual': 182, semiannual: 182, annual: 365, yearly: 365,

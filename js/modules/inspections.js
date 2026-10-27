@@ -4,7 +4,7 @@ import {
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { loadTable } from './table-loader.js';
-import { inspectionDue, schoolToday, supplyStatus as inventoryStatus, supplyCategoryTone } from '../safety-status.js';
+import { inspectionDue, schoolToday, supplyStatus as inventoryStatus, supplyCategoryTone, supplyTone } from '../safety-status.js';
 import { openReportExport } from './reports.js';
 import { openInspectionCalendar } from './inspection-calendar.js';
 import { createActivityPanel, openRecordHistory } from './activity.js';
@@ -197,7 +197,7 @@ export async function safetyInspections(el) {
     { key: 'status', label: 'Status', render: (r) => pill(r.status === 'fail' ? 'Failed' : r.status.replace(/\b\w/g, (c) => c.toUpperCase())) },
     { key: 'risk_level', label: 'Risk level', render: (r) => r.risk_level ? pill(r.risk_level) : 'Not recorded' },
     { key: 'inspector', label: 'Inspector', render: (r) => r.inspector || 'Unassigned' },
-    { key: 'actions', label: 'Actions', render: (r) => rowActions(
+    { key: 'actions', label: 'Actions', cls: 'workspace-actions-column', cellCls: 'workspace-actions-cell', render: (r) => rowActions(
       () => viewRecord('Inspection details: ' + r.item, {
         ...r, next_due: inspectionDue(r),
       }, [...inspectionDetails, { key: 'next_due', label: 'Next due', type: 'date' }],
@@ -214,12 +214,14 @@ export async function safetyInspections(el) {
     },
     onFilteredRows: (filtered) => { filteredRows = filtered; },
     table: 'inspections', columns, iconName: 'fact_check', onRetry: () => safetyInspections(el),
-    title: 'Safety Inspections', subtitle: 'Track inspection items per area with frequency, status, and follow-up notes.',
-    actionLabel: 'Add inspection', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
+    title: 'Safety Inspections', subtitle: h('span', {}, 'Track inspection items per area with frequency, status, and follow-up notes.',
+      h('span', { class: 'inspection-subtitle-note' }, 'Keep your campus safe and compliant.')),
+    actionLabel: 'Add Inspection Item', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
     searchKeys: ['item', 'area', 'inspector', 'status', 'notes', 'risk_level'],
     searchPlaceholder: 'Search item, area, status or inspector…',
     transformRows: (rows) => rows.map((r) => ({ ...r, next_due: inspectionDue(r) })),
-    dateFilter: { key: 'next_due', label: 'Next due date' },
+    dateFilter: { key: 'next_due', label: 'Next due date', compact: true },
+    paginationStyle: 'numbered',
     selectFilters: [
       { key: 'status', label: 'All statuses', options: ['pending', 'passed', 'due soon', 'fail', 'overdue'].map((v) => ({ label: v === 'fail' ? 'Failed' : v, value: v })) },
       { key: 'area', label: 'All areas', options: [] },
@@ -245,23 +247,30 @@ export async function safetyInspections(el) {
   [{ label: 'Edit inspection', onClick: () => edit(record) }]);
   const upcoming = rows.filter((r) => r.next_due && r.next_due >= schoolToday())
     .sort((a, b) => a.next_due.localeCompare(b.next_due));
-  const panel = (title, ...children) => h('section', { class: 'inspection-panel' },
-    h('h3', { class: 'font-bold text-gray-900 mb-3' }, title), ...children);
+  const panel = (title, ...children) => {
+    const viewAll = children[0]?.classList?.contains('inspection-view-all') ? children.shift() : null;
+    return h('section', { class: 'inspection-panel' + (title === 'Quick Actions' ? ' inspection-quick-actions' : '') },
+      h('div', { class: 'inspection-panel-heading' }, h('h3', { class: 'font-bold text-gray-900' }, title), viewAll), ...children);
+  };
+  const shortcutIcon = (name) => h('span', { class: 'inspection-shortcut-icon' }, icon(name));
+  const scheduleBadge = (r) => r.status === 'due soon' ? pill('Due Soon', 'amber')
+    : r.status === 'fail' ? pill('Failed', 'red') : pill('Scheduled', 'green');
   const aside = h('aside', { class: 'inspection-aside', 'aria-label': 'Inspection tools and schedule' },
     panel('Quick Actions',
       h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => edit(null) },
-        icon('add'), h('span', {}, 'Add Inspection Item', h('small', {}, 'Create a new inspection record'))),
+        shortcutIcon('add'), h('span', {}, 'Add Inspection Item', h('small', {}, 'Create a new inspection record'))),
       h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => openInspectionCalendar(rows, show) },
-        icon('calendar_month'), h('span', {}, 'View Calendar', h('small', {}, 'Check scheduled inspections'))),
+        shortcutIcon('calendar_month'), h('span', {}, 'View Calendar', h('small', {}, 'Check scheduled inspections'))),
       h('button', { type: 'button', class: 'inspection-shortcut', onclick: () =>
         openReportExport('inspections', selectedRows.length ? selectedRows : filteredRows, selectedRows.length > 0),
-      }, icon('download'), h('span', {}, 'Export Report', h('small', {}, 'Download CSV or print to PDF')))),
+      }, shortcutIcon('download'), h('span', {}, 'Export Report', h('small', {}, 'Download CSV or print to PDF')))),
     panel('Upcoming Inspections',
       h('button', { type: 'button', class: 'inspection-view-all', onclick: () => openInspectionCalendar(rows, show) }, 'View All'),
-      ...upcoming.slice(0, 5).map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => show(r) },
-        icon('calendar_month'), h('span', {}, formatDate(r.next_due), h('small', {}, r.item + ' · ' + r.area)), pill(r.status))),
+      ...upcoming.slice(0, 3).map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => show(r) },
+        h('span', { class: 'inspection-schedule-icon ' + (r.status === 'due soon' ? 'schedule-due' : 'schedule-ready') }, icon('calendar_month')),
+        h('span', {}, formatDate(r.next_due), h('small', {}, r.item + ' · ' + r.area)), scheduleBadge(r))),
       !upcoming.length ? h('p', { class: 'text-sm text-gray-500' }, 'No upcoming inspections recorded.') : null),
-    createActivityPanel({ table: 'inspections', onView: (snapshot, event) => {
+    createActivityPanel({ table: 'inspections', limit: 3, onView: (snapshot, event) => {
       const current = rows.find((r) => String(r.id) === String(event.record_id));
       if (current) show(current);
       else viewRecord('Inspection activity snapshot', snapshot, [
@@ -269,6 +278,11 @@ export async function safetyInspections(el) {
       ]);
     } }));
   shell.appendChild(aside);
+  main.appendChild(h('aside', { class: 'inspection-safety-note', 'aria-label': 'Campus safety reminder' },
+    h('span', { class: 'safety-note-icon' }, icon('security')),
+    h('div', {}, h('strong', {}, 'A safer campus is a stronger campus.'),
+      h('p', {}, 'Conduct regular inspections, address vulnerabilities, and keep everyone safe.')),
+    h('img', { src: '/assets/safety-campus.svg', alt: '', 'aria-hidden': 'true' })));
 
 }
 
@@ -359,7 +373,7 @@ export async function emergencyRoles(el) {
       { key: 'zone', label: 'Zone' },
       { key: 'staff', label: 'Assigned staff' },
       { key: 'backup', label: 'Backup', render: (r) => r.backup || '—' },
-      { key: 'actions', label: 'Actions', render: (r) => rowActions(() => show(r), () => edit(r)) },
+      { key: 'actions', label: 'Actions', cls: 'workspace-actions-column', cellCls: 'workspace-actions-cell', render: (r) => rowActions(() => show(r), () => edit(r)) },
     ],
     searchKeys: ['role', 'staff', 'zone', 'backup', 'building', 'floor'],
     searchPlaceholder: 'Search role, floor, zone or person…',
@@ -382,7 +396,7 @@ const supplyFields = [
 // Preserve the existing exported status shape for callers of this module.
 export function supplyStatus(record, now = new Date()) {
   const label = inventoryStatus(record, schoolToday(now));
-  return { label, tone: ({ 'Expired': 'red', 'Expiring Soon': 'amber', 'Low Stock': 'red', 'In Stock': 'green' })[label] };
+  return { label, tone: supplyTone(record, schoolToday(now)) };
 }
 
 export async function firstAidSupplies(el) {
@@ -417,15 +431,15 @@ export async function firstAidSupplies(el) {
     { key: 'location', label: 'Location' },
     { key: 'expiry', label: 'Expiry date', render: (r) => formatDate(r.expiry) },
     { key: 'reorder_threshold', label: 'Reorder threshold' },
-    { key: 'stock_status', label: 'Status', render: (r) => pill(stock(r)) },
-    { key: 'actions', label: 'Actions', render: (r) => rowActions(
+    { key: 'stock_status', label: 'Status', render: (r) => pill(stock(r), supplyTone(r)) },
+    { key: 'actions', label: 'Actions', cls: 'workspace-actions-column', cellCls: 'workspace-actions-cell', render: (r) => rowActions(
       () => show(r),
       () => edit(r),
       { compact: true, onMore: () => moreActions(r) },
     ) },
   ];
-  return loadTable(el, {
-    table: 'supplies', columns, iconName: 'medical_services',
+  const rows = await loadTable(el, {
+    table: 'supplies', columns, iconName: 'medical_services', onRetry: () => firstAidSupplies(el),
     title: 'First Aid Supplies', subtitle: 'Track first aid stock by category and location. Expiring Soon means expiry within 30 days; expired items take priority over low stock.',
     actionLabel: 'Add supply', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
     secondaryActionLabel: 'Notify Stock Handlers', secondaryActionIcon: 'notifications',
@@ -436,4 +450,6 @@ export async function firstAidSupplies(el) {
     searchPlaceholder: 'Search by item, location or unit…',
     empty: { title: 'No supplies tracked yet', text: 'Add the first supply item to begin inventory tracking.' },
   });
+  el.firstElementChild?.classList.add('supplies-workspace');
+  return rows;
 }
