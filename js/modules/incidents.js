@@ -18,6 +18,16 @@ const CONTACT_FIELDS = [
   { key: 'email', label: 'Email address', type: 'email' },
 ];
 
+// Present a service category even for older contacts stored with a staff-role label.
+const contactEmergencyType = (role) => {
+  const value = String(role || '').trim();
+  if (/nurs|physician|clinic|hospital|medical|health|doctor/i.test(value)) return 'Medical';
+  if (/secur|police|guard/i.test(value)) return 'Security';
+  if (/fire/i.test(value)) return 'Fire';
+  if (/rescue|ambulance/i.test(value)) return 'Rescue';
+  return value || 'Other';
+};
+
 export async function emergencyContacts(el) {
   const admin = isAdmin();
   const edit = (r) => recordForm({
@@ -26,10 +36,12 @@ export async function emergencyContacts(el) {
     onSaved: () => emergencyContacts(el),
   });
   const show = (r) => viewRecord('Emergency contact details', {
-    ...r, status_label: r.active === false ? 'Inactive' : 'Active',
+    ...r, contact_type: contactEmergencyType(r.role),
+    status_label: r.active === false ? 'Inactive' : 'Active',
   }, [
     { key: 'name', label: 'Contact person / organization' },
-    { key: 'role', label: 'Emergency type / service' },
+    { key: 'contact_type', label: 'Emergency type' },
+    { key: 'role', label: 'Service / role' },
     { key: 'phone', label: 'Contact number' },
     { key: 'email', label: 'Email' },
     { key: 'status_label', label: 'Status' },
@@ -54,7 +66,7 @@ export async function emergencyContacts(el) {
   };
   const columns = [
     { key: 'name', label: 'Contact person', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
-    { key: 'role', label: 'Emergency type', render: (r) => r.role || 'School / agency' },
+    { key: 'role', label: 'Emergency type', render: (r) => contactEmergencyType(r.role) },
     { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
     { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'Inactive' : 'Active') },
     { key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
