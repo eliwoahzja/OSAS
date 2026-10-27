@@ -67,15 +67,7 @@ export async function emergencyContacts(el) {
     }
   };
   const columns = [
-    { key: 'name', label: 'Contact person', render: (r) => h('div', { class: 'flex flex-col items-start gap-1' },
-      h('span', { class: 'font-semibold text-gray-900' }, r.name),
-      // Keep View accessible without horizontal scrolling on narrow displays.
-      h('button', {
-        type: 'button', class: 'sm:hidden text-xs font-semibold text-pink-600 underline underline-offset-2',
-        'aria-label': `View details for ${r.name}`,
-        onclick: () => show(r),
-      }, 'View details'),
-    ) },
+    { key: 'name', label: 'Contact person', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
     { key: 'role', label: 'Emergency type', render: (r) => contactEmergencyType(r.role) },
     { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
     { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'Inactive' : 'Active') },
