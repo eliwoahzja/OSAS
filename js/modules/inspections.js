@@ -4,6 +4,7 @@ import {
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { loadTable } from './table-loader.js';
+import { viewRecord, recordForm, rowActions } from './record-actions.js';
 
 const CLINIC_RE = /nurse|clinic|health/i;
 
@@ -155,25 +156,68 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
   const modal = openModal(content);
 }
 
+const INSPECTION_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'semi-annual', 'annual'];
+const INSPECTION_DAYS = { daily: 1, weekly: 7, biweekly: 14, monthly: 30, quarterly: 91, 'semi-annual': 182, annual: 365 };
+const inspectionFields = [
+  { key: 'item', label: 'Inspection item', required: true, maxLength: 255 },
+  { key: 'area', label: 'Area / location', required: true, maxLength: 255 },
+  { key: 'frequency', label: 'Frequency', type: 'select', required: true, defaultValue: 'monthly', options: INSPECTION_FREQUENCIES.map((v) => ({ value: v, label: v })) },
+  { key: 'last_inspected', label: 'Last inspected', type: 'date' },
+  { key: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'pending', options: ['pending', 'passed', 'fail', 'overdue'].map((v) => ({ value: v, label: v })) },
+  { key: 'inspector', label: 'Inspector' },
+  { key: 'notes', label: 'Findings / follow-up notes', type: 'textarea', wide: true },
+];
+const inspectionDetails = [
+  ...inspectionFields.map(({ key, label, type }) => ({ key, label, type })),
+  { key: 'risk_level', label: 'Risk classification' },
+  { key: 'photo_url', label: 'Inspection photo' },
+  { key: 'created_at', label: 'Record created', type: 'date' },
+];
+function inspectionDue(record) {
+  const interval = INSPECTION_DAYS[String(record.frequency || '').toLowerCase().trim()];
+  if (!interval || !record.last_inspected) return null;
+  const d = new Date(String(record.last_inspected).slice(0, 10) + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + interval);
+  return d.toISOString().slice(0, 10);
+}
 export async function safetyInspections(el) {
-  const columns = [
-    { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
-    { key: 'item', label: 'Inspection Item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
-    { key: 'area', label: 'Area / Location' },
-    { key: 'frequency', label: 'Frequency' },
-    { key: 'last_inspected', label: 'Last Inspected', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.last_inspected)) },
-    { key: 'status', label: 'Status', render: (r) => pill(r.status) },
-    { key: 'inspector', label: 'Inspector' },
-    { key: 'notes', label: 'Follow-up Notes', render: (r) => r.notes ? h('span', { class: 'block max-w-[300px] text-gray-600' }, r.notes) : h('span', { class: 'text-gray-300' }, '—') },
-  ];
-  return loadTable(el, {
-    table: 'inspections', columns, iconName: 'fact_check',
-    title: 'Safety Inspection Checklist',
-    subtitle: 'Track inspection items per area with frequency, status, and follow-up notes. Items past their due date are auto-flagged Overdue.',
-    searchKeys: ['item', 'area', 'inspector', 'status', 'notes'],
-    searchPlaceholder: 'Search by item, area, or inspector…',
-    empty: { title: 'No inspections recorded yet', text: 'Add the first inspection item to start the compliance checklist.' },
+  if (!isAdmin()) { el.replaceChildren(errorBanner('Safety inspections are visible to administrators only.')); return; }
+  const edit = (record) => recordForm({
+    title: record ? 'Edit inspection' : 'Add inspection', table: 'inspections',
+    record, fields: inspectionFields, onSaved: () => safetyInspections(el),
   });
+  const columns = [
+    { key: 'item', label: 'Inspection item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
+    { key: 'area', label: 'Area / location' },
+    { key: 'status', label: 'Status', render: (r) => pill(r.status) },
+    { key: 'risk_level', label: 'Risk', render: (r) => r.risk_level || 'Not recorded' },
+    { key: 'last_inspected', label: 'Last check', render: (r) => formatDate(r.last_inspected) },
+    { key: 'next_due', label: 'Next due', render: (r) => formatDate(inspectionDue(r)) },
+    { key: 'inspector', label: 'Inspector', render: (r) => r.inspector || 'Unassigned' },
+    { key: 'actions', label: 'Actions', render: (r) => rowActions(
+      () => viewRecord('Inspection details: ' + r.item, {
+        ...r, next_due: inspectionDue(r),
+      }, [...inspectionDetails, { key: 'next_due', label: 'Next due', type: 'date' }],
+      [{ label: 'Edit inspection', onClick: () => edit(r) }]),
+      () => edit(r),
+    ) },
+  ];
+  const rows = await loadTable(el, {
+    table: 'inspections', columns, iconName: 'fact_check',
+    title: 'Safety Inspections', subtitle: 'Review inspection status, due dates and documented findings.',
+    actionLabel: 'Add inspection', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
+    searchKeys: ['item', 'area', 'inspector', 'status', 'notes', 'risk_level'],
+    searchPlaceholder: 'Search item, area, status or inspector…',
+    selectFilters: [{ key: 'status', label: 'All statuses', options: ['pending', 'passed', 'fail', 'overdue'].map((v) => ({ label: v, value: v })) }],
+    empty: { title: 'No inspections recorded yet', text: 'Add an inspection item to track safety checks.' },
+  });
+  if (!Array.isArray(rows) || !rows.length) return;
+  const upcoming = rows.map((r) => ({ record: r, due: inspectionDue(r) })).filter((r) => r.due && r.due >= new Date().toISOString().slice(0, 10)).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5);
+  if (upcoming.length) el.firstElementChild?.appendChild(h('section', { class: 'bg-white border border-gray-100 rounded-2xl p-5' },
+    h('h3', { class: 'font-bold text-gray-900 mb-3' }, 'Upcoming inspections'),
+    h('ul', { class: 'space-y-2' }, upcoming.map(({ record, due }) => h('li', { class: 'flex flex-wrap justify-between gap-2 text-sm' },
+      h('span', {}, record.item + ' · ' + record.area), h('span', { class: 'font-semibold' }, formatDate(due)))))));
 }
 
 export async function emergencyRoles(el) {
@@ -194,33 +238,46 @@ export async function emergencyRoles(el) {
   });
 }
 
+const supplyFields = [
+  { key: 'item', label: 'Item name', required: true, maxLength: 255 },
+  { key: 'quantity', label: 'Quantity', type: 'number', min: 0, required: true },
+  { key: 'unit', label: 'Unit', maxLength: 20 },
+  { key: 'location', label: 'Storage location', required: true, maxLength: 255 },
+  { key: 'expiry', label: 'Expiration date', type: 'date' },
+  { key: 'reorder_threshold', label: 'Reorder threshold', type: 'number', min: 0, required: true, defaultValue: 0 },
+  { key: 'last_restocked', label: 'Last restocked', type: 'date' },
+];
 export async function firstAidSupplies(el) {
-  // Defence in depth: the route is administrators-only, but never render the
-  // stock tables for anyone else even if this is reached directly.
-  if (!isAdmin()) {
-    el.replaceChildren(errorBanner('First aid supplies are visible to administrators only.'));
-    return;
-  }
+  if (!isAdmin()) { el.replaceChildren(errorBanner('First aid supplies are visible to administrators only.')); return; }
+  const edit = (record) => recordForm({
+    title: record ? 'Edit first aid supply' : 'Add first aid supply',
+    table: 'supplies', record, fields: supplyFields, onSaved: () => firstAidSupplies(el),
+  });
+  const stock = (r) => Number(r.quantity) <= Number(r.reorder_threshold) ? 'low' : 'ok';
   const columns = [
-    { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'item', label: 'Item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
-    { key: 'quantity', label: 'Quantity', render: (r) => h('span', { class: `font-bold ${Number(r.quantity) <= Number(r.reorder_threshold) ? 'text-red-600' : 'text-gray-900'}` }, `${r.quantity} ${r.unit || ''}`.trim()) },
+    { key: 'quantity', label: 'Quantity', render: (r) => h('span', { class: stock(r) === 'low' ? 'font-bold text-red-600' : 'font-semibold text-gray-900' }, `${r.quantity} ${r.unit || ''}`.trim()) },
     { key: 'location', label: 'Location' },
-    { key: 'expiry', label: 'Expiry Date', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.expiry)) },
-    { key: 'reorder_threshold', label: 'Reorder Threshold', render: (r) => h('span', { class: 'text-gray-500' }, r.reorder_threshold) },
-    { key: 'last_restocked', label: 'Last Restocked', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.last_restocked)) },
-    { key: 'status', label: 'Status', render: (r) => pill(Number(r.quantity) <= Number(r.reorder_threshold) ? 'low' : 'ok') },
+    { key: 'expiry', label: 'Expiry', render: (r) => formatDate(r.expiry) },
+    { key: 'reorder_threshold', label: 'Reorder at' },
+    { key: 'status', label: 'Stock status', render: (r) => pill(stock(r)) },
+    { key: 'actions', label: 'Actions', render: (r) => rowActions(
+      () => viewRecord('Supply details: ' + r.item, {
+        ...r, stock_status: stock(r),
+      }, [...supplyFields.map(({ key, label, type }) => ({ key, label, type })),
+        { key: 'stock_status', label: 'Stock status' }, { key: 'created_at', label: 'Record created', type: 'date' }],
+      [{ label: 'Edit supply', onClick: () => edit(r) }]),
+      () => edit(r),
+    ) },
   ];
   return loadTable(el, {
     table: 'supplies', columns, iconName: 'medical_services',
-    title: 'First Aid Supplies Monitor',
-    subtitle: 'Stock levels with expiry dates and reorder thresholds. Items at or below threshold are flagged Low automatically.',
-    actionLabel: isAdmin() ? 'Notify Stock Handlers' : null,
-    actionIcon: 'notifications',
-    actionClass: 'px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-2 clickable shrink-0',
-    onAction: (e) => promptNotifyStockHandlers(null, e?.currentTarget),
+    title: 'First Aid Supplies', subtitle: 'Review quantities, expiry dates and reorder thresholds using recorded stock data.',
+    actionLabel: 'Add supply', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
+    secondaryActionLabel: 'Notify Stock Handlers', secondaryActionIcon: 'notifications',
+    onSecondaryAction: (e) => promptNotifyStockHandlers(null, e?.currentTarget),
     searchKeys: ['item', 'location', 'unit'],
-    searchPlaceholder: 'Search by item or location…',
-    empty: { title: 'No supplies tracked yet', text: 'Add the first first-aid item to start the stock monitor.' },
+    searchPlaceholder: 'Search by item, location or unit…',
+    empty: { title: 'No supplies tracked yet', text: 'Add the first supply item to begin inventory tracking.' },
   });
 }
