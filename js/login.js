@@ -227,13 +227,14 @@ export function showLogin({ onSuccess }) {
   const side = h('section', { class: 'lg-side' }, card);
 
   function otpForm({ kind, email, eyebrow, title, lead, submitLabel, verify, resend, back, remember = false }) {
+    const OTP_LENGTH = 6;
     const err = mkErr();
     const code = h('input', {
       type: 'text', class: 'lg-input lg-code', inputmode: 'numeric', autocomplete: 'one-time-code',
-      maxlength: '4', placeholder: '••••', required: true, 'aria-label': '4-digit verification code',
+      maxlength: String(OTP_LENGTH), placeholder: '••••••', required: true, 'aria-label': '6-digit verification code',
       'aria-describedby': 'otp-format-hint',
     });
-    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, 4); err.clear(); });
+    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, OTP_LENGTH); err.clear(); });
 
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, submitLabel);
     const resendBtn = h('button', { type: 'button', class: 'lg-link lg-inline', disabled: true }, '');
@@ -282,7 +283,7 @@ export function showLogin({ onSuccess }) {
       onsubmit: async (e) => {
         e.preventDefault();
         err.clear();
-        if (code.value.length !== 4) { err.show('Enter the 4-digit code from your email.'); return; }
+        if (code.value.length !== OTP_LENGTH) { err.show(`Enter the ${OTP_LENGTH}-digit code from your email.`); return; }
         submit.disabled = true;
         submit.classList.add('is-loading');
         submit.textContent = 'Verifying…';
@@ -415,7 +416,7 @@ export function showLogin({ onSuccess }) {
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'A 4-digit verification code will be emailed to you after your password is accepted.'),
+      h('p', { class: 'lg-hint' }, 'A 6-digit verification code will be emailed to you after your password is accepted.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
