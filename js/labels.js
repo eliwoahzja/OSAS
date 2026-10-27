@@ -24,9 +24,9 @@ export const INCIDENT_LABELS = {
     subtitle: 'Record medical, fire, security, and structural incidents. Incidents tied to a student can auto-notify their parents.',
     emptyTitle: 'No incidents logged yet',
     emptyText: 'Log the first incident — parent alerts can be sent straight from the form.',
-    saved: (id) => `Incident ${id} logged.`,
-    alertSent: (id, channel) => `Incident ${id} logged — parent alert sent via ${channel || 'email'}.`,
-    alertFailed: (id, message) => `Incident ${id} logged ⚠ ${message || 'Parent alert could not be sent.'}`,
+    saved: () => 'Incident logged.',
+    alertSent: (channel) => `Incident logged — parent alert sent via ${channel || 'email'}.`,
+    alertFailed: (message) => `Incident logged. Parent alert failed: ${message || 'The email could not be sent.'}`,
   },
   client: {
     nav: 'Report Incident',
@@ -36,9 +36,9 @@ export const INCIDENT_LABELS = {
     subtitle: 'File a report for medical, fire, security, or structural incidents on campus.',
     emptyTitle: 'No reports filed yet',
     emptyText: 'File the first report — a guardian alert can be sent from the form when needed.',
-    saved: (id) => `Report ${id} submitted.`,
-    alertSent: (id, channel) => `Report ${id} submitted — guardian alert sent via ${channel || 'email'}.`,
-    alertFailed: (id, message) => `Report ${id} submitted ⚠ ${message || 'Guardian alert could not be sent.'}`,
+    saved: () => 'Report submitted.',
+    alertSent: (channel) => `Report submitted — guardian alert sent via ${channel || 'email'}.`,
+    alertFailed: (message) => `Report submitted. Guardian alert failed: ${message || 'The email could not be sent.'}`,
   },
 };
 

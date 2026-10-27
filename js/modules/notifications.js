@@ -70,7 +70,6 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
   holder.appendChild(skeletonFilterRow);
 
   const notifColumns = [
-    { key: 'id', label: 'ID' },
     { key: 'notif_type', label: 'Type' },
     { key: 'message', label: 'Message' },
     { key: 'audience', label: 'Audience' },
@@ -161,7 +160,6 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
       return;
     }
     const columns = [
-      { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
       { key: 'notif_type', label: 'Type', render: (r) => notifBadge(r) },
       { key: 'message', label: 'Message', render: (r) => h('span', { class: 'text-gray-900 block max-w-[320px]' }, r.message) },
       { key: 'audience', label: 'Audience', render: (r) => audienceCell(r) },
@@ -285,7 +283,7 @@ function composer(el) {
 
       const incSel = h('select', { class: inputCls, onchange: (e) => { f.related_incident_id = e.target.value; } },
         h('option', { value: '' }, 'No related incident log'),
-        inc.map((i) => h('option', { value: i.id, selected: i.id === f.related_incident_id }, `${i.id} · ${capitalize(i.type)} — ${i.location}`)));
+        inc.map((i) => h('option', { value: i.id, selected: i.id === f.related_incident_id }, `${capitalize(i.type)} — ${i.location} · ${formatDate(i.date)}${i.time ? `, ${i.time}` : ''}`)));
       fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Related Incident Log (optional)'), incSel));
 
       const recipientChoice = (value, title, hint, checked) => checkRow({

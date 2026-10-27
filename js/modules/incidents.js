@@ -181,7 +181,6 @@ function contactForm(el) {
 export async function incidentLogging(el) {
   const L = incidentLabels(isAdmin());
   const columns = [
-    { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'date', label: 'Date / Time', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
     { key: 'type', label: 'Type', render: (r) => pill(r.type) },
     { key: 'location', label: 'Location' },
@@ -310,9 +309,9 @@ function incidentForm(el) {
           message: f.description.trim(),
           contact_method: 'email',
         });
-        toast(res.ok ? L.alertSent(created.id, res.channel) : L.alertFailed(created.id, res.error), res.ok ? 'success' : 'error');
+        toast(res.ok ? L.alertSent(res.channel) : L.alertFailed(res.error), res.ok ? 'success' : 'error');
       } else {
-        toast(L.saved(created.id));
+        toast(L.saved());
       }
       closeModal();
       incidentLogging(el);
