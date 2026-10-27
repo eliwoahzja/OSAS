@@ -13,169 +13,142 @@ export const SEVERITIES = ['low', 'medium', 'high'];
 
 const CONTACT_FIELDS = [
   { key: 'name', label: 'Contact person / organization', required: true, maxLength: 255 },
+  { key: 'role', label: 'Emergency type / service', required: true, maxLength: 255 },
   { key: 'phone', label: 'Contact number', required: true, maxLength: 50 },
   { key: 'email', label: 'Email address', type: 'email' },
-  { key: 'relationship', label: 'Relationship / organization' },
-  { key: 'priority', label: 'Priority', type: 'number', min: 1 },
 ];
+
 export async function emergencyContacts(el) {
   const admin = isAdmin();
-  const studentDisplay = (r) => {
-    const s = Array.isArray(r.students) ? r.students[0] : r.students;
-    return s ? `${s.name}${s.grade ? ` · Grade ${s.grade}` : ''}` : 'Not linked';
-  };
   const edit = (r) => recordForm({
     title: 'Edit emergency contact', table: 'emergency_contacts', record: r,
-    fields: r.category === 'school'
-      ? [...CONTACT_FIELDS, { key: 'role', label: 'Service / contact type', required: true }]
-      : CONTACT_FIELDS,
-    validate: (p) => p.phone?.length > 50 ? 'Contact number is too long.' : '',
+    fields: CONTACT_FIELDS,
     onSaved: () => emergencyContacts(el),
   });
   const show = (r) => viewRecord('Emergency contact details', {
-    ...r,
-    contact_type: r.category === 'school' ? (r.role || 'School / agency') : 'Parent / Guardian',
-    student: studentDisplay(r),
-    status_label: r.active === false ? 'Inactive' : 'Active',
+    ...r, status_label: r.active === false ? 'Inactive' : 'Active',
   }, [
     { key: 'name', label: 'Contact person / organization' },
-    { key: 'contact_type', label: 'Emergency service / type' },
+    { key: 'role', label: 'Emergency type / service' },
     { key: 'phone', label: 'Contact number' },
     { key: 'email', label: 'Email' },
-    { key: 'relationship', label: 'Relationship' },
-    { key: 'student', label: 'Linked student' },
-    { key: 'priority', label: 'Priority' },
     { key: 'status_label', label: 'Status' },
-  ], admin ? [{ label: 'Edit contact', onClick: () => edit(r) }, { label: 'Delete contact', onClick: () => confirmDelete({ title: r.name, table: 'emergency_contacts', record: r, onSaved: () => emergencyContacts(el) }) }] : []);
+  ], admin ? [
+    { label: 'Edit contact', onClick: () => edit(r) },
+    { label: 'Delete contact', onClick: () => confirmDelete({
+      title: r.name, table: 'emergency_contacts', record: r,
+      onSaved: () => emergencyContacts(el),
+    }) },
+  ] : []);
   const toggle = async (r, button) => {
-    if (!isAdmin() || typeof r.active !== 'boolean') return;
+    if (!admin) return;
     button.disabled = true;
     try {
-      await api.updateRow('emergency_contacts', r.id, { active: !r.active });
-      toast(r.active ? 'Contact deactivated.' : 'Contact activated.');
+      await api.updateRow('emergency_contacts', r.id, { active: r.active === false });
+      toast(r.active === false ? 'Contact activated.' : 'Contact deactivated.');
       await emergencyContacts(el);
-    } catch (e) { toast(e.message || 'Could not update contact status.', 'error'); button.disabled = false; }
+    } catch (e) {
+      toast(e.message || 'Could not update contact status.', 'error');
+      button.disabled = false;
+    }
   };
   const columns = [
     { key: 'name', label: 'Contact person', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
-    { key: 'contact_type', label: 'Emergency service / type', render: (r) => r.category === 'school' ? (r.role || 'School / agency') : 'Parent / Guardian' },
+    { key: 'role', label: 'Emergency type', render: (r) => r.role || 'School / agency' },
     { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
-    { key: 'email', label: 'Email', render: (r) => r.email || '—' },
-    { key: 'student', label: 'Linked student', render: (r) => r.category === 'student' ? studentDisplay(r) : '—' },
-    { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'inactive' : 'active') },
+    { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'Inactive' : 'Active') },
     { key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
       rowActions(() => show(r), admin ? () => edit(r) : null),
-      admin && typeof r.active === 'boolean' ? h('button', {
+      admin ? h('button', {
         type: 'button', class: 'btn-ghost text-xs',
-        title: r.active ? 'Deactivate contact' : 'Activate contact',
-        'aria-label': r.active ? 'Deactivate contact' : 'Activate contact',
+        title: r.active === false ? 'Activate contact' : 'Deactivate contact',
+        'aria-label': r.active === false ? 'Activate contact' : 'Deactivate contact',
         onclick: (e) => toggle(r, e.currentTarget),
-      }, r.active ? 'Deactivate' : 'Activate') : null,
+      }, r.active === false ? 'Activate' : 'Deactivate') : null,
     ) },
   ];
   return loadTable(el, {
-    table: 'emergency_contacts', columns, iconName: 'contacts',
-    title: 'Emergency Contacts',
-    subtitle: 'School responders, emergency services and linked guardians. Contact details come from verified school records.',
+    table: 'emergency_contacts', filters: { category: 'school' },
+    columns, iconName: 'contacts', title: 'Emergency Contacts',
+    subtitle: 'Verified school personnel and nearby emergency services. Parent / guardian contacts are kept outside this directory.',
     actionLabel: 'Add contact', actionIcon: 'add', onAction: () => contactForm(el),
     adminAction: true,
-    searchKeys: ['name', 'email', 'phone', 'relationship', 'role'],
-    searchPlaceholder: 'Search by person, organization, phone or email…',
+    searchKeys: ['name', 'phone', 'role'],
+    searchPlaceholder: 'Search by name, agency, or contact number…',
     selectFilters: [
-      { key: 'category', label: 'All contact types', options: [{ value: 'student', label: 'Parents / Guardians' }, { value: 'school', label: 'School / agency' }] },
-      { key: 'active', label: 'All statuses', options: [{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }] },
+      { key: 'active', label: 'All statuses', options: [
+        { value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' },
+      ] },
     ],
-    empty: { title: 'No emergency contacts', text: 'Administrators add verified school and emergency responders here.' },
+    empty: {
+      title: 'No school emergency contacts',
+      text: 'Administrators can add verified school staff and nearby emergency agencies.',
+    },
   });
 }
 
 function contactForm(el) {
+  if (!isAdmin()) return;
   let closeModal = () => {};
-  const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
-    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Add Emergency Contact')),
+  const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100' },
+    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' },
+      h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Add School Emergency Contact')),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
   const grid = form.querySelector('.grid');
-  const f = { category: 'student', name: '', relationship: '', role: 'School Nurse', phone: '', email: '', priority: '', studentId: '' };
-
-  const txt = (label, placeholder, onChange) => h('div', {},
-    h('label', { class: labelCls }, label),
-    h('input', { class: inputCls, placeholder, oninput: (e) => onChange(e.target.value) }));
-
-  const catSel = h('select', {
-    class: inputCls,
-    onchange: (e) => { f.category = e.target.value; syncCategory(); },
-  },
-  h('option', { value: 'student' }, 'Parent / Guardian'),
-  h('option', { value: 'school' }, 'School / Agency responder'));
-  grid.appendChild(h('div', {}, h('label', { class: labelCls }, 'Type'), catSel));
-
-  grid.appendChild(txt('Full Name', 'e.g. Ms. Ana Reyes', (v) => { f.name = v; }));
-  grid.appendChild(txt('Phone', 'e.g. 0917 555 1000', (v) => { f.phone = v; }));
-  grid.appendChild(txt('Email', 'Email address (optional)', (v) => { f.email = v; }));
-  grid.appendChild(h('p', { class: 'lg-field-hint sm:col-span-2' }, 'Phone format: 11-digit mobile (09xx xxx xxxx) or landline (02) 8-xxx-xxxx. Email format: name@domain.com.'));
-
-  const studentWrap = h('div', { class: 'sm:col-span-2' });
-  grid.appendChild(studentWrap);
-  const schoolWrap = h('div', { class: 'sm:col-span-2 hidden' });
-  grid.appendChild(schoolWrap);
-
-  const studentSel = h('select', { class: inputCls, onchange: (e) => { f.studentId = e.target.value; } }, h('option', { value: '' }, 'No linked student (general parent)'));
-  api.listRows('students').then((students) => {
-    students.forEach((s) => studentSel.appendChild(h('option', { value: s.id }, `${s.name} — Grade ${s.grade}${s.section ? ` (${s.section})` : ''}`)));
-  }).catch(() => {});
-
-  const roleSel = h('select', { class: inputCls, onchange: (e) => { f.role = e.target.value; } },
-    ['School Nurse', 'School Physician', 'Security Head', 'Nearest Police Station', 'Nearest Fire Station', 'Nearest Hospital', 'OSAS Staff', 'Custodian'].map((r) =>
-      h('option', { value: r, selected: r === f.role }, r)));
-
-  function syncCategory() {
-    if (f.category === 'school') {
-      studentWrap.classList.add('hidden');
-      schoolWrap.classList.remove('hidden');
-      schoolWrap.replaceChildren(h('label', { class: labelCls }, 'Role'), roleSel);
-    } else {
-      schoolWrap.classList.add('hidden');
-      studentWrap.classList.remove('hidden');
-      studentWrap.replaceChildren(h('label', { class: labelCls }, 'Linked Student (optional)'), studentSel);
-    }
-  }
-  syncCategory();
-
-  grid.appendChild(txt('Relationship (optional)', 'e.g. Mother, Guard', (v) => { f.relationship = v; }));
-  grid.appendChild(txt('Priority (optional)', '1 = highest, e.g. 1', (v) => { f.priority = v; }));
-
-  const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
+  const fields = [
+    { key: 'name', label: 'Contact person / organization', placeholder: 'e.g. School Nurse' },
+    { key: 'role', label: 'Emergency type / service', placeholder: 'e.g. Medical, Security, Fire' },
+    { key: 'phone', label: 'Contact number', placeholder: 'Verified emergency phone number' },
+    { key: 'email', label: 'Email (optional)', placeholder: 'name@domain.com', type: 'email' },
+  ];
+  const controls = {};
+  fields.forEach((f) => {
+    controls[f.key] = h('input', {
+      type: f.type || 'text', class: inputCls,
+      placeholder: f.placeholder,
+      required: f.key !== 'email',
+      maxLength: f.key === 'phone' ? 50 : 255,
+    });
+    grid.appendChild(h('div', {},
+      h('label', { class: labelCls }, f.label), controls[f.key]));
+  });
+  const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600' });
+  const submit = h('button', { type: 'submit', class: 'btn-primary' }, icon('add', 'text-base'), 'Save Contact');
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
-    h('button', { type: 'submit', class: 'btn-primary' }, icon('add', 'text-base'), 'Save Contact'),
+    submit,
     h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!f.name.trim() || !f.phone.trim()) { errBox.textContent = 'Name and phone are required.'; errBox.classList.remove('hidden'); return; }
-    if (f.category === 'school' && !f.role.trim()) { errBox.textContent = 'Assign a role for the school / agency responder.'; errBox.classList.remove('hidden'); return; }
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!isAdmin()) return;
+    const name = controls.name.value.trim();
+    const role = controls.role.value.trim();
+    const phone = controls.phone.value.trim();
+    const email = controls.email.value.trim();
+    if (!name || !role || !phone) {
+      errBox.textContent = 'Contact person, emergency type and phone are required.';
+      errBox.classList.remove('hidden');
+      return;
+    }
     errBox.classList.add('hidden');
-    const btn = grid.querySelector('button[type="submit"]');
-    btn.disabled = true;
-    btn.textContent = 'Saving…';
-    const priority = f.priority && !Number.isNaN(Number(f.priority)) ? Number(f.priority) : null;
-    const payload = f.category === 'school'
-      ? { category: 'school', name: f.name.trim(), role: f.role.trim(), relationship: f.relationship.trim() || null, phone: f.phone.trim(), email: f.email.trim() || null, priority }
-      : { category: 'student', name: f.name.trim(), relationship: f.relationship.trim() || null, phone: f.phone.trim(), email: f.email.trim() || null, student_id: f.studentId || null, priority };
+    submit.disabled = true;
+    submit.textContent = 'Saving…';
     try {
-      await api.insertRow('emergency_contacts', payload);
-      toast(`Contact ${f.name.trim()} added.`);
+      await api.insertRow('emergency_contacts', {
+        category: 'school', name, role, phone, email: email || null, active: true,
+      });
+      toast('Emergency contact added.');
       closeModal();
       emergencyContacts(el);
     } catch (err) {
       errBox.textContent = err.message || 'Could not save the contact.';
       errBox.classList.remove('hidden');
-      btn.disabled = false;
-      btn.textContent = 'Save Contact';
+      submit.disabled = false;
+      submit.textContent = 'Save Contact';
     }
   });
-
   closeModal = openModal(form).close;
+  controls.name.focus();
 }
 
 export async function incidentLogging(el) {
