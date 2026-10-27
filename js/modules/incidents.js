@@ -16,6 +16,7 @@ const CONTACT_FIELDS = [
   { key: 'role', label: 'Emergency type / service', required: true, maxLength: 255 },
   { key: 'phone', label: 'Contact number', required: true, maxLength: 50 },
   { key: 'email', label: 'Email address', type: 'email' },
+  { key: 'address', label: 'Address / location', type: 'textarea', wide: true },
 ];
 
 // Present a service category even for older contacts stored with a staff-role label.
@@ -44,6 +45,7 @@ export async function emergencyContacts(el) {
     { key: 'role', label: 'Service / role' },
     { key: 'phone', label: 'Contact number' },
     { key: 'email', label: 'Email' },
+    { key: 'address', label: 'Address / location' },
     { key: 'status_label', label: 'Status' },
   ], admin ? [
     { label: 'Edit contact', onClick: () => edit(r) },
@@ -65,11 +67,20 @@ export async function emergencyContacts(el) {
     }
   };
   const columns = [
-    { key: 'name', label: 'Contact person', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
+    { key: 'name', label: 'Contact person', render: (r) => h('div', { class: 'flex flex-col items-start gap-1' },
+      h('span', { class: 'font-semibold text-gray-900' }, r.name),
+      // Keep View accessible without horizontal scrolling on narrow displays.
+      h('button', {
+        type: 'button', class: 'sm:hidden text-xs font-semibold text-pink-600 underline underline-offset-2',
+        'aria-label': `View details for ${r.name}`,
+        onclick: () => show(r),
+      }, 'View details'),
+    ) },
     { key: 'role', label: 'Emergency type', render: (r) => contactEmergencyType(r.role) },
     { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
     { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'Inactive' : 'Active') },
-    ...(admin ? [{ key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
+    { key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
+      // Students always receive a read-only View action.
       rowActions(() => show(r), admin ? () => edit(r) : null),
       admin ? h('button', {
         type: 'button', class: 'btn-ghost text-xs',
@@ -77,7 +88,7 @@ export async function emergencyContacts(el) {
         'aria-label': r.active === false ? 'Activate contact' : 'Deactivate contact',
         onclick: (e) => toggle(r, e.currentTarget),
       }, r.active === false ? 'Activate' : 'Deactivate') : null,
-    ) }] : []),
+    ) },
   ];
   return loadTable(el, {
     table: 'emergency_contacts', filters: { category: 'school' },
@@ -112,16 +123,18 @@ function contactForm(el) {
     { key: 'role', label: 'Emergency type / service', placeholder: 'e.g. Medical, Security, Fire' },
     { key: 'phone', label: 'Contact number', placeholder: 'Verified emergency phone number' },
     { key: 'email', label: 'Email (optional)', placeholder: 'name@domain.com', type: 'email' },
+    { key: 'address', label: 'Address / location (optional)', placeholder: 'Verified address of the clinic, station, or office', type: 'textarea', wide: true },
   ];
   const controls = {};
   fields.forEach((f) => {
-    controls[f.key] = h('input', {
-      type: f.type || 'text', class: inputCls,
-      placeholder: f.placeholder,
-      required: f.key !== 'email',
-      maxLength: f.key === 'phone' ? 50 : 255,
-    });
-    grid.appendChild(h('div', {},
+    const attrs = {
+      class: inputCls, placeholder: f.placeholder, required: !['email', 'address'].includes(f.key),
+      maxLength: f.key === 'phone' ? 50 : (f.key === 'address' ? 500 : 255),
+    };
+    controls[f.key] = f.type === 'textarea'
+      ? h('textarea', { ...attrs, rows: 3 })
+      : h('input', { ...attrs, type: f.type || 'text' });
+    grid.appendChild(h('div', { class: f.wide ? 'sm:col-span-2' : '' },
       h('label', { class: labelCls }, f.label), controls[f.key]));
   });
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600' });
@@ -137,6 +150,7 @@ function contactForm(el) {
     const role = controls.role.value.trim();
     const phone = controls.phone.value.trim();
     const email = controls.email.value.trim();
+    const address = controls.address.value.trim();
     if (!name || !role || !phone) {
       errBox.textContent = 'Contact person, emergency type and phone are required.';
       errBox.classList.remove('hidden');
@@ -147,7 +161,8 @@ function contactForm(el) {
     submit.textContent = 'Saving…';
     try {
       await api.insertRow('emergency_contacts', {
-        category: 'school', name, role, phone, email: email || null, active: true,
+        category: 'school', name, role, phone, email: email || null,
+        address: address || null, active: true,
       });
       toast('Emergency contact added.');
       closeModal();
