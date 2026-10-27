@@ -21,7 +21,7 @@ const NAV = [
   { route: 'first-aid-supplies', label: 'First Aid Supplies', icon: 'medical_services', access: 'admin' },
   { route: 'risk-assessment', label: 'Risk Assessment', icon: 'security', access: 'admin' },
   { route: 'safety-reports', label: 'Safety Reports', icon: 'assessment', access: 'admin' },
-  { route: 'emergency-roles', label: 'Emergency Roles', icon: 'groups', access: 'admin' },
+  { route: 'emergency-roles', label: 'Emergency Roles', icon: 'groups', access: 'all' },
   { route: 'accounts', label: 'Accounts', icon: 'user-plus', access: 'admin' },
 ];
 
