@@ -49,9 +49,16 @@ export const MOCK = {
   ],
 
   supplies: [
-    { id: 'SU-001', item: 'Adhesive bandages (assorted)', quantity: 12, unit: 'boxes', location: 'Clinic Cabinet A', expiry: '2027-06-30', reorder_threshold: 5, last_restocked: '2026-07-20' },
-    { id: 'SU-002', item: 'Sterile gauze pads 4×4"', quantity: 3, unit: 'packs', location: 'Clinic Cabinet A', expiry: '2027-03-15', reorder_threshold: 5, last_restocked: '2026-05-18' },
-    { id: 'SU-008', item: 'Instant cold packs', quantity: 2, unit: 'pcs', location: 'Emergency Bag', expiry: '2026-10-20', reorder_threshold: 4, last_restocked: '2026-02-10' },
+    {"id": "SU-001", "item": "Adhesive bandages", "description": "Box of 100 pcs", "category": "Wound Care", "quantity": 12, "unit": "boxes", "location": "Clinic Cabinet A", "expiry": "2027-06-10", "reorder_threshold": 5},
+    {"id": "SU-008", "item": "Instant cold packs", "description": "Pack of 2", "category": "Emergency", "quantity": 2, "unit": "pcs", "location": "Emergency Bag", "expiry": "2026-10-13", "reorder_threshold": 4},
+    {"id": "SU-002", "item": "Sterile gauze pads (4x4)", "description": "Pack of 5", "category": "Wound Care", "quantity": 5, "unit": "packs", "location": "Clinic Cabinet A", "expiry": "2027-03-02", "reorder_threshold": 5},
+    {"id": "SU-003", "item": "Antiseptic solution", "description": "500ml bottle", "category": "Cleaning", "quantity": 8, "unit": "bottles", "location": "Clinic Cabinet B", "expiry": "2027-08-15", "reorder_threshold": 3},
+    {"id": "SU-004", "item": "Medical gloves", "description": "Box of 100", "category": "PPE", "quantity": 4, "unit": "boxes", "location": "Clinic Cabinet A", "expiry": "2026-05-12", "reorder_threshold": 5},
+    {"id": "SU-005", "item": "Thermometer", "description": "Digital", "category": "Equipment", "quantity": 6, "unit": "pcs", "location": "Clinic Cabinet B", "expiry": "2027-12-10", "reorder_threshold": 2},
+    {"id": "SU-006", "item": "Bandage rolls", "description": "4 inch", "category": "Wound Care", "quantity": 3, "unit": "rolls", "location": "Emergency Bag", "expiry": "2026-11-05", "reorder_threshold": 4},
+    {"id": "SU-007", "item": "CPR mask", "description": "With filter", "category": "Emergency", "quantity": 5, "unit": "pcs", "location": "First Aid Station", "expiry": "2028-01-20", "reorder_threshold": 2},
+    {"id": "SU-009", "item": "Instant ice packs", "description": "Pack of 2", "category": "Emergency", "quantity": 1, "unit": "pack", "location": "Emergency Bag", "expiry": "2026-09-08", "reorder_threshold": 3},
+    {"id": "SU-010", "item": "Alcohol wipes", "description": "Pack of 50", "category": "Cleaning", "quantity": 7, "unit": "packs", "location": "Clinic Cabinet A", "expiry": "2027-03-18", "reorder_threshold": 5},
   ],
 
   emergency_contacts: [

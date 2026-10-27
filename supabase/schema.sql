@@ -121,6 +121,8 @@ CREATE TABLE emergency_roles (
 CREATE TABLE supplies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     item VARCHAR(255) NOT NULL,
+    description TEXT,
+    category VARCHAR(80),
     quantity INT NOT NULL DEFAULT 0 CHECK (quantity >= 0),
     unit VARCHAR(20),
     location VARCHAR(255) NOT NULL,

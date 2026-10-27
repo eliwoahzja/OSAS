@@ -22,10 +22,17 @@ INSERT INTO drills (type, date, time, building, person_in_charge, status, notes)
   ('Fire', CURRENT_DATE - 30, '9:00 AM', 'Main Building', 'Mr. Lim', 'completed', 'Evacuated in 4 min 30 s.'),
   ('Earthquake', CURRENT_DATE + 30, '10:30 AM', 'Science Wing', 'Ms. Villar', 'upcoming', '');
 
-INSERT INTO supplies (item, quantity, unit, location, expiry, reorder_threshold, last_restocked) VALUES
-  ('Adhesive bandages', 12, 'boxes', 'Clinic Cabinet A', CURRENT_DATE + 300, 5, CURRENT_DATE - 25),
-  ('Sterile gauze pads (4x4)', 3, 'packs', 'Clinic Cabinet A', CURRENT_DATE + 200, 5, CURRENT_DATE - 90),
-  ('Instant cold packs', 2, 'pcs', 'Emergency Bag', CURRENT_DATE + 60, 4, CURRENT_DATE - 180);
+INSERT INTO supplies (item, description, category, quantity, unit, location, expiry, reorder_threshold) VALUES
+  ('Adhesive bandages', 'Box of 100 pcs', 'Wound Care', 12, 'boxes', 'Clinic Cabinet A', '2027-06-10', 5),
+  ('Instant cold packs', 'Pack of 2', 'Emergency', 2, 'pcs', 'Emergency Bag', '2026-10-13', 4),
+  ('Sterile gauze pads (4x4)', 'Pack of 5', 'Wound Care', 5, 'packs', 'Clinic Cabinet A', '2027-03-02', 5),
+  ('Antiseptic solution', '500ml bottle', 'Cleaning', 8, 'bottles', 'Clinic Cabinet B', '2027-08-15', 3),
+  ('Medical gloves', 'Box of 100', 'PPE', 4, 'boxes', 'Clinic Cabinet A', '2026-05-12', 5),
+  ('Thermometer', 'Digital', 'Equipment', 6, 'pcs', 'Clinic Cabinet B', '2027-12-10', 2),
+  ('Bandage rolls', '4 inch', 'Wound Care', 3, 'rolls', 'Emergency Bag', '2026-11-05', 4),
+  ('CPR mask', 'With filter', 'Emergency', 5, 'pcs', 'First Aid Station', '2028-01-20', 2),
+  ('Instant ice packs', 'Pack of 2', 'Emergency', 1, 'pack', 'Emergency Bag', '2026-09-08', 3),
+  ('Alcohol wipes', 'Pack of 50', 'Cleaning', 7, 'packs', 'Clinic Cabinet A', '2027-03-18', 5);
 
 INSERT INTO notifications (notif_type, priority, audience_group, title, message, event_start_at, event_end_at, contact_method, sent_at, delivery_status) VALUES
   ('event_notice', 'informational', 'All Parents', 'Foundation Day — Schedule',

@@ -120,3 +120,7 @@ Run `npm test` for status and date-boundary regression tests, and `npm run build
 The `complete_stakeholder_inventory_details` migration adds the optional supply description and restricts audit snapshots to administrators. It also protects the existing audit trigger function from direct client calls. For a fresh database, apply the files in `supabase/migrations/` in order after `schema.sql`; for an existing database, apply only missing migrations.
 
 The inspection reference layout shows all columns at 1440px and 1536px, uses a compact date-range control and numbered pages, and groups the schedule and activity panels beside the checklist at 1536px. Mobile action columns stay visible during horizontal table scrolling. Low Stock badges use amber above half the reorder threshold and red at or below half; expiry conditions keep their existing priority.
+
+### Stakeholder reference inventory
+
+The demo and fresh-database seed include all ten supplied First Aid Supplies rows, including In Stock items. On an existing database with the inventory migrations applied, run `supabase/reference_supplies.sql` to add missing reference items and fill blank categories/pack descriptions. It preserves existing quantities, dates and restock history and can be re-run without duplicating items. The CPR mask quantity is blurry in the reference; the sample uses 5 pcs. Stock badges remain calculated from the actual quantity and expiry date, so they can differ from the illustrative screenshot.
