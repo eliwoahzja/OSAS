@@ -4,7 +4,7 @@ import {
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { loadTable } from './table-loader.js';
-import { viewRecord, recordForm, rowActions } from './record-actions.js';
+import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
 
 const CLINIC_RE = /nurse|clinic|health/i;
 
@@ -199,7 +199,7 @@ export async function safetyInspections(el) {
       () => viewRecord('Inspection details: ' + r.item, {
         ...r, next_due: inspectionDue(r),
       }, [...inspectionDetails, { key: 'next_due', label: 'Next due', type: 'date' }],
-      [{ label: 'Edit inspection', onClick: () => edit(r) }]),
+      [{ label: 'Edit inspection', onClick: () => edit(r) }, { label: 'Delete inspection', onClick: () => confirmDelete({ title: r.item, table: 'inspections', record: r, onSaved: () => safetyInspections(el) }) }]),
       () => edit(r),
     ) },
   ];
@@ -224,7 +224,7 @@ export async function emergencyRoles(el) {
   let plans = [], staff = [], existing = [];
   try {
     [plans, staff, existing] = await Promise.all([
-      api.listRows('evacuation_plans'), api.listRows('users'), api.listRows('emergency_roles'),
+      api.listRows('evacuation_plans'), isAdmin() ? api.listRows('users') : Promise.resolve([]), api.listRows('emergency_roles'),
     ]);
   } catch (err) {
     el.replaceChildren(errorBanner('Could not load evacuation plans and personnel: ' + err.message, () => emergencyRoles(el)));
@@ -290,7 +290,7 @@ export async function emergencyRoles(el) {
     { key: 'role', label: 'Responsibility' },
     { key: 'staff', label: 'Assigned person' },
     { key: 'backup', label: 'Backup person' },
-  ], [{ label: 'Edit assignment', onClick: () => edit(r) }]);
+  ], [{ label: 'Edit assignment', onClick: () => edit(r) }, { label: 'Delete assignment', onClick: () => confirmDelete({ title: r.role, table: 'emergency_roles', record: r, onSaved: () => emergencyRoles(el) }) }]);
   return loadTable(el, {
     table: 'emergency_roles', iconName: 'groups',
     title: 'Emergency Roles by Floor and Zone',
@@ -339,7 +339,7 @@ export async function firstAidSupplies(el) {
         ...r, stock_status: stock(r),
       }, [...supplyFields.map(({ key, label, type }) => ({ key, label, type })),
         { key: 'stock_status', label: 'Stock status' }, { key: 'created_at', label: 'Record created', type: 'date' }],
-      [{ label: 'Edit supply', onClick: () => edit(r) }]),
+      [{ label: 'Edit supply', onClick: () => edit(r) }, { label: 'Delete supply', onClick: () => confirmDelete({ title: r.item, table: 'supplies', record: r, onSaved: () => firstAidSupplies(el) }) }]),
       () => edit(r),
     ) },
   ];
