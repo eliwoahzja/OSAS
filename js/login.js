@@ -231,7 +231,7 @@ export function showLogin({ onSuccess }) {
     const err = mkErr();
     const code = h('input', {
       type: 'text', class: 'lg-input lg-code', inputmode: 'numeric', autocomplete: 'one-time-code',
-      maxlength: String(OTP_MAX), placeholder: 'Enter your code', required: true, 'aria-label': 'Email verification code',
+      maxlength: String(OTP_MAX), placeholder: '••••••', required: true, 'aria-label': 'Email verification code',
     });
     code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, OTP_MAX); err.clear(); });
 
