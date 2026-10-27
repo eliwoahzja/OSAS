@@ -69,7 +69,7 @@ export async function emergencyContacts(el) {
     { key: 'role', label: 'Emergency type', render: (r) => contactEmergencyType(r.role) },
     { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
     { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'Inactive' : 'Active') },
-    { key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
+    ...(admin ? [{ key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
       rowActions(() => show(r), admin ? () => edit(r) : null),
       admin ? h('button', {
         type: 'button', class: 'btn-ghost text-xs',
@@ -77,7 +77,7 @@ export async function emergencyContacts(el) {
         'aria-label': r.active === false ? 'Activate contact' : 'Deactivate contact',
         onclick: (e) => toggle(r, e.currentTarget),
       }, r.active === false ? 'Activate' : 'Deactivate') : null,
-    ) },
+    ) }] : []),
   ];
   return loadTable(el, {
     table: 'emergency_contacts', filters: { category: 'school' },

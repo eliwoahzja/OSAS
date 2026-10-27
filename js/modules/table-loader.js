@@ -5,6 +5,7 @@ import {
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
+import { supplyStatus } from '../safety-status.js';
 
 export const SUMMARY = {
   emergency_contacts: (rows) => [
@@ -26,8 +27,9 @@ export const SUMMARY = {
     { label: 'Resolved', value: rows.filter((r) => r.status === 'resolved').length, icon: 'task_alt', chipCls: 'bg-emerald-50 text-emerald-600' },
   ],
   inspections: (rows) => [
-    { label: 'Checklist items', value: rows.length, icon: 'fact_check', chipCls: 'bg-pink-50 text-pink-600' },
+    { label: 'Total items', value: rows.length, icon: 'fact_check', chipCls: 'bg-pink-50 text-pink-600' },
     { label: 'Passed', value: rows.filter((r) => r.status === 'passed').length, icon: 'check_circle', chipCls: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Due soon', value: rows.filter((r) => r.status === 'due soon').length, icon: 'schedule', chipCls: 'bg-amber-50 text-amber-700' },
     { label: 'Overdue', value: rows.filter((r) => r.status === 'overdue').length, icon: 'warning', chipCls: 'bg-red-50 text-red-600' },
   ],
   risks: (rows) => [
@@ -42,6 +44,8 @@ export const SUMMARY = {
   supplies: (rows) => [
     { label: 'Tracked items', value: rows.length, icon: 'medical_services', chipCls: 'bg-pink-50 text-pink-600' },
     { label: 'Low stock', value: rows.filter((r) => Number(r.quantity) <= Number(r.reorder_threshold)).length, icon: 'warning', chipCls: 'bg-red-50 text-red-600' },
+    { label: 'Expiring soon', value: rows.filter((r) => supplyStatus(r) === 'Expiring Soon').length, icon: 'schedule', chipCls: 'bg-amber-50 text-amber-700' },
+    { label: 'Expired', value: rows.filter((r) => supplyStatus(r) === 'Expired').length, icon: 'error', chipCls: 'bg-red-50 text-red-600' },
   ],
   students: (rows) => [
     { label: 'Students', value: rows.length, icon: 'school', chipCls: 'bg-pink-50 text-pink-600' },
@@ -51,7 +55,7 @@ export const SUMMARY = {
 export async function loadTable(el, {
   table, columns, empty, iconName, title, subtitle,
   actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters = {}, searchKeys = [],
-  searchPlaceholder, selectFilters = [], onRowClick, adminAction = false,
+  searchPlaceholder, selectFilters = [], onRowClick, adminAction = false, dateFilter, transformRows, onRetry,
 }) {
   el.innerHTML = '';
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
@@ -79,10 +83,11 @@ export async function loadTable(el, {
   let rows;
   try {
     rows = await api.listRows(table, filters);
+    if (transformRows) rows = transformRows(rows);
   } catch (e) {
-    holder.replaceChildren(errorBanner(e.message, () => {
-      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, onAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick, adminAction });
-    }));
+    holder.replaceChildren(errorBanner(e.message, onRetry || (() => {
+      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick, adminAction, dateFilter, transformRows, onRetry });
+    })));
     return;
   }
 
@@ -109,11 +114,15 @@ export async function loadTable(el, {
     return [];
   }
 
-  const state = { q: '', sel: {}, page: 1, pageSize: 10 };
+  const state = { q: '', sel: {}, from: '', to: '', page: 1, pageSize: 10 };
   const matches = (r) => {
     if (state.q) {
       const s = state.q.toLowerCase();
       if (!searchKeys.some((k) => String(r[k] ?? '').toLowerCase().includes(s))) return false;
+    }
+    if (dateFilter && (state.from || state.to)) {
+      const date = String(r[dateFilter.key] || '').slice(0, 10);
+      if (!date || (state.from && date < state.from) || (state.to && date > state.to)) return false;
     }
     return selectFilters.every((d) => !state.sel[d.key] || String(r[d.key]) === state.sel[d.key]);
   };
@@ -121,7 +130,7 @@ export async function loadTable(el, {
   const parts = [];
   if (SUMMARY[table]) parts.push(moduleStats(SUMMARY[table](rows)));
   if (searchKeys.length || selectFilters.length) {
-    parts.push(h('div', { class: 'flex flex-wrap items-center gap-3' },
+    parts.push(h('div', { class: 'osas-table-toolbar flex flex-wrap items-center gap-3' },
       h('div', { class: 'relative flex-1 min-w-[240px]' },
         icon('search', 'text-gray-400 text-sm absolute left-3.5 top-1/2 -translate-y-1/2'),
         h('input', {
@@ -136,6 +145,20 @@ export async function loadTable(el, {
       d.options.map((o) => h('option', { value: o.value }, o.label))))));
   }
 
+  if (dateFilter) {
+    parts.push(h('div', { class: 'flex flex-wrap gap-3 items-end' },
+      ...['from', 'to'].map((key) => h('label', { class: 'text-xs text-gray-500' },
+        dateFilter.label + (key === 'from' ? ' from' : ' to'),
+        h('input', { type: 'date', class: inputCls, 'aria-label': dateFilter.label + (key === 'from' ? ' from' : ' to'),
+          onchange: (e) => { state[key] = e.target.value; state.page = 1; renderTable(); },
+        }))),
+      h('button', { type: 'button', class: 'btn-ghost', onclick: (e) => {
+        state.from = ''; state.to = ''; state.page = 1;
+        e.currentTarget.parentElement.querySelectorAll('input').forEach((input) => { input.value = ''; });
+        renderTable();
+      } }, 'Clear dates'),
+    ));
+  }
   const tableWrap = h('div');
   const pager = h('div', { class: 'flex flex-wrap justify-between items-center gap-3 text-sm text-gray-600' });
   parts.push(tableWrap, pager);

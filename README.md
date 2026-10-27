@@ -104,3 +104,15 @@ Known limitations (be upfront about these):
 ## License
 
 Internal software developed for Saint Agnes Academy (SAAC). Released under the MIT License for educational and disaster-risk-reduction demonstration purposes.
+
+## Emergency workspace behavior
+
+Emergency Contacts lists school personnel and emergency agencies only (`category = school`). Its columns are contact person, emergency type, contact number and status, with administrator controls. Students receive a read-only directory. Existing guardian records and incident notification links stay in the database. Administrators should enter verified local service numbers.
+
+First Aid Supplies shows category, quantity, storage location, expiry, reorder threshold and status. Status priority is Expired, Expiring Soon, Low Stock, then In Stock. An item is expired after its expiry date, low at or below the reorder threshold, and expiring soon within 30 days including today. Calendar dates use Asia/Manila. Categories and active contact flags use the existing stakeholder migration in `supabase/migrations/`.
+
+Safety Inspections includes frequency, last inspection, next due date, risk, inspector and record actions. Filters cover status, area, frequency and a due-date range. The sidebar opens upcoming inspection details, a schedule list and CSV export. Due Soon means a check falls within the next seven days, including today. Failed checks retain their failed status. Frequency intervals preserve the existing day-based schedule. Editing a computed status retains the stored inspection result until the administrator changes it.
+
+Emergency Roles continues to link staff responsibilities to existing building and floor evacuation plans. Internal identifiers stay available for database relations but do not appear in table columns or detail fields.
+
+Run `npm test` for status and date-boundary regression tests, and `npm run build` for JavaScript syntax checks and static output.

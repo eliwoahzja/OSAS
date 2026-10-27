@@ -2,10 +2,11 @@ import {
   h, icon, moduleShell, skeletonHeader, skeletonStatCards, statCard, toast, errorBanner, inputCls,
 } from '../ui.js';
 import * as api from '../api.js';
+import { inspectionDue } from '../safety-status.js';
 
 const DATASETS = {
   incidents: { label: 'Incidents', cols: ['date', 'time', 'type', 'location', 'description', 'reporter', 'severity', 'status'] },
-  inspections: { label: 'Inspections', cols: ['item', 'area', 'frequency', 'last_inspected', 'status', 'inspector', 'notes'] },
+  inspections: { label: 'Inspections', cols: ['item', 'area', 'frequency', 'last_inspected', 'next_due', 'status', 'risk_level', 'inspector', 'notes', 'corrective_actions'] },
   drills: { label: 'Drills', cols: ['type', 'date', 'time', 'building', 'person_in_charge', 'status', 'notes'] },
   supplies: { label: 'First aid supplies', cols: ['item', 'quantity', 'unit', 'location', 'expiry', 'reorder_threshold', 'last_restocked'] },
 };
@@ -16,9 +17,10 @@ function csvCell(v) {
   return `"${t.replace(/"/g, '""')}"`;
 }
 
-async function exportCsv(key) {
+export async function exportCsv(key) {
   const d = DATASETS[key];
-  const rows = await api.listRows(key);
+  const records = await api.listRows(key);
+  const rows = key === 'inspections' ? records.map((r) => ({ ...r, next_due: inspectionDue(r) })) : records;
   const lines = [d.cols.join(','), ...rows.map((r) => d.cols.map((c) => csvCell(r[c])).join(','))];
   const blob = new Blob([`\ufeff${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');

@@ -464,3 +464,36 @@ html { -webkit-tap-highlight-color: transparent; }
 html, body { overscroll-behavior: none; }
 body.h-screen { height: 100vh; height: 100dvh; }
 #view { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+/* Inspection workspace follows the checklist and scheduling reference. */
+.inspection-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.inspection-workspace > :first-child { grid-column: 1 / -1; }
+.inspection-main { min-width: 0; margin-top: 0 !important; }
+.inspection-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inspection-stats > div { border-radius: 12px; align-items: flex-start; flex-wrap: wrap; padding: 16px; }
+.inspection-stats > div > span:first-of-type { font-size: 22px; }
+.inspection-stats > div > span:last-of-type { flex-basis: 100%; font-size: 12px; }
+.inspection-aside { display: flex; flex-direction: column; gap: 16px; margin-top: 0 !important; min-width: 0; }
+.inspection-panel { padding: 20px; border: 1px solid #f0ecee; border-radius: 16px; background: #fff; }
+.inspection-panel h3 { font-size: 14px; }
+.inspection-shortcut { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 0; text-align: left; font-size: 12px; color: #374151; border-bottom: 1px solid #f5f1f3; }
+.inspection-shortcut:last-child { border-bottom: 0; }
+.inspection-shortcut:hover { color: #be185d; }
+.inspection-shortcut > i { color: #db2777; }
+.inspection-shortcut small { display: block; margin-top: 4px; font-size: 11px; color: #6b7280; }
+@media (min-width: 768px) {
+  .inspection-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .inspection-aside { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1280px) {
+  .inspection-workspace { grid-template-columns: minmax(0, 1fr) 256px; gap: 18px; }
+  .inspection-aside { display: flex; }
+}
+.osas-table-toolbar select { width: auto; max-width: 100%; padding-right: 36px; }
+.record-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; min-height: 36px; padding: 8px; }
+.inspection-main td, .inspection-main th { padding-left: 12px; padding-right: 12px; }
+.inspection-main td { font-size: 12px; }
+@media (max-width: 639px) {
+  .osas-table-toolbar select { width: 100%; }
+  .record-action-icon { width: 44px; min-height: 44px; }
+}

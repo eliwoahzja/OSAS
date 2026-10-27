@@ -4,6 +4,8 @@ import {
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { loadTable } from './table-loader.js';
+import { inspectionDue, schoolToday, supplyStatus as inventoryStatus, supplyCategoryTone } from '../safety-status.js';
+import { exportCsv } from './reports.js';
 import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
 
 const CLINIC_RE = /nurse|clinic|health/i;
@@ -157,7 +159,6 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
 }
 
 const INSPECTION_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'semi-annual', 'annual'];
-const INSPECTION_DAYS = { daily: 1, weekly: 7, biweekly: 14, monthly: 30, quarterly: 91, 'semi-annual': 182, annual: 365 };
 const inspectionFields = [
   { key: 'item', label: 'Inspection item', required: true, maxLength: 255 },
   { key: 'area', label: 'Area / location', required: true, maxLength: 255 },
@@ -167,7 +168,7 @@ const inspectionFields = [
   { key: 'inspector', label: 'Inspector' },
   { key: 'risk_level', label: 'Risk classification', type: 'select', options: [
     { value: '', label: 'Not recorded' },
-    ...['Low', 'Moderate', 'High', 'Critical'].map((v) => ({ value: v, label: v })),
+    ...['Low', 'Medium', 'Moderate', 'High', 'Critical'].map((v) => ({ value: v, label: v })),
   ] },
   { key: 'notes', label: 'Findings / follow-up notes', type: 'textarea', wide: true },
   { key: 'corrective_actions', label: 'Corrective actions', type: 'textarea', wide: true },
@@ -177,27 +178,22 @@ const inspectionDetails = [
   { key: 'photo_url', label: 'Inspection photo' },
   { key: 'created_at', label: 'Record created', type: 'date' },
 ];
-function inspectionDue(record) {
-  const interval = INSPECTION_DAYS[String(record.frequency || '').toLowerCase().trim()];
-  if (!interval || !record.last_inspected) return null;
-  const d = new Date(String(record.last_inspected).slice(0, 10) + 'T00:00:00Z');
-  if (Number.isNaN(d.getTime())) return null;
-  d.setUTCDate(d.getUTCDate() + interval);
-  return d.toISOString().slice(0, 10);
-}
 export async function safetyInspections(el) {
   if (!isAdmin()) { el.replaceChildren(errorBanner('Safety inspections are visible to administrators only.')); return; }
   const edit = (record) => recordForm({
     title: record ? 'Edit inspection' : 'Add inspection', table: 'inspections',
-    record, fields: inspectionFields, onSaved: () => safetyInspections(el),
+    record: record ? { ...record, status: record.recorded_status || record.status,
+      frequency: ({ semiannual: 'semi-annual', yearly: 'annual' })[String(record.frequency).toLowerCase()] || String(record.frequency).toLowerCase(),
+    } : null, fields: inspectionFields, onSaved: () => safetyInspections(el),
   });
   const columns = [
     { key: 'item', label: 'Inspection item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
     { key: 'area', label: 'Area / location' },
-    { key: 'status', label: 'Status', render: (r) => pill(r.status) },
-    { key: 'risk_level', label: 'Risk', render: (r) => r.risk_level || 'Not recorded' },
-    { key: 'last_inspected', label: 'Last check', render: (r) => formatDate(r.last_inspected) },
-    { key: 'next_due', label: 'Next due', render: (r) => formatDate(inspectionDue(r)) },
+    { key: 'frequency', label: 'Frequency' },
+    { key: 'last_inspected', label: 'Last inspected', render: (r) => formatDate(r.last_inspected) },
+    { key: 'next_due', label: 'Next due date', render: (r) => formatDate(inspectionDue(r)) },
+    { key: 'status', label: 'Status', render: (r) => pill(r.status === 'fail' ? 'Failed' : r.status.replace(/\b\w/g, (c) => c.toUpperCase())) },
+    { key: 'risk_level', label: 'Risk level', render: (r) => r.risk_level ? pill(r.risk_level) : 'Not recorded' },
     { key: 'inspector', label: 'Inspector', render: (r) => r.inspector || 'Unassigned' },
     { key: 'actions', label: 'Actions', render: (r) => rowActions(
       () => viewRecord('Inspection details: ' + r.item, {
@@ -205,23 +201,73 @@ export async function safetyInspections(el) {
       }, [...inspectionDetails, { key: 'next_due', label: 'Next due', type: 'date' }],
       [{ label: 'Edit inspection', onClick: () => edit(r) }, { label: 'Delete inspection', onClick: () => confirmDelete({ title: r.item, table: 'inspections', record: r, onSaved: () => safetyInspections(el) }) }]),
       () => edit(r),
+      { compact: true, onDelete: () => confirmDelete({ title: r.item, table: 'inspections', record: r, onSaved: () => safetyInspections(el) }) },
     ) },
   ];
   const rows = await loadTable(el, {
-    table: 'inspections', columns, iconName: 'fact_check',
-    title: 'Safety Inspections', subtitle: 'Review inspection status, due dates and documented findings.',
+    table: 'inspections', columns, iconName: 'fact_check', onRetry: () => safetyInspections(el),
+    title: 'Safety Inspections', subtitle: 'Track inspection items per area with frequency, status, and follow-up notes.',
     actionLabel: 'Add inspection', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
     searchKeys: ['item', 'area', 'inspector', 'status', 'notes', 'risk_level'],
     searchPlaceholder: 'Search item, area, status or inspector…',
-    selectFilters: [{ key: 'status', label: 'All statuses', options: ['pending', 'passed', 'fail', 'overdue'].map((v) => ({ label: v, value: v })) }],
+    transformRows: (rows) => rows.map((r) => ({ ...r, next_due: inspectionDue(r) })),
+    dateFilter: { key: 'next_due', label: 'Next due date' },
+    selectFilters: [
+      { key: 'status', label: 'All statuses', options: ['pending', 'passed', 'due soon', 'fail', 'overdue'].map((v) => ({ label: v === 'fail' ? 'Failed' : v, value: v })) },
+      { key: 'area', label: 'All areas', options: [] },
+      { key: 'frequency', label: 'All frequencies', options: [] },
+    ],
     empty: { title: 'No inspections recorded yet', text: 'Add an inspection item to track safety checks.' },
   });
-  if (!Array.isArray(rows) || !rows.length) return;
-  const upcoming = rows.map((r) => ({ record: r, due: inspectionDue(r) })).filter((r) => r.due && r.due >= new Date().toISOString().slice(0, 10)).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 5);
-  if (upcoming.length) el.firstElementChild?.appendChild(h('section', { class: 'bg-white border border-gray-100 rounded-2xl p-5' },
-    h('h3', { class: 'font-bold text-gray-900 mb-3' }, 'Upcoming inspections'),
-    h('ul', { class: 'space-y-2' }, upcoming.map(({ record, due }) => h('li', { class: 'flex flex-wrap justify-between gap-2 text-sm' },
-      h('span', {}, record.item + ' · ' + record.area), h('span', { class: 'font-semibold' }, formatDate(due)))))));
+  if (!Array.isArray(rows)) return;
+  const shell = el.firstElementChild;
+  shell.classList.add('inspection-workspace');
+  const main = shell.lastElementChild;
+  main.classList.add('inspection-main');
+  if (rows.length) main.firstElementChild?.classList.add('inspection-stats');
+  for (const [key, label] of [['area', 'All areas'], ['frequency', 'All frequencies']]) {
+    const select = main.querySelector(`select[aria-label="${label}"]`);
+    [...new Set(rows.map((r) => r[key]).filter(Boolean))].sort().forEach((value) => {
+      select?.appendChild(h('option', { value }, value));
+    });
+  }
+  const show = (record) => viewRecord('Inspection details: ' + record.item, {
+    ...record, next_due: inspectionDue(record),
+  }, [...inspectionDetails, { key: 'next_due', label: 'Next due date', type: 'date' }],
+  [{ label: 'Edit inspection', onClick: () => edit(record) }]);
+  const upcoming = rows.filter((r) => r.next_due && r.next_due >= schoolToday())
+    .sort((a, b) => a.next_due.localeCompare(b.next_due));
+  const panel = (title, ...children) => h('section', { class: 'inspection-panel' },
+    h('h3', { class: 'font-bold text-gray-900 mb-3' }, title), ...children);
+  const aside = h('aside', { class: 'inspection-aside', 'aria-label': 'Inspection tools and schedule' },
+    panel('Quick Actions',
+      h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => edit(null) },
+        icon('add'), h('span', {}, 'Add Inspection Item', h('small', {}, 'Create a new inspection record'))),
+      h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => {
+        const calendar = h('div', { class: 'p-6 space-y-4' },
+          h('h3', { class: 'text-lg font-bold' }, 'Inspection schedule'),
+          h('p', { class: 'text-sm text-gray-500' }, 'Upcoming checks ordered by next due date.'),
+          ...upcoming.map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => { modal.close(); show(r); } },
+            h('span', {}, formatDate(r.next_due), h('small', {}, r.item + ' · ' + r.area)))),
+          !upcoming.length ? h('p', {}, 'No upcoming inspections recorded.') : null);
+        const modal = openModal(calendar, { delay: 0 });
+        calendar.appendChild(h('button', { type: 'button', class: 'btn-primary', onclick: () => modal.close() }, 'Close'));
+      } }, icon('calendar_month'), h('span', {}, 'View Calendar', h('small', {}, 'Check scheduled inspections'))),
+      h('button', { type: 'button', class: 'inspection-shortcut', onclick: async () => {
+        try { await exportCsv('inspections'); toast('Inspection report downloaded.'); }
+        catch (e) { toast(e.message || 'Could not export inspections.', 'error'); }
+      } }, icon('download'), h('span', {}, 'Export Report', h('small', {}, 'Download inspection CSV')))),
+    panel('Upcoming Inspections',
+      ...upcoming.slice(0, 5).map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => show(r) },
+        icon('calendar_month'), h('span', {}, formatDate(r.next_due), h('small', {}, r.item + ' · ' + r.area)), pill(r.status))),
+      !upcoming.length ? h('p', { class: 'text-sm text-gray-500' }, 'No upcoming inspections recorded.') : null),
+    panel('Recent Records',
+      ...rows.filter((r) => r.created_at).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 3)
+        .map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => show(r) },
+          h('span', {}, r.item, h('small', {}, 'Added ' + formatDate(r.created_at))))),
+      !rows.some((r) => r.created_at) ? h('p', { class: 'text-sm text-gray-500' }, 'No creation dates recorded.') : null));
+  shell.appendChild(aside);
+
 }
 
 export async function emergencyRoles(el) {
@@ -326,29 +372,11 @@ const supplyFields = [
   { key: 'last_restocked', label: 'Last restocked', type: 'date' },
 ];
 
-// Stock condition is derived from the inventory, never manually entered.
-// Expired and expiring products take precedence over quantity warnings.
+// Preserve the existing exported status shape for callers of this module.
 export function supplyStatus(record, now = new Date()) {
-  const expiry = String(record.expiry || '').slice(0, 10);
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(expiry);
-  if (match) {
-    const [, year, month, day] = match.map(Number);
-    const due = Date.UTC(year, month - 1, day);
-    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-    const daysLeft = Math.floor((due - today) / 86400000);
-    if (daysLeft < 0) return { label: 'Expired', tone: 'red' };
-    if (daysLeft <= 30) return { label: 'Expiring Soon', tone: 'amber' };
-  }
-  if (Number(record.quantity) <= Number(record.reorder_threshold)) {
-    return { label: 'Low Stock', tone: 'red' };
-  }
-  return { label: 'In Stock', tone: 'green' };
+  const label = inventoryStatus(record, schoolToday(now));
+  return { label, tone: ({ 'Expired': 'red', 'Expiring Soon': 'amber', 'Low Stock': 'red', 'In Stock': 'green' })[label] };
 }
-
-const CATEGORY_TONES = {
-  'wound care': 'pink', emergency: 'purple', cleaning: 'blue',
-  ppe: 'purple', equipment: 'green',
-};
 
 export async function firstAidSupplies(el) {
   if (!isAdmin()) {
@@ -359,42 +387,36 @@ export async function firstAidSupplies(el) {
     title: record ? 'Edit first aid supply' : 'Add first aid supply',
     table: 'supplies', record, fields: supplyFields, onSaved: () => firstAidSupplies(el),
   });
-  const details = (r) => viewRecord('Supply details: ' + r.item, {
-    ...r, stock_status: supplyStatus(r).label,
+  const stock = inventoryStatus;
+  const show = (r) => viewRecord('Supply details: ' + r.item, {
+    ...r, stock_status: stock(r),
   }, [...supplyFields.map(({ key, label, type }) => ({ key, label, type })),
-    { key: 'stock_status', label: 'Stock status' },
-    { key: 'created_at', label: 'Record created', type: 'date' }],
-  [{ label: 'Edit supply', onClick: () => edit(r) },
-    { label: 'Delete supply', onClick: () => confirmDelete({
-      title: r.item, table: 'supplies', record: r, onSaved: () => firstAidSupplies(el),
-    }) }]);
+    { key: 'stock_status', label: 'Stock status' }, { key: 'created_at', label: 'Record created', type: 'date' }],
+  [{ label: 'Edit supply', onClick: () => edit(r) }, { label: 'Delete supply', onClick: () => confirmDelete({ title: r.item, table: 'supplies', record: r, onSaved: () => firstAidSupplies(el) }) }]);
   const columns = [
-    { key: 'item', label: 'Item', render: (r) =>
-      h('span', { class: 'font-semibold text-gray-900' }, r.item) },
-    { key: 'category', label: 'Category', render: (r) =>
-      r.category ? pill(r.category, CATEGORY_TONES[String(r.category).toLowerCase()] || 'gray') : '—' },
-    { key: 'quantity', label: 'Quantity', render: (r) => h('span', {
-      class: Number(r.quantity) <= Number(r.reorder_threshold)
-        ? 'font-bold text-red-600' : 'font-semibold text-gray-900',
-    }, `${r.quantity} ${r.unit || ''}`.trim()) },
+    { key: 'item', label: 'Item', render: (r) => h('div', {}, h('strong', { class: 'text-gray-900' }, r.item), r.unit ? h('small', { class: 'block text-gray-500 mt-1' }, r.unit) : null) },
+    { key: 'category', label: 'Category', render: (r) => r.category ? pill(r.category, supplyCategoryTone(r.category)) : 'Not recorded' },
+    { key: 'quantity', label: 'Quantity', render: (r) => h('span', { class: Number(r.quantity) <= Number(r.reorder_threshold) ? 'font-bold text-red-600' : 'font-semibold text-gray-900' }, `${r.quantity} ${r.unit || ''}`.trim()) },
     { key: 'location', label: 'Location' },
-    { key: 'expiry', label: 'Expiry Date', render: (r) => formatDate(r.expiry) },
-    { key: 'reorder_threshold', label: 'Reorder Threshold' },
-    { key: 'status', label: 'Status', render: (r) => {
-      const status = supplyStatus(r);
-      return pill(status.label, status.tone);
-    } },
-    { key: 'actions', label: 'Actions', render: (r) => rowActions(() => details(r), () => edit(r)) },
+    { key: 'expiry', label: 'Expiry date', render: (r) => formatDate(r.expiry) },
+    { key: 'reorder_threshold', label: 'Reorder threshold' },
+    { key: 'stock_status', label: 'Status', render: (r) => pill(stock(r)) },
+    { key: 'actions', label: 'Actions', render: (r) => rowActions(
+      () => show(r),
+      () => edit(r),
+      { compact: true, onMore: () => show(r) },
+    ) },
   ];
   return loadTable(el, {
     table: 'supplies', columns, iconName: 'medical_services',
-    title: 'First Aid Supplies',
-    subtitle: 'Inventory condition is calculated from quantity, reorder threshold and expiration date.',
+    title: 'First Aid Supplies', subtitle: 'Track first aid stock by category and location. Expiring Soon means expiry within 30 days; expired items take priority over low stock.',
     actionLabel: 'Add supply', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
     secondaryActionLabel: 'Notify Stock Handlers', secondaryActionIcon: 'notifications',
     onSecondaryAction: (e) => promptNotifyStockHandlers(null, e?.currentTarget),
+    transformRows: (rows) => rows.map((r) => ({ ...r, stock_status: stock(r) })),
+    selectFilters: [{ key: 'stock_status', label: 'All statuses', options: ['In Stock', 'Low Stock', 'Expiring Soon', 'Expired'].map((value) => ({ value, label: value })) }],
     searchKeys: ['item', 'category', 'location', 'unit'],
-    searchPlaceholder: 'Search by item, category or location…',
+    searchPlaceholder: 'Search by item, location or unit…',
     empty: { title: 'No supplies tracked yet', text: 'Add the first supply item to begin inventory tracking.' },
   });
 }

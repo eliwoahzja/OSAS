@@ -8,6 +8,9 @@ export function h(tag, attrs = {}, ...children) {
     else if (k === 'value') el.value = v;
     else if (k === 'checked') el.checked = v;
     else if (k === 'selected') el.selected = !!v;
+    else if (typeof v === 'boolean' && /^(disabled|required|multiple|readonly|autofocus|hidden|open)$/.test(k)) {
+      if (v) el.setAttribute(k, '');
+    }
     else if (k === 'html') el.innerHTML = v;
     else el.setAttribute(k, v);
   }
@@ -124,6 +127,8 @@ export const inputCls =
 export const labelCls = 'block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5';
 
 const TONES = {
+  'in stock': 'green', 'low stock': 'red', 'expiring soon': 'amber', expired: 'red',
+  'due soon': 'amber', fail: 'red', inactive: 'gray',
   pending: 'amber', upcoming: 'blue', open: 'red', resolved: 'green', delivered: 'green',
   read: 'green', sent: 'blue', failed: 'red', completed: 'green', cancelled: 'gray',
   passed: 'green', overdue: 'red', low: 'red', ok: 'green', active: 'green', current: 'green',

@@ -140,14 +140,19 @@ export function confirmDelete({ title, table, record, onSaved }) {
   });
 }
 
-export function rowActions(onView, onEdit) {
+export function rowActions(onView, onEdit, { compact = false, onMore, onDelete } = {}) {
   const buttons = [h('button', {
-    type: 'button', class: 'btn-ghost text-xs', title: 'View details',
+    type: 'button', class: compact ? 'btn-ghost record-action-icon' : 'btn-ghost text-xs', title: 'View details',
     'aria-label': 'View details', onclick: onView,
-  }, icon('eye', 'text-xs'), 'View')];
+  }, icon('eye', 'text-xs'), compact ? null : 'View')];
   if (isAdmin() && onEdit) buttons.push(h('button', {
-    type: 'button', class: 'btn-ghost text-xs', title: 'Edit record',
+    type: 'button', class: compact ? 'btn-ghost record-action-icon' : 'btn-ghost text-xs', title: 'Edit record',
     'aria-label': 'Edit record', onclick: onEdit,
-  }, icon('rate_review', 'text-xs'), 'Edit'));
-  return h('div', { class: 'flex flex-wrap items-center gap-1' }, buttons);
+  }, icon('rate_review', 'text-xs'), compact ? null : 'Edit'));
+  if (isAdmin() && (onMore || onDelete)) buttons.push(h('button', {
+    type: 'button', class: 'btn-ghost record-action-icon',
+    title: onMore ? 'More actions' : 'Delete record',
+    'aria-label': onMore ? 'More actions' : 'Delete record', onclick: onMore || onDelete,
+  }, icon(onMore ? 'ellipsis' : 'trash-can', 'text-xs')));
+  return h('div', { class: 'flex items-center gap-1' }, buttons);
 }

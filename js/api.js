@@ -1,4 +1,5 @@
 import * as auth from './auth.js';
+import { inspectionStatus } from './safety-status.js';
 import { MOCK, mockNextId } from './mock.js';
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.OSAS;
@@ -119,21 +120,9 @@ function listMock(table, filters = {}) {
   return withDerived(table, rows);
 }
 
-const FREQUENCY_DAYS = {
-  daily: 1, weekly: 7, biweekly: 14, monthly: 30, quarterly: 91,
-  'semi-annual': 182, semiannual: 182, annual: 365, yearly: 365,
-};
-
 function withDerived(table, rows) {
   if (table !== 'inspections') return rows;
-  const now = Date.now();
-  return rows.map((r) => {
-    if (r.status !== 'passed' && r.status !== 'pending') return r;
-    const days = FREQUENCY_DAYS[String(r.frequency || '').toLowerCase().trim()];
-    const last = r.last_inspected ? new Date(r.last_inspected).getTime() : NaN;
-    if (!days || Number.isNaN(last)) return r;
-    return now - last > days * 86400000 ? { ...r, status: 'overdue' } : r;
-  });
+  return rows.map((r) => ({ ...r, recorded_status: r.status, status: inspectionStatus(r) }));
 }
 
 function computeStats(incidents, inspections, drills, supplies, contacts) {
