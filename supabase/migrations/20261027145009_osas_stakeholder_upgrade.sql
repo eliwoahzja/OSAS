@@ -1,9 +1,9 @@
 -- OSAS stakeholder upgrade. Additive changes only. Do not execute schema.sql on a live project.
 -- Review and apply on the OSAS Supabase project after a backup, never an unrelated project.
-BEGIN;
+-- Supabase migrations execute transactionally; do not nest explicit BEGIN/COMMIT.
 
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean LANGUAGE sql STABLE AS $$
+RETURNS boolean LANGUAGE sql STABLE SET search_path = '' AS $$
   SELECT COALESCE(auth.jwt() -> 'app_metadata' ->> 'role', '') = 'admin';
 $$;
 
@@ -51,9 +51,14 @@ CREATE TRIGGER osas_incident_submitter
   BEFORE INSERT OR UPDATE ON public.incidents
   FOR EACH ROW EXECUTE FUNCTION public.osas_attribute_incident_submitter();
 
--- Student/client accounts may read the permitted contact directory,
--- but all changes must be authorized by the database itself.
+-- Authenticated users may read school/agency contacts only. Guardian rows
+-- remain in the database for the privileged notification service and must not
+-- appear in the emergency directory, even through direct REST queries.
 ALTER TABLE public.emergency_contacts ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read_all" ON public.emergency_contacts;
+DROP POLICY IF EXISTS "read_auth_school" ON public.emergency_contacts;
+CREATE POLICY "read_auth_school" ON public.emergency_contacts
+  FOR SELECT TO authenticated USING (category = 'school');
 DROP POLICY IF EXISTS "write_anon" ON public.emergency_contacts;
 DROP POLICY IF EXISTS "update_anon" ON public.emergency_contacts;
 DROP POLICY IF EXISTS "delete_anon" ON public.emergency_contacts;
@@ -71,6 +76,10 @@ CREATE POLICY "delete_admin" ON public.emergency_contacts
   FOR DELETE TO authenticated USING (public.is_admin());
 
 ALTER TABLE public.emergency_roles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "read_all" ON public.emergency_roles;
+DROP POLICY IF EXISTS "read_authenticated" ON public.emergency_roles;
+CREATE POLICY "read_authenticated" ON public.emergency_roles
+  FOR SELECT TO authenticated USING (true);
 DROP POLICY IF EXISTS "write_admin" ON public.emergency_roles;
 DROP POLICY IF EXISTS "update_admin" ON public.emergency_roles;
 DROP POLICY IF EXISTS "delete_admin" ON public.emergency_roles;
@@ -84,7 +93,7 @@ CREATE POLICY "delete_admin" ON public.emergency_roles
 
 -- Inspection and stock management must remain admin-only at the API layer,
 -- not simply behind hidden navigation controls.
-DO $
+DO $policy$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['inspections', 'supplies']
@@ -105,6 +114,5 @@ BEGIN
     EXECUTE format('CREATE POLICY "update_admin" ON public.%I FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin())', t);
     EXECUTE format('CREATE POLICY "delete_admin" ON public.%I FOR DELETE TO authenticated USING (public.is_admin())', t);
   END LOOP;
-END $;
+END $policy$;
 
-COMMIT;

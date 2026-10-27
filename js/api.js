@@ -195,7 +195,7 @@ function computeStats(incidents, inspections, drills, supplies, contacts) {
       { label: 'OK', value: supplies.length - supplies_low_items.length },
       { label: 'Low stock', value: supplies_low_items.length },
     ],
-    emergency_contacts_total: contacts.length,
+    emergency_contacts_total: contacts.filter((r) => r.category === undefined || r.category === 'school').length,
     compliance_score: Math.round((inspections_passed / total) * 100),
     incident_breakdown: Object.entries(typeCount).map(([label, value]) => ({ label, value })),
     inspection_status: Object.entries(statusCount).map(([label, value]) => ({ label, value })),
@@ -212,7 +212,7 @@ export async function listRows(table, filters = {}) {
   if (isDemoMode()) return listMock(table, filters);
   const query = { select: EMBEDS[table] || '*', order: 'created_at.desc' };
   for (const [k, v] of Object.entries(filters)) {
-    if (v) query[k] = `ilike.*${v}*`;
+    if (v) query[k] = k === 'category' ? `eq.${v}` : `ilike.*${v}*`;
   }
   let rows;
   try {
@@ -341,7 +341,7 @@ export async function getDashboardStats() {
   if (isDemoMode()) {
     return computeStats(
       listMock('incidents'), listMock('inspections'), listMock('drills'),
-      includeSupplies ? listMock('supplies') : [], listMock('emergency_contacts'),
+      includeSupplies ? listMock('supplies') : [], listMock('emergency_contacts', { category: 'school' }),
     );
   }
   const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
@@ -349,7 +349,7 @@ export async function getDashboardStats() {
     restFetch('GET', 'inspections', { query: { select: '*' } }),
     restFetch('GET', 'drills', { query: { select: '*' } }),
     includeSupplies ? restFetch('GET', 'supplies', { query: { select: '*' } }) : [],
-    restFetch('GET', 'emergency_contacts', { query: { select: 'id' } }),
+    restFetch('GET', 'emergency_contacts', { query: { select: 'id,category', category: 'eq.school' } }),
   ]);
   return computeStats(
     incidents || [], withDerived('inspections', inspections || []), drills || [],

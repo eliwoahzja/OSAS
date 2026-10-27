@@ -174,7 +174,6 @@ const inspectionFields = [
 ];
 const inspectionDetails = [
   ...inspectionFields.map(({ key, label, type }) => ({ key, label, type })),
-  { key: 'risk_level', label: 'Risk classification' },
   { key: 'photo_url', label: 'Inspection photo' },
   { key: 'created_at', label: 'Record created', type: 'date' },
 ];
@@ -318,7 +317,7 @@ export async function emergencyRoles(el) {
 
 const supplyFields = [
   { key: 'item', label: 'Item name', required: true, maxLength: 255 },
-  { key: 'category', label: 'Supply category' },
+  { key: 'category', label: 'Supply category', placeholder: 'e.g. Wound Care, PPE, Emergency' },
   { key: 'quantity', label: 'Quantity', type: 'number', min: 0, required: true },
   { key: 'unit', label: 'Unit', maxLength: 20 },
   { key: 'location', label: 'Storage location', required: true, maxLength: 255 },
@@ -326,37 +325,76 @@ const supplyFields = [
   { key: 'reorder_threshold', label: 'Reorder threshold', type: 'number', min: 0, required: true, defaultValue: 0 },
   { key: 'last_restocked', label: 'Last restocked', type: 'date' },
 ];
+
+// Stock condition is derived from the inventory, never manually entered.
+// Expired and expiring products take precedence over quantity warnings.
+export function supplyStatus(record, now = new Date()) {
+  const expiry = String(record.expiry || '').slice(0, 10);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(expiry);
+  if (match) {
+    const [, year, month, day] = match.map(Number);
+    const due = Date.UTC(year, month - 1, day);
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const daysLeft = Math.floor((due - today) / 86400000);
+    if (daysLeft < 0) return { label: 'Expired', tone: 'red' };
+    if (daysLeft <= 30) return { label: 'Expiring Soon', tone: 'amber' };
+  }
+  if (Number(record.quantity) <= Number(record.reorder_threshold)) {
+    return { label: 'Low Stock', tone: 'red' };
+  }
+  return { label: 'In Stock', tone: 'green' };
+}
+
+const CATEGORY_TONES = {
+  'wound care': 'pink', emergency: 'purple', cleaning: 'blue',
+  ppe: 'purple', equipment: 'green',
+};
+
 export async function firstAidSupplies(el) {
-  if (!isAdmin()) { el.replaceChildren(errorBanner('First aid supplies are visible to administrators only.')); return; }
+  if (!isAdmin()) {
+    el.replaceChildren(errorBanner('First aid supplies are visible to administrators only.'));
+    return;
+  }
   const edit = (record) => recordForm({
     title: record ? 'Edit first aid supply' : 'Add first aid supply',
     table: 'supplies', record, fields: supplyFields, onSaved: () => firstAidSupplies(el),
   });
-  const stock = (r) => Number(r.quantity) <= Number(r.reorder_threshold) ? 'low' : 'ok';
+  const details = (r) => viewRecord('Supply details: ' + r.item, {
+    ...r, stock_status: supplyStatus(r).label,
+  }, [...supplyFields.map(({ key, label, type }) => ({ key, label, type })),
+    { key: 'stock_status', label: 'Stock status' },
+    { key: 'created_at', label: 'Record created', type: 'date' }],
+  [{ label: 'Edit supply', onClick: () => edit(r) },
+    { label: 'Delete supply', onClick: () => confirmDelete({
+      title: r.item, table: 'supplies', record: r, onSaved: () => firstAidSupplies(el),
+    }) }]);
   const columns = [
-    { key: 'item', label: 'Item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
-    { key: 'quantity', label: 'Quantity', render: (r) => h('span', { class: stock(r) === 'low' ? 'font-bold text-red-600' : 'font-semibold text-gray-900' }, `${r.quantity} ${r.unit || ''}`.trim()) },
+    { key: 'item', label: 'Item', render: (r) =>
+      h('span', { class: 'font-semibold text-gray-900' }, r.item) },
+    { key: 'category', label: 'Category', render: (r) =>
+      r.category ? pill(r.category, CATEGORY_TONES[String(r.category).toLowerCase()] || 'gray') : '—' },
+    { key: 'quantity', label: 'Quantity', render: (r) => h('span', {
+      class: Number(r.quantity) <= Number(r.reorder_threshold)
+        ? 'font-bold text-red-600' : 'font-semibold text-gray-900',
+    }, `${r.quantity} ${r.unit || ''}`.trim()) },
     { key: 'location', label: 'Location' },
-    { key: 'expiry', label: 'Expiry', render: (r) => formatDate(r.expiry) },
-    { key: 'reorder_threshold', label: 'Reorder at' },
-    { key: 'status', label: 'Stock status', render: (r) => pill(stock(r)) },
-    { key: 'actions', label: 'Actions', render: (r) => rowActions(
-      () => viewRecord('Supply details: ' + r.item, {
-        ...r, stock_status: stock(r),
-      }, [...supplyFields.map(({ key, label, type }) => ({ key, label, type })),
-        { key: 'stock_status', label: 'Stock status' }, { key: 'created_at', label: 'Record created', type: 'date' }],
-      [{ label: 'Edit supply', onClick: () => edit(r) }, { label: 'Delete supply', onClick: () => confirmDelete({ title: r.item, table: 'supplies', record: r, onSaved: () => firstAidSupplies(el) }) }]),
-      () => edit(r),
-    ) },
+    { key: 'expiry', label: 'Expiry Date', render: (r) => formatDate(r.expiry) },
+    { key: 'reorder_threshold', label: 'Reorder Threshold' },
+    { key: 'status', label: 'Status', render: (r) => {
+      const status = supplyStatus(r);
+      return pill(status.label, status.tone);
+    } },
+    { key: 'actions', label: 'Actions', render: (r) => rowActions(() => details(r), () => edit(r)) },
   ];
   return loadTable(el, {
     table: 'supplies', columns, iconName: 'medical_services',
-    title: 'First Aid Supplies', subtitle: 'Review quantities, expiry dates and reorder thresholds using recorded stock data.',
+    title: 'First Aid Supplies',
+    subtitle: 'Inventory condition is calculated from quantity, reorder threshold and expiration date.',
     actionLabel: 'Add supply', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
     secondaryActionLabel: 'Notify Stock Handlers', secondaryActionIcon: 'notifications',
     onSecondaryAction: (e) => promptNotifyStockHandlers(null, e?.currentTarget),
-    searchKeys: ['item', 'location', 'unit'],
-    searchPlaceholder: 'Search by item, location or unit…',
+    searchKeys: ['item', 'category', 'location', 'unit'],
+    searchPlaceholder: 'Search by item, category or location…',
     empty: { title: 'No supplies tracked yet', text: 'Add the first supply item to begin inventory tracking.' },
   });
 }
