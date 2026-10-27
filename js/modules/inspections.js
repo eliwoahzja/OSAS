@@ -176,9 +176,9 @@ const inspectionDetails = [
 function inspectionDue(record) {
   const interval = INSPECTION_DAYS[String(record.frequency || '').toLowerCase().trim()];
   if (!interval || !record.last_inspected) return null;
-  const d = new Date(String(record.last_inspected).slice(0, 10) + 'T00:00:00');
+  const d = new Date(String(record.last_inspected).slice(0, 10) + 'T00:00:00Z');
   if (Number.isNaN(d.getTime())) return null;
-  d.setDate(d.getDate() + interval);
+  d.setUTCDate(d.getUTCDate() + interval);
   return d.toISOString().slice(0, 10);
 }
 export async function safetyInspections(el) {
