@@ -562,7 +562,6 @@ function riskForm(el) {
 
 export async function riskAssessment(el) {
   const columns = [
-    { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
     { key: 'hazard', label: 'Hazard', render: (r) => h('span', { class: 'font-semibold text-gray-900 block max-w-[300px]' }, r.hazard) },
     { key: 'likelihood', label: 'Likelihood', render: (r) => pill(r.likelihood, r.likelihood === 'High' ? 'red' : r.likelihood === 'Medium' ? 'amber' : 'green') },
     { key: 'impact', label: 'Impact', render: (r) => pill(r.impact, r.impact === 'High' ? 'red' : r.impact === 'Medium' ? 'amber' : 'green') },
