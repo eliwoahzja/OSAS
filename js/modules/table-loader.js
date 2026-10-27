@@ -9,7 +9,7 @@ import { isAdmin } from '../auth.js';
 export const SUMMARY = {
   emergency_contacts: (rows) => [
     { label: 'Total contacts', value: rows.length, icon: 'contacts', chipCls: 'bg-pink-50 text-pink-600' },
-    { label: 'Guardians', value: rows.filter((r) => r.category === 'student').length, icon: 'family_restroom', chipCls: 'bg-blue-50 text-blue-600' },
+    { label: 'Active contacts', value: rows.filter((r) => r.active !== false).length, icon: 'check_circle', chipCls: 'bg-emerald-50 text-emerald-600' },
     { label: 'School & agencies', value: rows.filter((r) => r.category === 'school').length, icon: 'local_police', chipCls: 'bg-purple-50 text-purple-600' },
   ],
   drills: (rows) => [
@@ -51,7 +51,7 @@ export const SUMMARY = {
 
 export async function loadTable(el, {
   table, columns, empty, iconName, title, subtitle,
-  actionLabel, actionIcon, actionClass, onAction, filters = {}, searchKeys = [],
+  actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters = {}, searchKeys = [],
   searchPlaceholder, selectFilters = [], onRowClick, adminAction = false,
 }) {
   el.innerHTML = '';
@@ -94,34 +94,23 @@ export async function loadTable(el, {
     actionIcon, actionClass, onAction,
   });
   el.appendChild(realShell);
+  if (secondaryActionLabel && (!adminAction || isAdmin())) {
+    realShell.firstElementChild.appendChild(h('button', {
+      type: 'button', class: 'btn-ghost shrink-0',
+      onclick: onSecondaryAction, 'aria-label': secondaryActionLabel,
+    }, icon(secondaryActionIcon || 'add', 'text-sm'), secondaryActionLabel));
+  }
 
   const realHolder = h('div', { class: 'space-y-5' });
   realShell.appendChild(realHolder);
 
   if (!rows.length) {
-    const liveMode = api.dataMode() === 'api';
-    if (liveMode) {
-      const warn = h('div', { class: 'rounded-2xl border border-amber-200 bg-amber-50 p-6 flex flex-col items-center gap-3 text-center' },
-        h('span', { class: 'material-symbols-rounded text-4xl text-amber-500' }, 'lock'),
-        h('p', { class: 'font-bold text-gray-900 text-sm' }, 'Session expired or not authorised'),
-        h('p', { class: 'text-gray-500 text-[13px] max-w-sm' }, 'Your login session may have expired. Sign out and sign back in, then reload this page.'),
-        h('button', {
-          class: 'mt-1 px-5 py-2 rounded-xl bg-pink-600 text-white text-sm font-semibold hover:bg-pink-700 transition-colors',
-          onclick: async () => {
-            const { signOut } = await import('../auth.js');
-            await signOut();
-            window.location.reload();
-          },
-        }, 'Sign out & reload'),
-      );
-      realHolder.replaceChildren(warn);
-      return;
-    }
+    // A successful empty query is not evidence of missing permissions.
     realHolder.replaceChildren(emptyBanner({ icon: empty?.icon || iconName, title: empty?.title || 'No records yet', text: empty?.text }));
-    return;
+    return [];
   }
 
-  const state = { q: '', sel: {} };
+  const state = { q: '', sel: {}, page: 1, pageSize: 10 };
   const matches = (r) => {
     if (state.q) {
       const s = state.q.toLowerCase();
@@ -138,26 +127,39 @@ export async function loadTable(el, {
         icon('search', 'text-gray-400 text-sm absolute left-3.5 top-1/2 -translate-y-1/2'),
         h('input', {
           class: `${inputCls} pl-10`, placeholder: searchPlaceholder || 'Search…', 'aria-label': 'Search',
-          oninput: (e) => { state.q = e.target.value; renderTable(); },
+          oninput: (e) => { state.q = e.target.value; state.page = 1; renderTable(); },
         })),
       selectFilters.map((d) => h('select', {
         class: `${inputCls} w-auto`, 'aria-label': d.label,
-        onchange: (e) => { state.sel[d.key] = e.target.value; renderTable(); },
+        onchange: (e) => { state.sel[d.key] = e.target.value; state.page = 1; renderTable(); },
       },
       h('option', { value: '', selected: true }, d.label),
       d.options.map((o) => h('option', { value: o.value }, o.label))))));
   }
 
   const tableWrap = h('div');
-  parts.push(tableWrap);
+  const pager = h('div', { class: 'flex flex-wrap justify-between items-center gap-3 text-sm text-gray-600' });
+  parts.push(tableWrap, pager);
   realHolder.replaceChildren(...parts);
 
   const renderTable = () => {
     const filtered = rows.filter(matches);
-    tableWrap.replaceChildren(dataTable(columns, filtered, { onRowClick }));
+    const pages = Math.max(1, Math.ceil(filtered.length / state.pageSize));
+    state.page = Math.min(state.page, pages);
+    const start = (state.page - 1) * state.pageSize;
+    const shown = filtered.slice(start, start + state.pageSize);
+    tableWrap.replaceChildren(dataTable(columns, shown, { onRowClick }));
     if (!filtered.length) {
       tableWrap.appendChild(emptyBanner({ icon: 'search', title: 'No matches', text: 'Try a different search or clear the filters.' }));
     }
+    pager.replaceChildren(
+      h('span', { 'aria-live': 'polite' }, `Showing ${filtered.length ? start + 1 : 0}–${start + shown.length} of ${filtered.length}`),
+      h('div', { class: 'flex items-center gap-2' },
+        h('button', { type: 'button', class: 'btn-ghost', disabled: state.page === 1, onclick: () => { state.page--; renderTable(); } }, 'Previous'),
+        h('span', {}, `Page ${state.page} of ${pages}`),
+        h('button', { type: 'button', class: 'btn-ghost', disabled: state.page === pages, onclick: () => { state.page++; renderTable(); } }, 'Next'),
+      ),
+    );
   };
 
   renderTable();

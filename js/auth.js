@@ -1,3 +1,4 @@
+const EMAIL_OTP_LENGTH = 6;
 let client = null;
 let listeners = [];
 let checkingPassword = false;
@@ -220,6 +221,9 @@ export async function register({ name, email, password }) {
 export async function verifySignup(email, code) {
   const c = await requireClient();
   const token = String(code || '').replace(/\s+/g, '');
+  if (!new RegExp('^\\d{' + EMAIL_OTP_LENGTH + '}$').test(token)) {
+    throw new Error('Enter the ' + EMAIL_OTP_LENGTH + '-digit code from your email.');
+  }
   const { data, error } = await c.auth.verifyOtp({
     email: String(email).trim().toLowerCase(),
     token,
@@ -264,6 +268,9 @@ function layerEmailError(error, fallback) {
 export async function verifyCode(email, code) {
   const c = await requireClient();
   const token = String(code || '').replace(/\s+/g, '');
+  if (!new RegExp('^\\d{' + EMAIL_OTP_LENGTH + '}$').test(token)) {
+    throw new Error('Enter the ' + EMAIL_OTP_LENGTH + '-digit code from your email.');
+  }
   const { data, error } = await c.auth.verifyOtp({
     email: String(email).trim().toLowerCase(),
     token,

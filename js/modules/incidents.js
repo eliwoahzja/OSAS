@@ -6,42 +6,86 @@ import * as api from '../api.js';
 import { isAdmin, currentUser } from '../auth.js';
 import { incidentLabels } from '../labels.js';
 import { loadTable } from './table-loader.js';
+import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
 
 export const INCIDENT_TYPES = ['medical', 'slips/falls', 'fire-related', 'security', 'equipment failure'];
 export const SEVERITIES = ['low', 'medium', 'high'];
 
+const CONTACT_FIELDS = [
+  { key: 'name', label: 'Contact person / organization', required: true, maxLength: 255 },
+  { key: 'phone', label: 'Contact number', required: true, maxLength: 50 },
+  { key: 'email', label: 'Email address', type: 'email' },
+  { key: 'relationship', label: 'Relationship / organization' },
+  { key: 'priority', label: 'Priority', type: 'number', min: 1 },
+];
 export async function emergencyContacts(el) {
+  const admin = isAdmin();
+  const studentDisplay = (r) => {
+    const s = Array.isArray(r.students) ? r.students[0] : r.students;
+    return s ? `${s.name}${s.grade ? ` · Grade ${s.grade}` : ''}` : 'Not linked';
+  };
+  const edit = (r) => recordForm({
+    title: 'Edit emergency contact', table: 'emergency_contacts', record: r,
+    fields: r.category === 'school'
+      ? [...CONTACT_FIELDS, { key: 'role', label: 'Service / contact type', required: true }]
+      : CONTACT_FIELDS,
+    validate: (p) => p.phone?.length > 50 ? 'Contact number is too long.' : '',
+    onSaved: () => emergencyContacts(el),
+  });
+  const show = (r) => viewRecord('Emergency contact details', {
+    ...r,
+    contact_type: r.category === 'school' ? (r.role || 'School / agency') : 'Parent / Guardian',
+    student: studentDisplay(r),
+    status_label: r.active === false ? 'Inactive' : 'Active',
+  }, [
+    { key: 'name', label: 'Contact person / organization' },
+    { key: 'contact_type', label: 'Emergency service / type' },
+    { key: 'phone', label: 'Contact number' },
+    { key: 'email', label: 'Email' },
+    { key: 'relationship', label: 'Relationship' },
+    { key: 'student', label: 'Linked student' },
+    { key: 'priority', label: 'Priority' },
+    { key: 'status_label', label: 'Status' },
+  ], admin ? [{ label: 'Edit contact', onClick: () => edit(r) }, { label: 'Delete contact', onClick: () => confirmDelete({ title: r.name, table: 'emergency_contacts', record: r, onSaved: () => emergencyContacts(el) }) }] : []);
+  const toggle = async (r, button) => {
+    if (!isAdmin() || typeof r.active !== 'boolean') return;
+    button.disabled = true;
+    try {
+      await api.updateRow('emergency_contacts', r.id, { active: !r.active });
+      toast(r.active ? 'Contact deactivated.' : 'Contact activated.');
+      await emergencyContacts(el);
+    } catch (e) { toast(e.message || 'Could not update contact status.', 'error'); button.disabled = false; }
+  };
   const columns = [
-    { key: 'id', label: 'ID', render: (r) => h('span', { class: 'text-gray-400 font-mono text-xs whitespace-nowrap' }, r.id) },
-    { key: 'name', label: 'Name', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
-    { key: 'student', label: 'Student', render: (r) => {
-      const s = Array.isArray(r.students) ? r.students[0] : r.students;
-      return r.category === 'student' && s
-        ? h('span', { class: 'text-gray-600' }, `${s.name}${s.grade ? ` · Grade ${s.grade}` : ''}`)
-        : h('span', { class: 'text-gray-300' }, '—');
-    } },
-    { key: 'category', label: 'Type', render: (r) => r.category === 'school' ? pill(r.role || 'School', 'purple') : pill('Parent/Guardian', 'blue') },
-    { key: 'relationship', label: 'Relationship', render: (r) => r.relationship || h('span', { class: 'text-gray-300' }, '—') },
-    { key: 'phone', label: 'Phone', render: (r) => h('span', { class: 'font-mono text-[12px]' }, r.phone || '—') },
-    { key: 'email', label: 'Email', render: (r) => h('span', { class: 'text-gray-600' }, r.email || '—') },
-    { key: 'priority', label: 'Priority', render: (r) => (r.priority ? pill(`#${r.priority}`, 'pink') : h('span', { class: 'text-gray-300' }, '—')) },
+    { key: 'name', label: 'Contact person', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.name) },
+    { key: 'contact_type', label: 'Emergency service / type', render: (r) => r.category === 'school' ? (r.role || 'School / agency') : 'Parent / Guardian' },
+    { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
+    { key: 'email', label: 'Email', render: (r) => r.email || '—' },
+    { key: 'student', label: 'Linked student', render: (r) => r.category === 'student' ? studentDisplay(r) : '—' },
+    { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'inactive' : 'active') },
+    { key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
+      rowActions(() => show(r), admin ? () => edit(r) : null),
+      admin && typeof r.active === 'boolean' ? h('button', {
+        type: 'button', class: 'btn-ghost text-xs',
+        title: r.active ? 'Deactivate contact' : 'Activate contact',
+        'aria-label': r.active ? 'Deactivate contact' : 'Activate contact',
+        onclick: (e) => toggle(r, e.currentTarget),
+      }, r.active ? 'Deactivate' : 'Activate') : null,
+    ) },
   ];
-
   return loadTable(el, {
     table: 'emergency_contacts', columns, iconName: 'contacts',
-    title: 'Emergency Contact Database',
-    subtitle: 'Per-student guardians (priority order) plus school-wide responders: nurse, security head, and nearest police/fire/hospital.',
-    actionLabel: 'Add Contact',
-    actionIcon: 'add',
-    actionClass: 'px-4 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-700 text-white text-xs font-bold shadow-xs transition-colors flex items-center gap-2 clickable shrink-0',
-    onAction: () => contactForm(el),
+    title: 'Emergency Contacts',
+    subtitle: 'School responders, emergency services and linked guardians. Contact details come from verified school records.',
+    actionLabel: 'Add contact', actionIcon: 'add', onAction: () => contactForm(el),
     adminAction: true,
     searchKeys: ['name', 'email', 'phone', 'relationship', 'role'],
-    searchPlaceholder: 'Search by name, email, or phone…',
+    searchPlaceholder: 'Search by person, organization, phone or email…',
     selectFilters: [
-      { key: 'category', label: 'All types', options: [{ value: 'student', label: 'Parents / Guardians' }, { value: 'school', label: 'School & Agencies' }] },
+      { key: 'category', label: 'All contact types', options: [{ value: 'student', label: 'Parents / Guardians' }, { value: 'school', label: 'School / agency' }] },
+      { key: 'active', label: 'All statuses', options: [{ value: 'true', label: 'Active' }, { value: 'false', label: 'Inactive' }] },
     ],
-    empty: { title: 'No contacts yet', text: 'Add student guardians and school-wide responders to build the emergency directory.' },
+    empty: { title: 'No emergency contacts', text: 'Administrators add verified school and emergency responders here.' },
   });
 }
 
@@ -67,7 +111,7 @@ function contactForm(el) {
 
   grid.appendChild(txt('Full Name', 'e.g. Ms. Ana Reyes', (v) => { f.name = v; }));
   grid.appendChild(txt('Phone', 'e.g. 0917 555 1000', (v) => { f.phone = v; }));
-  grid.appendChild(txt('Email', 'e.g. ana@school.ph', (v) => { f.email = v; }));
+  grid.appendChild(txt('Email', 'Email address (optional)', (v) => { f.email = v; }));
   grid.appendChild(h('p', { class: 'lg-field-hint sm:col-span-2' }, 'Phone format: 11-digit mobile (09xx xxx xxxx) or landline (02) 8-xxx-xxxx. Email format: name@domain.com.'));
 
   const studentWrap = h('div', { class: 'sm:col-span-2' });

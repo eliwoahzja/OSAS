@@ -24,14 +24,19 @@ async function call(payload) {
     throw new Error('Could not reach the account service. Is the manage-accounts function deployed?');
   }
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((data && data.error) || `Request failed (${res.status})`);
+  if (!res.ok) {
+    if (res.status === 400 && data?.error === 'Unknown action.') {
+      throw new Error('The deployed manage-accounts function is outdated. An administrator must redeploy the current Supabase Edge Function to enable account editing.');
+    }
+    throw new Error((data && data.error) || `Request failed (${res.status})`);
+  }
   return data;
 }
 
 function openEditModal(user, isSelf, onSaved) {
   const name = h('input', { type: 'text', class: inputCls, value: user.name || '', required: true, autocomplete: 'off' });
   const email = h('input', { type: 'email', class: inputCls, value: user.email || '', required: true, autocomplete: 'off' });
-  const password = h('input', { type: 'text', class: inputCls, placeholder: 'Leave blank to keep the current password', autocomplete: 'new-password' });
+  const password = h('input', { type: 'password', class: inputCls, placeholder: 'Leave blank to keep the current password', autocomplete: 'new-password' });
   const role = h('select', { class: inputCls },
     h('option', { value: 'client' }, 'Student — standard tabs only'),
     h('option', { value: 'admin' }, 'Administrator — all tabs + account management'),
@@ -117,7 +122,7 @@ function openDeleteModal(user, onDeleted) {
 function openCreateModal(onCreated) {
   const name = h('input', { type: 'text', class: inputCls, placeholder: 'Full name', required: true, autocomplete: 'off' });
   const email = h('input', { type: 'email', class: inputCls, placeholder: 'name@saac.edu.ph', required: true, autocomplete: 'off' });
-  const password = h('input', { type: 'text', class: inputCls, placeholder: 'At least 8 characters', required: true, autocomplete: 'new-password' });
+  const password = h('input', { type: 'password', class: inputCls, placeholder: 'At least 8 characters', required: true, autocomplete: 'new-password' });
   const role = h('select', { class: inputCls },
     h('option', { value: 'client' }, 'Student — standard tabs only'),
     h('option', { value: 'admin' }, 'Administrator — all tabs + account management'),
