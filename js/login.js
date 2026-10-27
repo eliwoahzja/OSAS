@@ -227,14 +227,13 @@ export function showLogin({ onSuccess }) {
   const side = h('section', { class: 'lg-side' }, card);
 
   function otpForm({ kind, email, eyebrow, title, lead, submitLabel, verify, resend, back, remember = false }) {
-    const OTP_LENGTH = 6;
+    const { EMAIL_OTP_MIN_LENGTH: OTP_MIN, EMAIL_OTP_MAX_LENGTH: OTP_MAX } = auth;
     const err = mkErr();
     const code = h('input', {
       type: 'text', class: 'lg-input lg-code', inputmode: 'numeric', autocomplete: 'one-time-code',
-      maxlength: String(OTP_LENGTH), placeholder: '••••••', required: true, 'aria-label': '6-digit verification code',
-      'aria-describedby': 'otp-format-hint',
+      maxlength: String(OTP_MAX), placeholder: 'Enter your code', required: true, 'aria-label': 'Email verification code',
     });
-    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, OTP_LENGTH); err.clear(); });
+    code.addEventListener('input', () => { code.value = code.value.replace(/\D/g, '').slice(0, OTP_MAX); err.clear(); });
 
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, submitLabel);
     const resendBtn = h('button', { type: 'button', class: 'lg-link lg-inline', disabled: true }, '');
@@ -283,7 +282,10 @@ export function showLogin({ onSuccess }) {
       onsubmit: async (e) => {
         e.preventDefault();
         err.clear();
-        if (code.value.length !== OTP_LENGTH) { err.show(`Enter the ${OTP_LENGTH}-digit code from your email.`); return; }
+        if (code.value.length < OTP_MIN || code.value.length > OTP_MAX || !/^\d+$/.test(code.value)) {
+          err.show(`Enter the complete ${OTP_MIN}–${OTP_MAX}-digit code from your email.`);
+          return;
+        }
         submit.disabled = true;
         submit.classList.add('is-loading');
         submit.textContent = 'Verifying…';
@@ -304,6 +306,7 @@ export function showLogin({ onSuccess }) {
       h('h2', { class: 'lg-title' }, title),
       h('p', { class: 'lg-lead' }, lead, ' ', h('strong', {}, email)),
       field({ label: 'Verification code', icon: 'shield-halved', input: code }),
+      h('p', { class: 'lg-hint' }, `Enter all ${OTP_MIN}–${OTP_MAX} digits exactly as shown in your email.`),
       err.el,
       rememberDevice,
       submit,
@@ -416,7 +419,7 @@ export function showLogin({ onSuccess }) {
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'A 6-digit verification code will be emailed to you after your password is accepted.'),
+      h('p', { class: 'lg-hint' }, 'A verification code will be emailed to you after your password is accepted.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });

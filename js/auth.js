@@ -1,4 +1,10 @@
-const EMAIL_OTP_LENGTH = 6;
+// The hosted Supabase project may issue a different OTP length than the local config.
+export const EMAIL_OTP_MIN_LENGTH = 6;
+export const EMAIL_OTP_MAX_LENGTH = 10;
+const validEmailOtp = (token) => /^\d+$/.test(token)
+  && token.length >= EMAIL_OTP_MIN_LENGTH
+  && token.length <= EMAIL_OTP_MAX_LENGTH;
+const emailOtpHint = `Enter the complete ${EMAIL_OTP_MIN_LENGTH}–${EMAIL_OTP_MAX_LENGTH}-digit code from your email.`;
 let client = null;
 let listeners = [];
 let checkingPassword = false;
@@ -221,8 +227,8 @@ export async function register({ name, email, password }) {
 export async function verifySignup(email, code) {
   const c = await requireClient();
   const token = String(code || '').replace(/\s+/g, '');
-  if (!new RegExp('^\\d{' + EMAIL_OTP_LENGTH + '}$').test(token)) {
-    throw new Error('Enter the ' + EMAIL_OTP_LENGTH + '-digit code from your email.');
+  if (!validEmailOtp(token)) {
+    throw new Error(emailOtpHint);
   }
   const { data, error } = await c.auth.verifyOtp({
     email: String(email).trim().toLowerCase(),
@@ -268,8 +274,8 @@ function layerEmailError(error, fallback) {
 export async function verifyCode(email, code) {
   const c = await requireClient();
   const token = String(code || '').replace(/\s+/g, '');
-  if (!new RegExp('^\\d{' + EMAIL_OTP_LENGTH + '}$').test(token)) {
-    throw new Error('Enter the ' + EMAIL_OTP_LENGTH + '-digit code from your email.');
+  if (!validEmailOtp(token)) {
+    throw new Error(emailOtpHint);
   }
   const { data, error } = await c.auth.verifyOtp({
     email: String(email).trim().toLowerCase(),
