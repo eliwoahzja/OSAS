@@ -221,7 +221,6 @@ export async function safetyInspections(el) {
 }
 
 export async function emergencyRoles(el) {
-  if (!isAdmin()) { el.replaceChildren(errorBanner('Emergency role assignment is administrator-only.')); return; }
   let plans = [], staff = [], existing = [];
   try {
     [plans, staff, existing] = await Promise.all([
