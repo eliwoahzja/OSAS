@@ -5,7 +5,9 @@ import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { loadTable } from './table-loader.js';
 import { inspectionDue, schoolToday, supplyStatus as inventoryStatus, supplyCategoryTone } from '../safety-status.js';
-import { exportCsv } from './reports.js';
+import { openReportExport } from './reports.js';
+import { openInspectionCalendar } from './inspection-calendar.js';
+import { createActivityPanel, openRecordHistory } from './activity.js';
 import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
 
 const CLINIC_RE = /nurse|clinic|health/i;
@@ -175,7 +177,7 @@ const inspectionFields = [
 ];
 const inspectionDetails = [
   ...inspectionFields.map(({ key, label, type }) => ({ key, label, type })),
-  { key: 'photo_url', label: 'Inspection photo' },
+  { key: 'photo_url', label: 'Inspection photo', type: 'image' },
   { key: 'created_at', label: 'Record created', type: 'date' },
 ];
 export async function safetyInspections(el) {
@@ -204,7 +206,13 @@ export async function safetyInspections(el) {
       { compact: true, onDelete: () => confirmDelete({ title: r.item, table: 'inspections', record: r, onSaved: () => safetyInspections(el) }) },
     ) },
   ];
+  let selectedRows = [], filteredRows = [];
   const rows = await loadTable(el, {
+    selection: {
+      label: (r) => r.item, onChange: (selected) => { selectedRows = selected; },
+      onExport: (selected) => openReportExport('inspections', selected, true),
+    },
+    onFilteredRows: (filtered) => { filteredRows = filtered; },
     table: 'inspections', columns, iconName: 'fact_check', onRetry: () => safetyInspections(el),
     title: 'Safety Inspections', subtitle: 'Track inspection items per area with frequency, status, and follow-up notes.',
     actionLabel: 'Add inspection', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
@@ -243,29 +251,23 @@ export async function safetyInspections(el) {
     panel('Quick Actions',
       h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => edit(null) },
         icon('add'), h('span', {}, 'Add Inspection Item', h('small', {}, 'Create a new inspection record'))),
-      h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => {
-        const calendar = h('div', { class: 'p-6 space-y-4' },
-          h('h3', { class: 'text-lg font-bold' }, 'Inspection schedule'),
-          h('p', { class: 'text-sm text-gray-500' }, 'Upcoming checks ordered by next due date.'),
-          ...upcoming.map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => { modal.close(); show(r); } },
-            h('span', {}, formatDate(r.next_due), h('small', {}, r.item + ' · ' + r.area)))),
-          !upcoming.length ? h('p', {}, 'No upcoming inspections recorded.') : null);
-        const modal = openModal(calendar, { delay: 0 });
-        calendar.appendChild(h('button', { type: 'button', class: 'btn-primary', onclick: () => modal.close() }, 'Close'));
-      } }, icon('calendar_month'), h('span', {}, 'View Calendar', h('small', {}, 'Check scheduled inspections'))),
-      h('button', { type: 'button', class: 'inspection-shortcut', onclick: async () => {
-        try { await exportCsv('inspections'); toast('Inspection report downloaded.'); }
-        catch (e) { toast(e.message || 'Could not export inspections.', 'error'); }
-      } }, icon('download'), h('span', {}, 'Export Report', h('small', {}, 'Download inspection CSV')))),
+      h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => openInspectionCalendar(rows, show) },
+        icon('calendar_month'), h('span', {}, 'View Calendar', h('small', {}, 'Check scheduled inspections'))),
+      h('button', { type: 'button', class: 'inspection-shortcut', onclick: () =>
+        openReportExport('inspections', selectedRows.length ? selectedRows : filteredRows, selectedRows.length > 0),
+      }, icon('download'), h('span', {}, 'Export Report', h('small', {}, 'Download CSV or print to PDF')))),
     panel('Upcoming Inspections',
+      h('button', { type: 'button', class: 'inspection-view-all', onclick: () => openInspectionCalendar(rows, show) }, 'View All'),
       ...upcoming.slice(0, 5).map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => show(r) },
         icon('calendar_month'), h('span', {}, formatDate(r.next_due), h('small', {}, r.item + ' · ' + r.area)), pill(r.status))),
       !upcoming.length ? h('p', { class: 'text-sm text-gray-500' }, 'No upcoming inspections recorded.') : null),
-    panel('Recent Records',
-      ...rows.filter((r) => r.created_at).sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 3)
-        .map((r) => h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => show(r) },
-          h('span', {}, r.item, h('small', {}, 'Added ' + formatDate(r.created_at))))),
-      !rows.some((r) => r.created_at) ? h('p', { class: 'text-sm text-gray-500' }, 'No creation dates recorded.') : null));
+    createActivityPanel({ table: 'inspections', onView: (snapshot, event) => {
+      const current = rows.find((r) => String(r.id) === String(event.record_id));
+      if (current) show(current);
+      else viewRecord('Inspection activity snapshot', snapshot, [
+        { key: 'event_action', label: 'Change' }, { key: 'event_at', label: 'Recorded at' }, ...inspectionDetails,
+      ]);
+    } }));
   shell.appendChild(aside);
 
 }
@@ -284,7 +286,7 @@ export async function emergencyRoles(el) {
   const planOptions = [
     { value: '', label: 'Select an existing evacuation floor plan' },
     ...plans.map((p) => ({
-      value: p.id, label: `${p.building} · ${p.floor}${p.version ? ` (v${p.version})` : ''}`,
+      value: p.id, label: `${p.building} · ${p.floor}${p.version ? ` (${p.version})` : ''}`,
     })),
   ];
   const staffOptions = [{ value: '', label: 'Select an authorized staff account' },
@@ -324,7 +326,8 @@ export async function emergencyRoles(el) {
         if (!staff.some((u) => u.id === data.staff_user_id)) return 'Choose an authorized staff account.';
         if (data.backup_user_id && data.backup_user_id === data.staff_user_id) return 'The backup must be a different person.';
         if (existing.some((r) => r.id !== record?.id && r.evacuation_plan_id === data.evacuation_plan_id
-          && r.zone.toLowerCase() === String(data.zone).toLowerCase() && r.role === data.role)) {
+          && String(r.zone || '').trim().toLowerCase() === String(data.zone).trim().toLowerCase()
+          && String(r.role || '').trim().toLowerCase() === String(data.role).trim().toLowerCase())) {
           return 'This responsibility is already assigned for the selected floor and zone.';
         }
         return '';
@@ -333,9 +336,10 @@ export async function emergencyRoles(el) {
     });
   };
   const show = (r) => viewRecord('Emergency role assignment', {
-    ...r, floor_plan: plan(r) ? `${plan(r).building} · ${plan(r).floor}` : 'Legacy assignment not linked to a floor plan',
+    ...r, floor_plan_url: plan(r)?.file_url, floor_plan: plan(r) ? `${plan(r).building} · ${plan(r).floor}` : 'Legacy assignment not linked to a floor plan',
   }, [
     { key: 'floor_plan', label: 'Evacuation map / floor' },
+    { key: 'floor_plan_url', label: 'Evacuation floor plan', type: 'link' },
     { key: 'zone', label: 'Zone / coverage area' },
     { key: 'role', label: 'Responsibility' },
     { key: 'staff', label: 'Assigned person' },
@@ -343,6 +347,8 @@ export async function emergencyRoles(el) {
   ], [{ label: 'Edit assignment', onClick: () => edit(r) }, { label: 'Delete assignment', onClick: () => confirmDelete({ title: r.role, table: 'emergency_roles', record: r, onSaved: () => emergencyRoles(el) }) }]);
   return loadTable(el, {
     table: 'emergency_roles', iconName: 'groups',
+    transformRows: (rows) => rows.map((r) => ({ ...r, building: plan(r)?.building || r.building, floor: plan(r)?.floor || r.floor })),
+    selectFilters: [{ key: 'evacuation_plan_id', label: 'All floor plans', options: planOptions.slice(1) }],
     title: 'Emergency Roles by Floor and Zone',
     subtitle: 'Associate responsibilities with existing evacuation maps without changing evacuation routes.',
     actionLabel: 'Assign responsibility', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
@@ -363,7 +369,8 @@ export async function emergencyRoles(el) {
 
 const supplyFields = [
   { key: 'item', label: 'Item name', required: true, maxLength: 255 },
-  { key: 'category', label: 'Supply category', placeholder: 'e.g. Wound Care, PPE, Emergency' },
+  { key: 'description', label: 'Item description / pack size', type: 'textarea', wide: true, maxLength: 500, placeholder: 'e.g. Box of 100 pcs' },
+  { key: 'category', label: 'Supply category', maxLength: 80, placeholder: 'e.g. Wound Care, PPE, Emergency' },
   { key: 'quantity', label: 'Quantity', type: 'number', min: 0, required: true },
   { key: 'unit', label: 'Unit', maxLength: 20 },
   { key: 'location', label: 'Storage location', required: true, maxLength: 255 },
@@ -393,8 +400,18 @@ export async function firstAidSupplies(el) {
   }, [...supplyFields.map(({ key, label, type }) => ({ key, label, type })),
     { key: 'stock_status', label: 'Stock status' }, { key: 'created_at', label: 'Record created', type: 'date' }],
   [{ label: 'Edit supply', onClick: () => edit(r) }, { label: 'Delete supply', onClick: () => confirmDelete({ title: r.item, table: 'supplies', record: r, onSaved: () => firstAidSupplies(el) }) }]);
+  const moreActions = (record) => {
+    const body = h('div', { class: 'p-6 space-y-4' }, h('h3', { class: 'text-lg font-bold' }, 'Supply actions: ' + record.item));
+    const modal = openModal(body, { delay: 0 });
+    const action = (label, run) => h('button', { type: 'button', class: 'btn-ghost', onclick: () => { modal.close(); run(); } }, label);
+    body.appendChild(h('div', { class: 'flex flex-wrap gap-3' },
+      action('Edit supply', () => edit(record)),
+      action('View stock history', () => openRecordHistory('supplies', record, supplyFields)),
+      action('Delete supply', () => confirmDelete({ title: record.item, table: 'supplies', record, onSaved: () => firstAidSupplies(el) })),
+      h('button', { type: 'button', class: 'btn-primary', onclick: () => modal.close() }, 'Cancel')));
+  };
   const columns = [
-    { key: 'item', label: 'Item', render: (r) => h('div', {}, h('strong', { class: 'text-gray-900' }, r.item), r.unit ? h('small', { class: 'block text-gray-500 mt-1' }, r.unit) : null) },
+    { key: 'item', label: 'Item', render: (r) => h('div', {}, h('strong', { class: 'text-gray-900' }, r.item), r.description ? h('small', { class: 'block text-gray-500 mt-1' }, r.description) : null) },
     { key: 'category', label: 'Category', render: (r) => r.category ? pill(r.category, supplyCategoryTone(r.category)) : 'Not recorded' },
     { key: 'quantity', label: 'Quantity', render: (r) => h('span', { class: Number(r.quantity) <= Number(r.reorder_threshold) ? 'font-bold text-red-600' : 'font-semibold text-gray-900' }, `${r.quantity} ${r.unit || ''}`.trim()) },
     { key: 'location', label: 'Location' },
@@ -404,7 +421,7 @@ export async function firstAidSupplies(el) {
     { key: 'actions', label: 'Actions', render: (r) => rowActions(
       () => show(r),
       () => edit(r),
-      { compact: true, onMore: () => show(r) },
+      { compact: true, onMore: () => moreActions(r) },
     ) },
   ];
   return loadTable(el, {
@@ -415,7 +432,7 @@ export async function firstAidSupplies(el) {
     onSecondaryAction: (e) => promptNotifyStockHandlers(null, e?.currentTarget),
     transformRows: (rows) => rows.map((r) => ({ ...r, stock_status: stock(r) })),
     selectFilters: [{ key: 'stock_status', label: 'All statuses', options: ['In Stock', 'Low Stock', 'Expiring Soon', 'Expired'].map((value) => ({ value, label: value })) }],
-    searchKeys: ['item', 'category', 'location', 'unit'],
+    searchKeys: ['item', 'description', 'category', 'location', 'unit'],
     searchPlaceholder: 'Search by item, location or unit…',
     empty: { title: 'No supplies tracked yet', text: 'Add the first supply item to begin inventory tracking.' },
   });

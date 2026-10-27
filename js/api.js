@@ -80,10 +80,23 @@ function snapshot(table) {
   return JSON.parse(JSON.stringify(MOCK[table] || []));
 }
 
+function recordMockActivity(table, action, oldValue, newValue) {
+  if (!['inspections', 'supplies', 'emergency_roles'].includes(table)) return;
+  MOCK.audit_log ||= [];
+  MOCK.audit_log.unshift({
+    id: mockNextId('audit_log') + '-' + MOCK.audit_log.length,
+    table_name: table, record_id: (newValue || oldValue).id, action,
+    old_value: oldValue ? JSON.parse(JSON.stringify(oldValue)) : null,
+    new_value: newValue ? JSON.parse(JSON.stringify(newValue)) : null,
+    changed_at: new Date().toISOString(),
+  });
+}
+
 function insertMock(table, payload) {
   const row = { id: mockNextId(table), ...payload };
   MOCK[table] = MOCK[table] || [];
   MOCK[table].unshift(row);
+  recordMockActivity(table, 'insert', null, row);
   persistMock();
   return row;
 }
@@ -92,7 +105,9 @@ function updateMock(table, id, patch) {
   const rows = MOCK[table] || [];
   const i = rows.findIndex((r) => r.id === id);
   if (i < 0) throw new Error('Record not found');
+  const previous = rows[i];
   rows[i] = { ...rows[i], ...patch };
+  recordMockActivity(table, 'update', previous, rows[i]);
   persistMock();
   return rows[i];
 }
@@ -100,7 +115,10 @@ function updateMock(table, id, patch) {
 function deleteMock(table, id) {
   const rows = MOCK[table] || [];
   const i = rows.findIndex((r) => r.id === id);
-  if (i >= 0) rows.splice(i, 1);
+  if (i >= 0) {
+    recordMockActivity(table, 'delete', rows[i], null);
+    rows.splice(i, 1);
+  }
   persistMock();
 }
 
@@ -225,6 +243,20 @@ export async function insertRow(table, payload) {
   const rows = await restFetch('POST', table, { body: payload, prefer: 'return=representation' });
   if (!rows || !rows[0]) throw new Error('The database accepted the request but returned no row.');
   return rows[0];
+}
+
+export async function listActivity(table, { recordId = null, limit = 5 } = {}) {
+  if (!auth.isAdmin()) throw new Error('Activity is visible to administrators only.');
+  if (!['inspections', 'supplies', 'emergency_roles'].includes(table)) throw new Error('Unsupported activity table.');
+  const count = Math.max(1, Math.min(50, Number(limit) || 5));
+  if (isDemoMode()) return snapshot('audit_log')
+    .filter((r) => r.table_name === table && (!recordId || String(r.record_id) === String(recordId)))
+    .sort((a, b) => b.changed_at.localeCompare(a.changed_at)).slice(0, count);
+  return restFetch('GET', 'audit_log', { query: {
+    select: 'table_name,record_id,action,old_value,new_value,changed_at',
+    table_name: `eq.${table}`, record_id: recordId ? `eq.${recordId}` : null,
+    order: 'changed_at.desc', limit: count,
+  } });
 }
 
 export async function updateRow(table, id, patch) {

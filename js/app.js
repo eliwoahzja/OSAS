@@ -161,6 +161,7 @@ async function route() {
   const view = VIEWS[r];
   const title = navLabel(NAV.find((n) => n.route === r)) || 'Dashboard';
   titleEl().textContent = title;
+  document.body.dataset.route = r;
   highlightSidebar(r);
 
   const el = viewEl();

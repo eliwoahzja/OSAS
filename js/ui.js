@@ -19,7 +19,7 @@ export function h(tag, attrs = {}, ...children) {
 }
 
 export function append(el, children) {
-  for (const c of [].concat(children).filter(Boolean)) {
+  for (const c of [].concat(children).filter((c) => c !== null && c !== undefined && c !== false)) {
     el.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
   }
   return el;
@@ -163,7 +163,12 @@ export function moduleShell({ icon: iconName, title, subtitle, actionLabel, acti
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
   const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4' });
   const left = h('div');
-  left.appendChild(h('h2', { class: 'text-2xl sm:text-[28px] font-extrabold text-gray-900 tracking-tight' }, title));
+  const sharedTitle = document.getElementById('page-title');
+  if (sharedTitle && ['safety-inspections', 'first-aid-supplies', 'emergency-contacts', 'emergency-roles'].includes(document.body.dataset.route)) {
+    sharedTitle.textContent = title;
+  } else {
+    left.appendChild(h('h2', { class: 'text-2xl sm:text-[28px] font-extrabold text-gray-900 tracking-tight' }, title));
+  }
   if (subtitle) left.appendChild(h('p', { class: 'text-[15px] text-gray-500 mt-1 max-w-2xl' }, subtitle));
   head.appendChild(left);
   if (actionLabel) {

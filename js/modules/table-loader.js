@@ -1,7 +1,7 @@
 import {
   h, icon, dataTable, moduleShell, moduleStats,
   skeletonHeader, skeletonTableWithColumns, skeletonModuleStats, skeletonSearchBar,
-  emptyBanner, errorBanner, inputCls,
+  emptyBanner, errorBanner, inputCls, checkbox,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
@@ -55,7 +55,7 @@ export const SUMMARY = {
 export async function loadTable(el, {
   table, columns, empty, iconName, title, subtitle,
   actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters = {}, searchKeys = [],
-  searchPlaceholder, selectFilters = [], onRowClick, adminAction = false, dateFilter, transformRows, onRetry,
+  searchPlaceholder, selectFilters = [], onRowClick, adminAction = false, dateFilter, transformRows, onRetry, selection, onFilteredRows,
 }) {
   el.innerHTML = '';
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
@@ -86,7 +86,7 @@ export async function loadTable(el, {
     if (transformRows) rows = transformRows(rows);
   } catch (e) {
     holder.replaceChildren(errorBanner(e.message, onRetry || (() => {
-      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick, adminAction, dateFilter, transformRows, onRetry });
+      loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick, adminAction, dateFilter, transformRows, onRetry, selection, onFilteredRows });
     })));
     return;
   }
@@ -114,7 +114,7 @@ export async function loadTable(el, {
     return [];
   }
 
-  const state = { q: '', sel: {}, from: '', to: '', page: 1, pageSize: 10 };
+  const state = { q: '', sel: {}, from: '', to: '', page: 1, pageSize: 10, selected: new Set() };
   const matches = (r) => {
     if (state.q) {
       const s = state.q.toLowerCase();
@@ -159,6 +159,9 @@ export async function loadTable(el, {
       } }, 'Clear dates'),
     ));
   }
+  const selectedRows = () => rows.filter((r) => state.selected.has(r.id));
+  const selectionBar = h('div', { class: 'table-selection-bar', 'aria-label': 'Selected records' });
+  if (selection) parts.push(selectionBar);
   const tableWrap = h('div');
   const pager = h('div', { class: 'flex flex-wrap justify-between items-center gap-3 text-sm text-gray-600' });
   parts.push(tableWrap, pager);
@@ -170,7 +173,41 @@ export async function loadTable(el, {
     state.page = Math.min(state.page, pages);
     const start = (state.page - 1) * state.pageSize;
     const shown = filtered.slice(start, start + state.pageSize);
-    tableWrap.replaceChildren(dataTable(columns, shown, { onRowClick }));
+    onFilteredRows?.(filtered);
+    let displayedColumns = columns;
+    if (selection) {
+      const selected = selectedRows();
+      selection.onChange?.(selected);
+      selectionBar.hidden = !selected.length;
+      selectionBar.replaceChildren(
+        h('span', { role: 'status' }, `${selected.length} selected across pages`),
+        selection.onExport ? h('button', { type: 'button', class: 'btn-ghost', onclick: () => selection.onExport(selectedRows()) }, 'Export selected') : null,
+        h('button', { type: 'button', class: 'btn-ghost', onclick: () => { state.selected.clear(); renderTable(); } }, 'Clear selection'));
+      const allShown = shown.length > 0 && shown.every((r) => state.selected.has(r.id));
+      displayedColumns = [{
+        key: 'selection', cls: 'table-selection-column',
+        label: h('label', { class: 'table-selection-toggle' }, checkbox({
+          ariaLabel: 'Select all visible records', checked: allShown,
+          indeterminate: !allShown && shown.some((r) => state.selected.has(r.id)),
+          onChange: (checked, event) => {
+            event.stopPropagation();
+            shown.forEach((r) => checked ? state.selected.add(r.id) : state.selected.delete(r.id));
+            renderTable();
+            tableWrap.querySelector('thead input')?.focus();
+          },
+        })),
+        render: (r) => h('label', { class: 'table-selection-toggle', onclick: (e) => e.stopPropagation() }, checkbox({
+          ariaLabel: 'Select ' + (selection.label?.(r) || r.item || 'record'), checked: state.selected.has(r.id),
+          onChange: (checked, event) => {
+            event.stopPropagation();
+            checked ? state.selected.add(r.id) : state.selected.delete(r.id);
+            renderTable();
+            tableWrap.querySelectorAll('tbody input')[shown.indexOf(r)]?.focus();
+          },
+        })),
+      }, ...columns];
+    }
+    tableWrap.replaceChildren(dataTable(displayedColumns, shown, { onRowClick }));
     if (!filtered.length) {
       tableWrap.appendChild(emptyBanner({ icon: 'search', title: 'No matches', text: 'Try a different search or clear the filters.' }));
     }

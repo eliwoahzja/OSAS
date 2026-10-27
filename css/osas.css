@@ -491,9 +491,39 @@ body.h-screen { height: 100vh; height: 100dvh; }
 }
 .osas-table-toolbar select { width: auto; max-width: 100%; padding-right: 36px; }
 .record-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; min-height: 36px; padding: 8px; }
-.inspection-main td, .inspection-main th { padding-left: 12px; padding-right: 12px; }
+.inspection-main td, .inspection-main th { padding-left: 8px; padding-right: 8px; }
 .inspection-main td { font-size: 12px; }
 @media (max-width: 639px) {
   .osas-table-toolbar select { width: 100%; }
   .record-action-icon { width: 44px; min-height: 44px; }
 }
+
+.table-selection-bar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:12px 16px; background:#fdf2f8; border:1px solid #fbcfe8; border-radius:12px; font-size:13px; }
+.table-selection-bar[hidden] { display:none; }
+.table-selection-toggle { display:inline-flex; align-items:center; justify-content:center; width:32px; min-height:32px; cursor:pointer; }
+.table-selection-column { width:44px; }
+.inspection-panel { position:relative; }
+.inspection-view-all { display:block; margin:-4px 0 8px auto; color:#be185d; font-size:11px; font-weight:600; min-height:32px; }
+.calendar-navigation { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.calendar-weekdays, .calendar-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+.calendar-weekdays { text-align:center; font-size:11px; color:#6b7280; }
+.calendar-day { min-width:0; min-height:54px; border:1px solid #f1e7ec; border-radius:8px; padding:5px; font-size:13px; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.calendar-day small { display:block; font-size:10px; color:#be185d; }
+.calendar-day-outside { color:#9ca3af; background:#fafafa; }
+.calendar-day[aria-current=date] { border-color:#db2777; }
+.calendar-day[aria-pressed=true] { background:#fdf2f8; box-shadow:inset 0 0 0 1px #db2777; color:#9d174d; }
+.calendar-day:focus-visible, .inspection-shortcut:focus-visible { outline:2px solid #be185d; outline-offset:2px; }
+.record-detail-wide { grid-column:1/-1; }
+.record-detail-photo { display:block; max-width:100%; max-height:320px; object-fit:contain; border-radius:10px; }
+@media(max-width:639px) {
+  .table-selection-toggle { width:44px; min-height:44px; }
+  .calendar-day { min-height:44px; padding:2px; }
+  .inspection-calendar { padding:16px; }
+}
+.table-selection-toggle { position:relative; }
+.table-selection-toggle .lg-check { position:static; }
+.table-selection-toggle .lg-check-input { inset:0; width:100%; height:100%; pointer-events:auto; cursor:pointer; z-index:1; }
+body[data-route="safety-inspections"] > main > header,
+body[data-route="first-aid-supplies"] > main > header,
+body[data-route="emergency-contacts"] > main > header,
+body[data-route="emergency-roles"] > main > header { padding-bottom:8px; }

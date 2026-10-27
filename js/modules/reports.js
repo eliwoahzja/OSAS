@@ -1,5 +1,5 @@
 import {
-  h, icon, moduleShell, skeletonHeader, skeletonStatCards, statCard, toast, errorBanner, inputCls,
+  h, icon, moduleShell, skeletonHeader, skeletonStatCards, statCard, toast, errorBanner, inputCls, openModal,
 } from '../ui.js';
 import * as api from '../api.js';
 import { inspectionDue } from '../safety-status.js';
@@ -8,7 +8,7 @@ const DATASETS = {
   incidents: { label: 'Incidents', cols: ['date', 'time', 'type', 'location', 'description', 'reporter', 'severity', 'status'] },
   inspections: { label: 'Inspections', cols: ['item', 'area', 'frequency', 'last_inspected', 'next_due', 'status', 'risk_level', 'inspector', 'notes', 'corrective_actions'] },
   drills: { label: 'Drills', cols: ['type', 'date', 'time', 'building', 'person_in_charge', 'status', 'notes'] },
-  supplies: { label: 'First aid supplies', cols: ['item', 'quantity', 'unit', 'location', 'expiry', 'reorder_threshold', 'last_restocked'] },
+  supplies: { label: 'First aid supplies', cols: ['item', 'description', 'category', 'quantity', 'unit', 'location', 'expiry', 'reorder_threshold', 'last_restocked'] },
 };
 
 function csvCell(v) {
@@ -17,9 +17,9 @@ function csvCell(v) {
   return `"${t.replace(/"/g, '""')}"`;
 }
 
-export async function exportCsv(key) {
+export async function exportCsv(key, suppliedRecords = null) {
   const d = DATASETS[key];
-  const records = await api.listRows(key);
+  const records = suppliedRecords ?? await api.listRows(key);
   const rows = key === 'inspections' ? records.map((r) => ({ ...r, next_due: inspectionDue(r) })) : records;
   const lines = [d.cols.join(','), ...rows.map((r) => d.cols.map((c) => csvCell(r[c])).join(','))];
   const blob = new Blob([`\ufeff${lines.join('\r\n')}`], { type: 'text/csv;charset=utf-8' });
@@ -31,6 +31,46 @@ export async function exportCsv(key) {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   return rows.length;
+}
+
+export function printReport(key, records) {
+  const dataset = DATASETS[key];
+  const report = window.open('', '_blank');
+  if (!report) throw new Error('Allow this report window to open, then try again.');
+  report.opener = null;
+  report.document.title = 'OSAS ' + dataset.label;
+  const style = report.document.createElement('style');
+  style.textContent = '@page{size:landscape;margin:12mm}body{font:12px system-ui,sans-serif;color:#17212d;padding:24px}h1{font-size:22px}table{border-collapse:collapse;width:100%}th,td{padding:8px;border:1px solid #ddd;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#f6f2f4;font-size:10px;text-transform:uppercase}thead{display:table-header-group}tr{break-inside:avoid}button{padding:10px 16px;margin-bottom:20px}@media print{body{padding:0}button{display:none}}';
+  report.document.head.appendChild(style);
+  const rows = key === 'inspections' ? records.map((r) => ({ ...r, next_due: inspectionDue(r) })) : records;
+  report.document.body.append(
+    h('button', { type: 'button', onclick: () => report.print() }, 'Print / Save as PDF'),
+    h('h1', {}, dataset.label),
+    h('p', {}, `SAAC · Office of Student Affairs and Services · ${rows.length} records`),
+    h('table', {},
+      h('thead', {}, h('tr', {}, dataset.cols.map((key) => h('th', {}, key.replaceAll('_', ' '))))),
+      h('tbody', {}, rows.map((row) => h('tr', {}, dataset.cols.map((key) => h('td', {}, row[key] ?? '—')))))),
+  );
+  report.focus();
+  return report;
+}
+
+export function openReportExport(key, records, selected = false) {
+  const error = h('p', { class: 'hidden text-sm text-red-600', role: 'alert' });
+  const body = h('div', { class: 'p-6 space-y-4' },
+    h('h3', { class: 'text-lg font-bold' }, 'Export ' + DATASETS[key].label.toLowerCase()),
+    h('p', { class: 'text-sm text-gray-500' }, `${records.length} ${selected ? 'selected' : 'matching'} record${records.length === 1 ? '' : 's'}.`),
+    error);
+  const modal = openModal(body, { delay: 0 });
+  const fail = (e) => { error.textContent = e.message || 'Export failed.'; error.classList.remove('hidden'); };
+  body.appendChild(h('div', { class: 'flex flex-wrap gap-3' },
+    h('button', { type: 'button', class: 'btn-primary', onclick: async () => {
+      try { await exportCsv(key, records); toast('Report downloaded.'); modal.close(); } catch (e) { fail(e); }
+    } }, icon('download'), 'Download CSV'),
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => {
+      try { printReport(key, records); modal.close(); } catch (e) { fail(e); }
+    } }, icon('print'), 'Print / Save as PDF'),
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Cancel')));
 }
 
 export async function complianceReports(el) {

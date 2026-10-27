@@ -10,9 +10,19 @@ const visible = (value, type) => {
 };
 
 export function viewRecord(title, record, fields, actions = []) {
-  const rows = fields.map(({ key, label, type }) => h('div', { class: 'py-3 border-b border-gray-100 min-w-0' },
-    h('dt', { class: 'text-xs font-bold uppercase tracking-wide text-gray-500' }, label),
-    h('dd', { class: 'text-sm text-gray-900 mt-1 break-words whitespace-pre-wrap' }, visible(record[key], type)),
+  const detailValue = ({ key, label, type }) => {
+    if (['image', 'link'].includes(type) && record[key]) {
+      let url;
+      try { url = new URL(record[key], window.location.origin); } catch { return 'Not recorded'; }
+      if (!['https:', 'http:'].includes(url.protocol)) return 'Not recorded';
+      return h('a', { href: url.href, target: '_blank', rel: 'noopener noreferrer', class: 'text-pink-700 underline' },
+        type === 'image' ? h('img', { src: url.href, alt: label, class: 'record-detail-photo', loading: 'lazy' }) : 'Open ' + label.toLowerCase());
+    }
+    return visible(record[key], type);
+  };
+  const rows = fields.map((field) => h('div', { class: 'py-3 border-b border-gray-100 min-w-0' + (['textarea', 'image'].includes(field.type) ? ' record-detail-wide' : '') },
+    h('dt', { class: 'text-xs font-bold uppercase tracking-wide text-gray-500' }, field.label),
+    h('dd', { class: 'text-sm text-gray-900 mt-1 break-words whitespace-pre-wrap' }, detailValue(field)),
   ));
   const details = h('div', { class: 'p-6 sm:p-8 space-y-4' },
     h('h3', { class: 'text-lg font-bold text-gray-900' }, title),
@@ -49,7 +59,7 @@ export function recordForm({ title, table, record = null, fields, onSaved, valid
           value: o.value, selected: String(o.value) === String(value),
         }, o.label)));
     } else if (field.type === 'textarea') {
-      input = h('textarea', { ...attrs, rows: 3 });
+      input = h('textarea', { ...attrs, rows: 3, maxLength: field.maxLength ?? null, placeholder: field.placeholder || null });
       input.value = String(value);
     } else {
       input = h('input', {
