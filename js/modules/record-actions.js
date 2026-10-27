@@ -32,7 +32,7 @@ export function viewRecord(title, record, fields, actions = []) {
   modal = openModal(details, { delay: 0 });
 }
 
-export function recordForm({ title, table, record = null, fields, onSaved, validate }) {
+export function recordForm({ title, table, record = null, fields, onSaved, validate, prepare }) {
   if (!isAdmin()) return;
   const editing = Boolean(record);
   const form = h('form', { class: 'p-6 sm:p-8 space-y-4' });
@@ -94,6 +94,7 @@ export function recordForm({ title, table, record = null, fields, onSaved, valid
         payload[f.key] = raw || null;
       }
     }
+    if (prepare) prepare(payload);
     const message = validate?.(payload);
     if (message) { err.textContent = message; err.classList.remove('hidden'); return; }
     err.classList.add('hidden');
