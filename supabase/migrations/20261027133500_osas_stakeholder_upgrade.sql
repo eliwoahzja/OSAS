@@ -93,7 +93,7 @@ CREATE POLICY "delete_admin" ON public.emergency_roles
 
 -- Inspection and stock management must remain admin-only at the API layer,
 -- not simply behind hidden navigation controls.
-DO $
+DO $policy$
 DECLARE t text;
 BEGIN
   FOREACH t IN ARRAY ARRAY['inspections', 'supplies']
@@ -114,6 +114,6 @@ BEGIN
     EXECUTE format('CREATE POLICY "update_admin" ON public.%I FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin())', t);
     EXECUTE format('CREATE POLICY "delete_admin" ON public.%I FOR DELETE TO authenticated USING (public.is_admin())', t);
   END LOOP;
-END $;
+END $policy$;
 
 COMMIT;
