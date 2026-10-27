@@ -9,7 +9,7 @@ import { isAdmin } from '../auth.js';
 export const SUMMARY = {
   emergency_contacts: (rows) => [
     { label: 'Total contacts', value: rows.length, icon: 'contacts', chipCls: 'bg-pink-50 text-pink-600' },
-    { label: 'Guardians', value: rows.filter((r) => r.category === 'student').length, icon: 'family_restroom', chipCls: 'bg-blue-50 text-blue-600' },
+    { label: 'Active contacts', value: rows.filter((r) => r.active !== false).length, icon: 'check_circle', chipCls: 'bg-emerald-50 text-emerald-600' },
     { label: 'School & agencies', value: rows.filter((r) => r.category === 'school').length, icon: 'local_police', chipCls: 'bg-purple-50 text-purple-600' },
   ],
   drills: (rows) => [
