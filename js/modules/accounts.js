@@ -218,7 +218,7 @@ function deleteRequest(request, reload) {
 function resetRequestQueue() {
   const rows = h('div', { class: 'mt-4' });
   const refresh = h('button', { type: 'button', class: 'btn-ghost', onclick: () => load() }, 'Refresh requests');
-  const section = h('section', { class: 'bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Requests' },
+  const section = h('section', { class: 'account-requests bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Requests' },
     h('div', { class: 'flex flex-wrap items-center justify-between gap-3' },
       h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Requests'),
         h('p', { class: 'text-sm text-gray-500 mt-1' }, 'Review account creation and password reset requests.')), refresh), rows);
@@ -237,7 +237,7 @@ function resetRequestQueue() {
           return h('div', {}, pill(expired ? 'Expired' : r.status, r.status === 'completed' ? 'green' : r.status === 'pending' ? 'amber' : 'gray'),
             r.notification_error ? h('p', { class: 'text-xs text-red-600 mt-1' }, r.notification_error) : null);
         } },
-        { label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-2' }, h('button', { type: 'button', class: 'btn-ghost', onclick: () => resetRequestReview(r, load) }, 'Review request'), ['approved', 'rejected', 'completed'].includes(r.status) ? h('button', { type: 'button', class: 'btn-ghost', onclick: () => deleteRequest(r, load) }, 'Delete request') : null) },
+        { label: 'Actions', cls: 'request-actions-column', cellCls: 'request-actions-column', render: (r) => h('div', { class: 'request-actions' }, h('button', { type: 'button', class: 'btn-ghost', onclick: () => resetRequestReview(r, load) }, 'Review request'), ['approved', 'rejected', 'completed'].includes(r.status) ? h('button', { type: 'button', class: 'btn-ghost', onclick: () => deleteRequest(r, load) }, 'Delete request') : null) },
       ], requests));
     } catch (error) { rows.replaceChildren(errorBanner(error.message, load)); }
     finally { refresh.disabled = false; }

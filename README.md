@@ -127,11 +127,13 @@ The demo and fresh-database seed include all ten supplied First Aid Supplies row
 
 ### Admin-approved password recovery
 
-Sign-in → **Forgot password?** submits an approval request. Administrators receive an email containing the saved account name, email, role, creation date, last sign-in, and request time. **Accounts → Password reset requests → Review request** provides approval, rejection, and link revocation. Approval sends a single-use link to the saved account email. The owner chooses a new password, then signs in normally. Approval itself leaves the old password unchanged.
+Sign-in → **Forgot password?** submits an approval request. Administrators receive an email containing the saved account name, email, role, creation date, last sign-in, and request time. **Accounts → Requests → Review request** provides approval, rejection, and link revocation. Approval sends a single-use link to the saved account email. The owner chooses a new password, then signs in normally. Approval itself leaves the old password unchanged.
 
 Apply `supabase/migrations/20261028134104_admin_password_reset_requests.sql` and deploy `supabase/functions/password-reset` with JWT gateway verification disabled. Public request and token-completion routes use their own controls; list/approve/reject validate the session and `app_metadata.role` on the server. The tables and submit RPC are accessible only to the service role. Links contain 32 random bytes, expire after 30 minutes, and are stored only as SHA-256 hashes. Public responses do not reveal whether an email exists. Requests are limited to five per source IP per hour and one per account per hour, with pending requests deduplicated.
 
 The function reuses existing `MAILEROO_API_KEY` / `MAILEROO_FROM` or `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` secrets. `APP_URL` controls the trusted destination in emails (default `https://stagnesacademy.vercel.app/`). Failed emails keep requests visible in Accounts for review/retry. Automated tests use fake delivery and do not email users or change live passwords.
+
+The planned custom domain is `https://osas.stagnesacademy-sms.com/`, with Accounts at `/#/accounts`. After connecting the domain to the existing Vercel project and verifying HTTPS, set the password-reset function's `APP_URL` to `https://osas.stagnesacademy-sms.com/` and update the hosted Supabase Auth Site URL and redirect allow-list as needed. Use the site root, without `/#/accounts`, so password setup links and logo URLs resolve correctly. Keep the current URL until the domain is live.
 
 ### Latest stakeholder changes
 
