@@ -98,9 +98,9 @@ async function guardianEmailsForGrades(svc: any, grades: number[]): Promise<stri
 }
 
 async function clinicEmails(svc: any): Promise<string[]> {
-  const { data } = await svc.from('emergency_contacts').select('name,role,relationship,email')
+  const { data } = await svc.from('emergency_contacts').select('name,role,relationship,email,active')
     .eq('category', 'school').not('email', 'is', null);
-  return clean((data || []).filter((c: any) => CLINIC_RE.test(`${c.name || ''} ${c.role || ''} ${c.relationship || ''}`)));
+  return clean((data || []).filter((c: any) => c.active !== false && CLINIC_RE.test(`${c.name || ''} ${c.role || ''} ${c.relationship || ''}`)));
 }
 
 function gradesFromAudience(audience: string): number[] | null {
@@ -347,7 +347,7 @@ async function sendSmtp(recipients: string[], subject: string, html: string) {
             if (!ok.startsWith('220')) {
               throw new Error(`STARTTLS failed: ${ok.slice(0, 160).replace(/\r?\n/g, ' ')}`);
             }
-            sock = await Deno.startTls(sock, { hostname: SMTP_HOST });
+            sock = await Deno.startTls(sock as Deno.TcpConn, { hostname: SMTP_HOST });
           }
         }
         await smtpSendOn(sock, { from, to: address, password: SMTP_PASS, message: msg, greet: implicitTls });
@@ -384,19 +384,22 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
   const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  let user: { id: string; app_metadata: { role: string } } | null = null;
+  let user: { id: string } | null = null;
   let role: 'admin' | 'authenticated' = 'authenticated';
   if (jwt) {
     try {
       const { data } = await createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }).auth.getUser(jwt);
       if (data?.user) {
-        user = { id: data.user.id, app_metadata: data.user.app_metadata || {} };
-        role = user.app_metadata.role === 'admin' ? 'admin' : 'authenticated';
+        user = { id: data.user.id };
+        role = data.user.app_metadata?.role === 'admin' ? 'admin' : 'authenticated';
       }
     } catch {
       user = null;
     }
   }
+
+  if (!user) return json({ error: 'Sign-in required.' }, 401);
+  if (role !== 'admin') return json({ error: 'Only administrators can send notifications.' }, 403);
 
   let payload: Record<string, any>;
   try {

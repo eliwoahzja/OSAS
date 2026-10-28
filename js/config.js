@@ -8,9 +8,8 @@ window.OSAS = Object.assign({
   SMTP_HOST: getConfig('SMTP_HOST', ''),
   SMTP_USER: getConfig('SMTP_USER', ''),
   SMTP_FROM: getConfig('SMTP_FROM', ''),
-  PIN_ACCOUNTS: getConfig('PIN_ACCOUNTS', {
-    'admin@saac.ph': 'aefae39c478dd0d0c461d6463e22bd7a14639a473bf020dfb24dfd21703f1dc3',
-  }),
+  ADMIN_EMAIL: getConfig('ADMIN_EMAIL', 'tropanggala87@gmail.com'),
+  PIN_ACCOUNTS: getConfig('PIN_ACCOUNTS', {}),
 }, window.OSAS || {});
 
 window.OSAS.toggleSidebar = () => {

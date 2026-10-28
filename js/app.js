@@ -9,13 +9,14 @@ import * as auth from './auth.js';
 import * as modules from './modules.js';
 import { roleLabel, incidentLabels } from './labels.js';
 import { showLogin } from './login.js';
+import { startDashboardUpdates } from './live-dashboard.js';
 
 const NAV = [
   { route: 'dashboard', label: 'Dashboard', icon: 'border-all', access: 'all' },
   { route: 'emergency-contacts', label: 'Emergency Contacts', icon: 'phone', access: 'all' },
   { route: 'evacuation-plans', label: 'Evacuation Map & Plans', icon: 'map', access: 'all' },
   { route: 'incident-logging', label: 'Incident Logging', icon: 'report', access: 'all' },
-  { route: 'parent-notifications', label: 'Parent Notifications', icon: 'notifications', access: 'all' },
+  { route: 'parent-notifications', label: 'Parent Notifications', icon: 'notifications', access: 'admin' },
   { route: 'drill-scheduling', label: 'Drill Scheduling', icon: 'person-running', access: 'admin' },
   { route: 'safety-inspections', label: 'Safety Inspections', icon: 'fact_check', access: 'admin' },
   { route: 'first-aid-supplies', label: 'First Aid Supplies', icon: 'medical_services', access: 'admin' },
@@ -148,7 +149,7 @@ function stopProgress() {
 
 async function route() {
   if (location.hash.startsWith('#/reset-password?')) {
-    clearInterval(statsTimer);
+    stopDashboardUpdates();
     showLogin({ onSuccess: enterApp });
     return;
   }
@@ -162,7 +163,7 @@ async function route() {
   }
   document.getElementById('sidebar').classList.add('-translate-x-full');
   document.getElementById('sidebar-backdrop').classList.add('hidden');
-  if (r !== 'dashboard') clearInterval(statsTimer);
+  if (r !== 'dashboard') stopDashboardUpdates();
   const view = VIEWS[r];
   const title = navLabel(NAV.find((n) => n.route === r)) || 'Dashboard';
   titleEl().textContent = title;
@@ -320,7 +321,7 @@ function enterApp() {
 }
 
 async function logout() {
-  clearInterval(statsTimer);
+  stopDashboardUpdates();
   await auth.signOut();
   location.hash = '#/dashboard';
   document.getElementById('view').innerHTML = '';
@@ -344,7 +345,7 @@ function wireShell() {
   document.getElementById('topbar-date').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-let statsTimer = null;
+let stopDashboardUpdates = () => {};
 
 function firstName() {
   const u = auth.currentUser();
@@ -478,7 +479,7 @@ function drawStats(box, s) {
   // renders these two charts, and only the admin dashboard fetches the rows.
   const analyticsCharts = [
     barChart(s.incident_breakdown || [], { title: 'Incidents by Type' }),
-    pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
+    ...(admin ? [pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' })] : []),
   ];
   if (admin) {
     analyticsCharts.unshift(
@@ -489,20 +490,20 @@ function drawStats(box, s) {
   box.appendChild(h('section', { class: 'space-y-5' },
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
-      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, admin ? 'Incident, Inspection & Supplies Health' : 'Incident & Inspection Health'),
+      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, admin ? 'Incident, Inspection & Supplies Health' : 'Incident Reports'),
       h('p', { class: 'text-[15px] text-gray-500 mt-1' }, admin
         ? 'Pie chart breakdown of supplies inventory, stock health, incidents, and inspection status.'
-        : 'Chart breakdown of reported incidents and inspection status.'),
+        : 'Live breakdown of reported incidents.'),
     ),
     h('div', { class: `grid md:grid-cols-2 ${admin ? 'xl:grid-cols-4' : ''} gap-5` }, ...analyticsCharts),
   ));
 
   const yearsData = s.years_by_year || [];
-  if (yearsData.length > 1) {
+  {
     box.appendChild(h('section', {},
       yearBarChart(yearsData, {
         title: 'Incidents by Year',
-        subtitle: 'Compare incident volume across school years.',
+        subtitle: 'Saved incident reports by calendar year. Updates when reports change.',
       }),
     ));
   }
@@ -549,6 +550,7 @@ async function renderDashboard(el) {
   const refresh = async (isInitial = false) => {
     try {
       const s = await api.getDashboardStats();
+      if (!el.contains(wrap)) return;
 
       if (isInitial) {
         heroWrap.innerHTML = '';
@@ -595,8 +597,9 @@ async function renderDashboard(el) {
   };
 
   await refresh(true);
-  clearInterval(statsTimer);
-  statsTimer = setInterval(refresh, 15000);
+  if (!el.contains(wrap)) return;
+  stopDashboardUpdates();
+  stopDashboardUpdates = startDashboardUpdates(refresh, auth.subscribeIncidentChanges);
 }
 
 async function boot() {

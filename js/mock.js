@@ -66,7 +66,7 @@ export const MOCK = {
     { id: 'GC-1002', category: 'student', name: 'Ramon Reyes', relationship: 'Father', phone: '0917 555 2002', email: 'ramon.reyes@demo.saac.ph', priority: 1, student_id: 'stu-12' },
     { id: 'GC-1003', category: 'student', name: 'Marlon Valmoria', relationship: 'Father / Guardian', phone: '0917 555 3102', email: 'marlon.valmoria@demo.saac.ph', priority: 1, student_id: 'stu-24' },
     { id: 'GC-1004', category: 'student', name: 'Christian D. Manaron', relationship: 'Father / Guardian', phone: '0917 555 3202', email: 'christian.manaron@demo.saac.ph', priority: 1, student_id: 'stu-25' },
-    { id: 'SC-1', category: 'school', role: 'School Nurse', name: 'Ms. Corazon Dela Peña', phone: '0917 555 0001', email: 'nurse@demo.saac.ph', priority: null },
+    { id: 'SC-1', category: 'school', role: 'School Nurse', name: 'Ms. Corazon Dela Peña', phone: '0917 555 0001', email: 'tropanggala87@gmail.com', priority: null },
     { id: 'SC-3', category: 'school', role: 'Nearest Police Station', name: 'Caloocan City Police Station 1', phone: '(02) 8-364-1234', email: 'cpd1@ncrpo.pnp.gov.ph', priority: null },
   ],
 

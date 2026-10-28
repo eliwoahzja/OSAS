@@ -196,34 +196,6 @@ export async function cancelPin() {
   try { if (client) await client.auth.signOut(); } catch {}
 }
 
-export async function register({ name, email, password }) {
-  const c = await requireClient();
-  const addr = String(email || '').trim().toLowerCase();
-  checkingPassword = true;
-  try {
-    const { data, error } = await c.auth.signUp({
-      email: addr,
-      password,
-      options: { data: { name: String(name || '').trim() } },
-    });
-    if (error) {
-      if (/signups? (not allowed|are disabled)/i.test(error.message || '')) {
-        throw new Error('Self-registration is turned off. Ask an administrator to create your account.');
-      }
-      if (/already|registered/i.test(error.message || '')) throw new Error('An account with that email already exists.');
-      throw new Error(friendly(error, 'Could not create the account.'));
-    }
-    if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      throw new Error('An account with that email already exists.');
-    }
-    const needsConfirm = !(data && data.session);
-    if (!needsConfirm) await c.auth.signOut();
-    return { email: addr, needsConfirm };
-  } finally {
-    checkingPassword = false;
-  }
-}
-
 export async function verifySignup(email, code) {
   const c = await requireClient();
   const token = String(code || '').replace(/\s+/g, '');
@@ -316,4 +288,13 @@ export async function restore() {
   }
   saveSession(null);
   return null;
+}
+
+export async function subscribeIncidentChanges(onChange) {
+  const c = await getClient();
+  if (!c || !hasRealSession()) return () => {};
+  const channel = c.channel('dashboard-incidents-' + crypto.randomUUID())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'incidents' }, onChange)
+    .subscribe();
+  return () => { void c.removeChannel(channel); };
 }

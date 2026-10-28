@@ -416,8 +416,7 @@ export function showLogin({ onSuccess }) {
       field({ label: 'Email', icon: 'user', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderResetRequest(email.value)) }, 'Forgot password?'),
-      h('p', { class: 'lg-switch' }, 'No account yet? ',
-        h('button', { type: 'button', class: 'lg-switch-btn', onclick: () => switchTo(() => renderRegister()) }, 'Register now.')),
+      h('p', { class: 'lg-hint' }, 'Student accounts are created by an administrator. ', h('a', { href: 'mailto:' + (window.OSAS.ADMIN_EMAIL || 'tropanggala87@gmail.com'), class: 'lg-link lg-inline' }, 'Contact OSAS for an account.')),
       notice,
       err.el,
       submit,
@@ -592,61 +591,6 @@ export function showLogin({ onSuccess }) {
     return () => otp.focus();
   }
 
-  function renderRegister() {
-    stopTimers();
-    card.innerHTML = '';
-    const err = mkErr();
-    const name = h('input', { type: 'text', class: 'lg-input', placeholder: 'Juan Dela Cruz', autocomplete: 'name', required: true });
-    const email = h('input', { type: 'email', class: 'lg-input', placeholder: 'you@saac.edu.ph', autocomplete: 'email', required: true });
-    const password = h('input', { type: 'password', class: 'lg-input', placeholder: 'Create a password', autocomplete: 'new-password', required: true, minlength: '8' });
-    const confirm = h('input', { type: 'password', class: 'lg-input', placeholder: 'Re-enter password', autocomplete: 'new-password', required: true, minlength: '8' });
-    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Create Account');
-
-    const checklist = passwordChecklist(password);
-
-    const form = h('form', {
-      class: 'lg-form',
-      onsubmit: async (e) => {
-        e.preventDefault();
-        err.clear();
-        const unmet = checklist.firstUnmet();
-        if (unmet) { err.show(unmet + '.'); password.focus(); return; }
-        if (password.value !== confirm.value) { err.show('The two passwords do not match.'); return; }
-        submit.disabled = true;
-        submit.classList.add('is-loading');
-        submit.textContent = 'Creating…';
-        try {
-          const r = await auth.register({ name: name.value, email: email.value, password: password.value });
-          if (r.needsConfirm) {
-            armCooldown('signup', r.email);
-            openVerifyModal(r.email);
-          } else {
-            switchTo(() => renderCredentials(r.email, 'Account created. Sign in to continue.'));
-          }
-        } catch (ex) {
-          err.show(ex.message || 'Could not create the account.');
-        }
-        submit.disabled = false;
-          submit.classList.remove('is-loading');
-        submit.textContent = 'Create Account';
-      },
-    },
-      h('p', { class: 'lg-eyebrow' }, 'New here'),
-      h('h2', { class: 'lg-title' }, 'Create Account'),
-      h('p', { class: 'lg-lead' }, 'Register to get access to the St. Agnes Academy OSAS Dashboard.'),
-      field({ label: 'Full name', icon: 'id-card', input: name }),
-      field({ label: 'Email', icon: 'user', input: email }),
-      field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password, confirm]), extra: checklist.el }),
-      field({ label: 'Confirm password', icon: 'lock', input: confirm }),
-      h('p', { class: 'lg-switch' }, 'Already have an account? ',
-        h('button', { type: 'button', class: 'lg-switch-btn', onclick: () => switchTo(() => renderCredentials()) }, 'Sign In.')),
-      err.el,
-      submit,
-    );
-    card.appendChild(form);
-    return () => name.focus({ preventScroll: true });
-  }
-
   async function finish() {
     if (!reduceMotion()) {
       anim(card, [{ transform: 'none', opacity: 1 }, { transform: 'translateY(-14px) scale(.97)', opacity: 0 }], { duration: 380, easing: 'ease-in' });
@@ -679,74 +623,6 @@ export function showLogin({ onSuccess }) {
   }
 
   let busy = false;
-  async function switchTo(renderFn) {
-    if (busy) return;
-    if (reduceMotion()) { overlay.classList.toggle('lg-flipped'); renderFn()?.(); return; }
-    busy = true;
-    try {
-    const DUR = 1050;
-    const b0 = brand.getBoundingClientRect();
-    const s0 = side.getBoundingClientRect();
-    const h0 = card.offsetHeight;
-    const old = card.firstElementChild;
-    overlay.classList.toggle('lg-flipped');
-    const b1 = brand.getBoundingClientRect();
-    const s1 = side.getBoundingClientRect();
-
-    brand.style.zIndex = '2';
-    const bAnim = anim(brand, [{ filter: 'brightness(1)' }, { filter: 'brightness(1.12)', offset: 0.5 }, { filter: 'brightness(1)' }], { duration: DUR, easing: 'ease-in-out' });
-    const dx = b0.left - b1.left;
-    const dy = b0.top - b1.top;
-    anim(brand, [
-      { transform: `translate(${dx}px, ${dy}px)` },
-      { transform: `translate(${dx * -0.02}px, ${dy * -0.02}px)`, offset: 0.86 },
-      { transform: 'none' },
-    ], { duration: DUR, easing: EASE_SWAP });
-    void bAnim;
-    anim(side, [
-      { transform: `translate(${s0.left - s1.left}px, ${s0.top - s1.top}px)` },
-      { transform: 'none' },
-    ], { duration: DUR, easing: EASE_SWAP });
-    anim(brandInner, [
-      { transform: `translateX(${dx * 0.1}px)`, opacity: 0.6 },
-      { transform: 'none', opacity: 1 },
-    ], { duration: DUR, easing: EASE_SWAP });
-
-    const EXIT_MS = 240;
-    const SETTLE_MS = 150;
-    await done(anim(old, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(-8px)' }], { duration: EXIT_MS, easing: 'ease-in' }));
-    await new Promise((r) => setTimeout(r, SETTLE_MS));
-
-    const focus = renderFn();
-    const form = card.firstElementChild;
-    card.style.overflow = 'hidden';
-    const h1 = card.offsetHeight;
-    anim(card, [
-      { height: `${h0}px` },
-      { height: `${h1 + 5}px`, offset: 0.82 },
-      { height: `${h1}px` },
-    ], { duration: 620, easing: EASE_OUT, fill: 'none' });
-    revealChildren(form, { base: 120, step: 50, max: 380 });
-    [...brandInner.children].forEach((el, i) => {
-      anim(el, [
-        { opacity: 0, transform: `translateX(${dx > 0 ? 28 : -28}px)` },
-        { opacity: 1, transform: 'none' },
-      ], { duration: 700, delay: 260 + i * 70, easing: EASE_OUT });
-    });
-    [...brandInner.querySelectorAll('.lg-tile')].forEach((el, i) => {
-      anim(el, [{ transform: 'scale(.9)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 500, delay: 560 + i * 70, easing: EASE_OUT });
-    });
-
-    const remaining = Math.max(0, DUR - EXIT_MS - SETTLE_MS);
-    await new Promise((r) => setTimeout(r, remaining));
-    if (focus) focus();
-    } finally {
-      card.style.overflow = '';
-      brand.style.zIndex = '';
-      busy = false;
-    }
-  }
-
   const overlay = h('div', { id: 'login-overlay', class: 'lg-root' }, brand, side);
   document.body.appendChild(overlay);
   const reset = readResetLink();
