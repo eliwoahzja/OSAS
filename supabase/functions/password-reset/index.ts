@@ -26,7 +26,7 @@ const store = {
   async list() {
     return checked(await svc.from(TABLE)
       .select('id,email,name,submitted_name,request_kind,role,account_created_at,last_sign_in_at,requested_at,status,reviewed_at,expires_at,completed_at,notification_error')
-      .order('requested_at', { ascending: false }).limit(100));
+      .is('archived_at', null).order('requested_at', { ascending: false }).limit(100));
   },
   async actor(jwt: string) {
     const { data, error } = await svc.auth.getUser(jwt);

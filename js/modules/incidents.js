@@ -3,9 +3,10 @@ import {
   capitalize, toast, openModal, checkRow,
 } from '../ui.js';
 import * as api from '../api.js';
-import { isAdmin, currentUser } from '../auth.js';
+import { isAdmin, currentUser, subscribeIncidentChanges } from '../auth.js';
 import { incidentLabels } from '../labels.js';
 import { loadTable } from './table-loader.js';
+import { startDashboardUpdates } from '../live-dashboard.js';
 import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
 
 export const INCIDENT_TYPES = ['medical', 'slips/falls', 'fire-related', 'security', 'equipment failure'];
@@ -170,7 +171,10 @@ function contactForm(el) {
   controls.name.focus();
 }
 
+const incidentSubscriptions = new WeakMap();
 export async function incidentLogging(el) {
+  incidentSubscriptions.get(el)?.();
+  const admin = isAdmin();
   const L = incidentLabels(isAdmin());
   const columns = [
     { key: 'date', label: 'Date / Time', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
@@ -179,19 +183,42 @@ export async function incidentLogging(el) {
     { key: 'description', label: 'Description', render: (r) => h('span', { class: 'block w-72 max-w-[22rem] text-gray-600 leading-snug' }, r.description) },
     { key: 'reporter', label: 'Reporter' },
     { key: 'severity', label: 'Severity', render: (r) => pill(r.severity) },
-    { key: 'status', label: 'Status', render: (r) => pill(r.status) },
+    { key: 'status', label: 'Status', render: (r) => h('span', { 'data-incident-status': r.id }, pill(r.status)) },
+    ...(admin ? [{ key: 'actions', label: 'Actions', render: (r) => h('button', {
+      type: 'button', class: 'btn-ghost text-xs',
+      'aria-label': (r.status === 'resolved' ? 'Reopen incident: ' : 'Resolve incident: ') + r.description,
+      onclick: () => recordForm({ title: 'Update incident status', table: 'incidents', record: { ...r, status: r.status === 'resolved' ? 'open' : 'resolved' },
+        fields: [{ key: 'status', label: 'Status', type: 'select', required: true, options: [{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }] }],
+        onSaved: () => incidentLogging(el),
+      }),
+    }, r.status === 'resolved' ? 'Reopen' : 'Mark resolved') }] : []),
   ];
 
-  return loadTable(el, {
+  const rows = await loadTable(el, {
     table: 'incidents', columns, iconName: 'report',
     title: L.nav,
     subtitle: L.subtitle,
-    actionLabel: L.action,
+    actionLabel: admin ? null : L.action,
     searchKeys: ['type', 'location', 'description', 'reporter', 'status'],
     searchPlaceholder: 'Search by type, location, or reporter…',
     empty: { title: L.emptyTitle, text: L.emptyText },
     onAction: () => incidentForm(el),
   });
+  if (!admin) {
+    const shell = el.firstElementChild;
+    const stop = startDashboardUpdates(async () => {
+      if (!el.contains(shell)) { stop(); return; }
+      const latest = await api.listRows('incidents').catch(() => null);
+      if (!latest || !el.contains(shell)) return;
+      const statuses = new Map(latest.map((r) => [String(r.id), r.status]));
+      el.querySelectorAll('[data-incident-status]').forEach((cell) => {
+        const status = statuses.get(cell.dataset.incidentStatus);
+        if (status) cell.replaceChildren(pill(status));
+      });
+    }, subscribeIncidentChanges);
+    incidentSubscriptions.set(el, stop);
+  }
+  return rows;
 }
 
 // The reporter is always the signed-in account — nobody types it.

@@ -1,3 +1,4 @@
+import { accountEmail } from './email-template.ts';
 // Dependency injection keeps security and delivery behavior testable without email or live accounts.
 export const REQUEST_MESSAGE = 'Your details have been submitted for administrator review. If the request is eligible and approved, you will receive an email with a link to set your password.';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -23,6 +24,7 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
   const root = new URL(appUrl);
   if (root.protocol !== 'https:' && root.hostname !== 'localhost' && root.hostname !== '127.0.0.1') throw new Error('APP_URL must use HTTPS.');
   const link = (fragment: string) => { const u = new URL(root); u.hash = fragment; return u.href; };
+  const deliver = (to: string[], subject: string, html: string) => sendMail(to, subject, accountEmail(html, root.href));
   const details = (r: any) => [
     ['Request type', r.request_kind === 'registration' ? 'Registration' : 'Password reset'], ['Submitted full name', r.submitted_name || r.name], ['Saved account name', r.request_kind === 'registration' ? 'New account' : r.name], ['Account email', r.email], ['Account type', r.role === 'admin' ? 'Administrator' : 'Student'],
     ['Account created', r.account_created_at], ['Last sign-in', r.last_sign_in_at || 'Never'], ['Requested at', r.requested_at],
@@ -49,7 +51,7 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
           try {
             const admins = await store.adminEmails();
             if (!admins.length) throw new Error('No administrator email configured.');
-            await sendMail(admins, '[SAAC OSAS] Account approval requested',
+            await deliver(admins, '[SAAC OSAS] Account approval requested',
               `<h2>Account approval requested</h2><p>Review the account details before approving this request.</p><table>${details(record)}</table><p><a href="${escapeHtml(link('/accounts'))}">Open Accounts to approve or reject</a></p><p>Sign in as an administrator. This email does not grant approval.</p>`);
             await store.patch(id, { notification_error: null });
           } catch {
@@ -83,7 +85,7 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
         await store.patch(id, { status: 'completed', user_id: record.user_id, token_hash: null, completed_at: new Date(now()).toISOString() }, 'resetting');
         return response({ message: record.request_kind === 'registration' ? 'Account created. Sign in with your email and new password.' : 'Password updated. Sign in with your new password.' });
       }
-      if (!['list', 'approve', 'reject'].includes(body.action)) return response({ error: 'Unknown action.' }, 400);
+      if (!['list', 'approve', 'reject', 'delete'].includes(body.action)) return response({ error: 'Unknown action.' }, 400);
       const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
       const actor = jwt ? await store.actor(jwt) : null;
       if (!actor) return response({ error: 'Sign-in required.' }, 401);
@@ -91,6 +93,11 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
       if (body.action === 'list') return response({ requests: await store.list() });
       const id = String(body.id || '');
       if (!UUID.test(id)) return response({ error: 'Invalid request.' }, 400);
+      if (body.action === 'delete') {
+        const record = await store.claim(id, ['approved', 'rejected', 'completed'], { archived_at: new Date(now()).toISOString() });
+        if (!record) return response({ error: 'Only reviewed requests can be deleted from the list.' }, 409);
+        return response({ message: 'Request removed from the list. Approved password links remain valid until used, revoked or expired.' });
+      }
       const reviewed = { reviewed_by: actor.id, reviewed_at: new Date(now()).toISOString() };
       if (body.action === 'reject') {
         const record = await store.claim(id, ['pending', 'approved'], { ...reviewed, status: 'rejected', token_hash: null });
@@ -107,7 +114,7 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
           const account = await store.account(record.user_id);
           if (!account || String(account.email).toLowerCase() !== record.email) throw new Error('Account email changed.');
         } else if (await store.emailExists(record.email)) throw new Error('This email already has an account.');
-        await sendMail([record.email], '[SAAC OSAS] Your approved password setup link',
+        await deliver([record.email], '[SAAC OSAS] Your approved password setup link',
           `<h2>Your account request was approved</h2><p>Hello ${escapeHtml(record.name)},</p><p>An administrator approved the request for ${escapeHtml(record.email)}. Set your own new password using the link below.</p><p><a href="${escapeHtml(link('/reset-password?request=' + id + '&token=' + secret))}">Set a new password</a></p><p>This link expires in 30 minutes and works once. For a reset, your current password remains unchanged until you submit a new one. For registration, your student account is created after you set your password. If you did not request this, contact the OSAS office.</p>`);
       } catch {
         await store.patch(id, { status: 'pending', token_hash: null, expires_at: null, notification_error: 'Reset email delivery failed or the account email changed. Check the account and retry approval.' }, 'issuing');

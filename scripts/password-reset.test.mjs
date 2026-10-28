@@ -119,3 +119,20 @@ test('full name is required and request type cannot escalate access', async () =
   assert.equal((await s.call({action:'request',email:s.row.email,name:'Person',kind:'admin'})).status,400);
   assert.equal(s.sent.length,0);
 });
+
+test('reviewed requests can be removed without breaking an approved password link', async () => {
+  const s=setup();
+  assert.equal((await s.call({action:'delete',id},'admin')).status,409);
+  assert.equal((await s.call({action:'delete',id},'student')).status,403);
+  await s.call({action:'approve',id},'admin'); const token=s.approvedToken();
+  assert.equal((await s.call({action:'delete',id},'admin')).status,200);
+  assert.ok(s.row.archived_at); assert.equal(s.row.status,'approved');
+  assert.equal((await s.call({action:'complete',id,token,password:'ValidPass123!'})).status,200);
+});
+test('request and approval emails use the existing branded email card', async () => {
+  const s=setup(); await s.call({action:'request',email:s.row.email}); await s.call({action:'approve',id},'admin');
+  for(const [, ,html] of s.sent){
+    assert.match(html, /#F6F3EA/); assert.match(html, /#7A1B38/); assert.match(html, /St\. Agnes Academy/);
+    assert.match(html, /assets\/logo\.png/); assert.match(html, /max-width:520px/); assert.match(html, /Office of Student Affairs &amp; Services/);
+  }
+});

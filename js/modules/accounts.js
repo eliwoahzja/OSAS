@@ -198,22 +198,36 @@ function resetRequestReview(request, reload) {
   } }, label);
   if (request.status === 'pending') actions.append(act('Approve and email password link', 'approve'));
   if (['pending', 'approved'].includes(request.status)) actions.append(act(request.status === 'approved' ? 'Revoke reset link' : 'Reject request', 'reject', 'btn-ghost'));
+  if (['approved', 'rejected', 'completed'].includes(request.status)) actions.append(h('button', { type: 'button', class: 'btn-ghost', onclick: () => { modal.close(); deleteRequest(request, reload); } }, 'Delete request'));
   actions.append(h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Close'));
+}
+
+function deleteRequest(request, reload) {
+  const error = h('p', { class: 'text-sm text-red-600', role: 'alert' });
+  const confirm = h('button', { type: 'button', class: 'btn-primary', onclick: async () => {
+    confirm.disabled = true;
+    try { const data = await passwordResetCall({ action: 'delete', id: request.id }, true); modal.close(); toast(data.message); await reload(); }
+    catch (e) { error.textContent = e.message; confirm.disabled = false; }
+  } }, 'Delete request');
+  const modal = openModal(h('div', { class: 'p-6 space-y-4' },
+    h('h3', { class: 'text-lg font-bold' }, 'Delete this request from the list?'),
+    h('p', { class: 'text-sm text-gray-500' }, 'This removes the reviewed request from the queue. An approved password link will keep working until it is used or expires.'),
+    error, h('div', { class: 'flex gap-3 justify-end' }, h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Cancel'), confirm)), { delay: 0 });
 }
 
 function resetRequestQueue() {
   const rows = h('div', { class: 'mt-4' });
   const refresh = h('button', { type: 'button', class: 'btn-ghost', onclick: () => load() }, 'Refresh requests');
-  const section = h('section', { class: 'bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Account requests' },
+  const section = h('section', { class: 'bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Requests' },
     h('div', { class: 'flex flex-wrap items-center justify-between gap-3' },
-      h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Account requests'),
+      h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Requests'),
         h('p', { class: 'text-sm text-gray-500 mt-1' }, 'Review requests before emailing a link to set a new password.')), refresh), rows);
   async function load() {
     refresh.disabled = true; rows.replaceChildren(skeletonTable(3, 5));
     try {
       const { requests } = await passwordResetCall({ action: 'list' }, true);
       rows.replaceChildren();
-      if (!requests.length) rows.append(emptyBanner({ icon: 'lock', title: 'No account requests', text: 'New requests from sign-in appear here.' }));
+      if (!requests.length) rows.append(emptyBanner({ icon: 'lock', title: 'No requests', text: 'New requests from sign-in appear here.' }));
       else rows.append(dataTable([
         { label: 'Account', render: (r) => h('div', {}, h('strong', {}, r.name), h('small', { class: 'block text-gray-500 break-words' }, r.email)) },
         { label: 'Request type', render: (r) => r.request_kind === 'registration' ? 'Registration' : 'Password reset' },
@@ -223,7 +237,7 @@ function resetRequestQueue() {
           return h('div', {}, pill(expired ? 'Expired' : r.status, r.status === 'completed' ? 'green' : r.status === 'pending' ? 'amber' : 'gray'),
             r.notification_error ? h('p', { class: 'text-xs text-red-600 mt-1' }, r.notification_error) : null);
         } },
-        { label: 'Actions', render: (r) => h('button', { type: 'button', class: 'btn-ghost', onclick: () => resetRequestReview(r, load) }, 'Review request') },
+        { label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-2' }, h('button', { type: 'button', class: 'btn-ghost', onclick: () => resetRequestReview(r, load) }, 'Review request'), ['approved', 'rejected', 'completed'].includes(r.status) ? h('button', { type: 'button', class: 'btn-ghost', onclick: () => deleteRequest(r, load) }, 'Delete request') : null) },
       ], requests));
     } catch (error) { rows.replaceChildren(errorBanner(error.message, load)); }
     finally { refresh.disabled = false; }

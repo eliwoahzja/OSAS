@@ -654,3 +654,13 @@ body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #si
 .inspection-main .osas-table-toolbar input, .inspection-main .osas-table-toolbar select { padding-top:8px; padding-bottom:8px; line-height:16px; }
 .inspection-safety-note { padding-top:8px; padding-bottom:8px; }
 .inspection-safety-note img { width:140px; height:46px; }
+
+/* Student summaries and both incident charts use the available page width. */
+.student-dashboard .dashboard-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.student-dashboard .trend-chart-shell { max-width:none; width:100%; }
+.student-dashboard .dashboard-analytics-grid > * { min-width:0; }
+body[data-route="dashboard"]:has(.student-dashboard) > main { overflow-y:auto; }
+body[data-route="dashboard"]:has(.student-dashboard) #view { flex:0 0 auto; overflow:visible; }
+@media(max-width:767px) {
+  .student-dashboard .dashboard-analytics-grid { grid-template-columns:minmax(0,1fr); }
+}

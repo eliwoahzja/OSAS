@@ -450,7 +450,7 @@ function drawStats(box, s) {
   }
   }
 
-  const cards = h('div', { class: 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5' });
+  const cards = h('div', { class: 'dashboard-summary-grid grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5' });
   const allDefs = [
     { label: 'Total Incidents', value: s.incidents_total, sub: 'Reported safety\nincidents', iconName: 'warning', tone: 'pink', blob: 'bg-pink-50', href: '#/incident-logging' },
     { label: 'Pending Inspections', value: s.inspections_pending, sub: 'Scheduled safety\nchecks', iconName: 'checklist', tone: 'blue', blob: 'bg-blue-50', href: '#/safety-inspections', adminOnly: true },
@@ -487,6 +487,7 @@ function drawStats(box, s) {
       pieChart(s.supplies_status || [], { title: 'Supply Stock Health', isDonut: true }),
     );
   }
+  if (!admin) analyticsCharts.push(yearBarChart(s.years_by_year || [], { title: 'Incidents by Year', subtitle: 'Saved incident reports by calendar year. Updates when reports change.' }));
   box.appendChild(h('section', { class: 'space-y-5' },
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
@@ -495,11 +496,11 @@ function drawStats(box, s) {
         ? 'Pie chart breakdown of supplies inventory, stock health, incidents, and inspection status.'
         : 'Live breakdown of reported incidents.'),
     ),
-    h('div', { class: `grid md:grid-cols-2 ${admin ? 'xl:grid-cols-4' : ''} gap-5` }, ...analyticsCharts),
+    h('div', { class: `dashboard-analytics-grid grid md:grid-cols-2 ${admin ? 'xl:grid-cols-4' : ''} gap-5` }, ...analyticsCharts),
   ));
 
   const yearsData = s.years_by_year || [];
-  {
+  if (admin) {
     box.appendChild(h('section', {},
       yearBarChart(yearsData, {
         title: 'Incidents by Year',
@@ -511,7 +512,7 @@ function drawStats(box, s) {
 
 async function renderDashboard(el) {
   el.innerHTML = '';
-  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' });
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' + (auth.isAdmin() ? '' : ' student-dashboard') });
   el.appendChild(wrap);
 
   const heroWrap = h('div');
