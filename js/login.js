@@ -416,7 +416,7 @@ export function showLogin({ onSuccess }) {
       field({ label: 'Email', icon: 'user', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderResetRequest(email.value)) }, 'Forgot password?'),
-      h('p', { class: 'lg-hint' }, "Don't have an account yet? ", h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => stepTo(() => renderResetRequest('', 'registration')) }, 'Contact an admin to register.')),
+      h('p', { class: 'lg-hint lg-registration-prompt' }, h('span', {}, "Don't have an account yet?"), h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => stepTo(() => renderResetRequest('', 'registration')) }, 'Contact an admin to register.')),
       notice,
       err.el,
       submit,
@@ -441,7 +441,7 @@ export function showLogin({ onSuccess }) {
         const data = await passwordResetCall({ action: 'request', name: fullName.value, email: email.value, kind });
         form.replaceChildren(h('h2', { class: 'lg-title' }, 'Request submitted'), h('p', { class: 'lg-lead', role: 'status' }, data.message), back);
       } catch (error) { err.show(error.message); submit.disabled = false; submit.textContent = 'Request admin approval'; }
-    } }, h('p', { class: 'lg-eyebrow' }, 'Account recovery'),
+    } }, h('p', { class: 'lg-eyebrow' }, kind === 'registration' ? 'Account creation' : 'Account recovery'),
     h('h2', { class: 'lg-title' }, kind === 'registration' ? 'Request a student account' : 'Reset your password'),
     h('p', { class: 'lg-lead' }, 'Enter your full name and email. Every administrator will receive your request. After approval, we will email you a link to set your password.'),
     field({ label: 'Full name', icon: 'user', input: fullName }),
