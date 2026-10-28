@@ -416,11 +416,11 @@ export function showLogin({ onSuccess }) {
       field({ label: 'Email', icon: 'user', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderResetRequest(email.value)) }, 'Forgot password?'),
-      h('p', { class: 'lg-hint' }, 'Student accounts are created by an administrator. ', h('a', { href: 'mailto:' + (window.OSAS.ADMIN_EMAIL || 'tropanggala87@gmail.com'), class: 'lg-link lg-inline' }, 'Contact OSAS for an account.')),
+      h('p', { class: 'lg-hint' }, "Don't have an account yet? ", h('a', { href: 'mailto:' + (window.OSAS.ADMIN_EMAIL || 'tropanggala87@gmail.com'), class: 'lg-link lg-inline' }, 'Contact an admin to register.')),
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'A verification code will be emailed to you after your password is accepted.'),
+      h('p', { class: 'lg-hint' }, 'An OTP will be sent to your email shortly after you login.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
