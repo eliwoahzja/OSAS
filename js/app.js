@@ -147,6 +147,11 @@ function stopProgress() {
 }
 
 async function route() {
+  if (location.hash.startsWith('#/reset-password?')) {
+    clearInterval(statsTimer);
+    showLogin({ onSuccess: enterApp });
+    return;
+  }
   let r = (location.hash || '#/dashboard').replace(/^#\//, '');
   if (!VIEWS[r]) r = 'dashboard';
   const navItem = NAV.find((n) => n.route === r);
@@ -608,7 +613,8 @@ async function boot() {
   }
 
   try {
-    if (auth.isSignedIn()) enterApp();
+    if (location.hash.startsWith('#/reset-password')) showLogin({ onSuccess: enterApp });
+    else if (auth.isSignedIn()) enterApp();
     else showLogin({ onSuccess: enterApp });
   } catch (err) {
     console.error('startup error:', err);

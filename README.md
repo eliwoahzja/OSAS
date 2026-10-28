@@ -124,3 +124,11 @@ The inspection reference layout shows all columns at 1440px and 1536px, uses a c
 ### Stakeholder reference inventory
 
 The demo and fresh-database seed include all ten supplied First Aid Supplies rows, including In Stock items. On an existing database with the inventory migrations applied, run `supabase/reference_supplies.sql` to add missing reference items and fill blank categories/pack descriptions. It preserves existing quantities, dates and restock history and can be re-run without duplicating items. The CPR mask quantity is blurry in the reference; the sample uses 5 pcs. Stock badges remain calculated from the actual quantity and expiry date, so they can differ from the illustrative screenshot.
+
+### Admin-approved password recovery
+
+Sign-in → **Forgot password?** submits an approval request. Administrators receive an email containing the saved account name, email, role, creation date, last sign-in, and request time. **Accounts → Password reset requests → Review request** provides approval, rejection, and link revocation. Approval sends a single-use link to the saved account email. The owner chooses a new password, then signs in normally. Approval itself leaves the old password unchanged.
+
+Apply `supabase/migrations/20261028134104_admin_password_reset_requests.sql` and deploy `supabase/functions/password-reset` with JWT gateway verification disabled. Public request and token-completion routes use their own controls; list/approve/reject validate the session and `app_metadata.role` on the server. The tables and submit RPC are accessible only to the service role. Links contain 32 random bytes, expire after 30 minutes, and are stored only as SHA-256 hashes. Public responses do not reveal whether an email exists. Requests are limited to five per source IP per hour and one per account per hour, with pending requests deduplicated.
+
+The function reuses existing `MAILEROO_API_KEY` / `MAILEROO_FROM` or `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` secrets. `APP_URL` controls the trusted destination in emails (default `https://stagnesacademy.vercel.app/`). Failed emails keep requests visible in Accounts for review/retry. Automated tests use fake delivery and do not email users or change live passwords.
