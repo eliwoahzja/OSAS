@@ -4,7 +4,7 @@ import { createResetHandler, digest, REQUEST_MESSAGE } from '../supabase/functio
 
 const id = '11111111-1111-4111-8111-111111111111';
 const timestamp = Date.parse('2026-10-28T10:00:00Z');
-function setup() {
+function setup(appUrl = 'https://school.example/') {
   const row = { id, user_id: 'owner', name: '<Student>', email: 'student@example.test', role: 'client', status: 'pending', requested_at: new Date(timestamp).toISOString(), account_created_at: '2026-01-01T00:00:00Z' };
   const sent = []; const writes = []; let now = timestamp; let failMail = false; let failPassword = false;
   const store = {
@@ -23,7 +23,7 @@ function setup() {
     },
     async updatePassword(user, password) { if (failPassword) throw new Error('Password does not meet the account policy.'); writes.push({ user, password }); },
   };
-  const handler = createResetHandler({ store, appUrl: 'https://school.example/', now: () => now, sendMail: async (...args) => { if (failMail) throw new Error('Provider failed'); sent.push(args); } });
+  const handler = createResetHandler({ store, appUrl: appUrl ?? undefined, now: () => now, sendMail: async (...args) => { if (failMail) throw new Error('Provider failed'); sent.push(args); } });
   const call = async (body, jwt = '') => {
     if (body.action === 'request' && body.name === undefined) body = { ...body, name: 'Sample Requester' };
     const res = await handler(new Request('https://functions.example/password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: jwt ? `Bearer ${jwt}` : '' }, body: JSON.stringify(body) }));
@@ -134,5 +134,22 @@ test('request and approval emails use the existing branded email card', async ()
   for(const [, ,html] of s.sent){
     assert.match(html, /#F6F3EA/); assert.match(html, /#7A1B38/); assert.match(html, /St\. Agnes Academy/);
     assert.match(html, /assets\/logo\.png/); assert.match(html, /max-width:520px/); assert.match(html, /Office of Student Affairs &amp; Services/);
+  }
+});
+
+test('both request types send review and password links to the custom domain', async () => {
+  for (const kind of ['reset', 'registration']) {
+    const s = setup(null);
+    s.row.request_kind = kind;
+    if (kind === 'registration') s.row.user_id = null;
+    await s.call({ action: 'request', kind, email: s.row.email });
+    await s.call({ action: 'approve', id }, 'admin');
+    assert.equal(s.sent.length, 2);
+    assert.match(s.sent[0][2], /https:\/\/osas\.stagnesacademy-sms\.com\/#\/accounts/);
+    assert.match(s.sent[1][2], /https:\/\/osas\.stagnesacademy-sms\.com\/#\/reset-password\?request=/);
+    for (const [, , html] of s.sent) {
+      assert.match(html, /https:\/\/osas\.stagnesacademy-sms\.com\/assets\/logo\.png/);
+      assert.doesNotMatch(html, /vercel\.app/);
+    }
   }
 });

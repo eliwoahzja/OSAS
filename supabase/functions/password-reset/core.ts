@@ -1,6 +1,7 @@
 import { accountEmail } from './email-template.ts';
 // Dependency injection keeps security and delivery behavior testable without email or live accounts.
 export const REQUEST_MESSAGE = 'Your details have been submitted for administrator review. If the request is eligible and approved, you will receive an email with a link to set your password.';
+export const PUBLIC_APP_URL = 'https://osas.stagnesacademy-sms.com/';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[a-f0-9]{64}$/;
@@ -17,10 +18,10 @@ const invalidLink = { error: 'This reset link is invalid, expired, or already us
 type Dependencies = {
   store: any;
   sendMail: (to: string[], subject: string, html: string) => Promise<void>;
-  appUrl: string;
+  appUrl?: string;
   now?: () => number;
 };
-export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: Dependencies) {
+export function createResetHandler({ store, sendMail, appUrl = PUBLIC_APP_URL, now = Date.now }: Dependencies) {
   const root = new URL(appUrl);
   if (root.protocol !== 'https:' && root.hostname !== 'localhost' && root.hostname !== '127.0.0.1') throw new Error('APP_URL must use HTTPS.');
   const link = (fragment: string) => { const u = new URL(root); u.hash = fragment; return u.href; };

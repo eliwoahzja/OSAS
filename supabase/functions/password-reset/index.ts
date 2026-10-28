@@ -68,7 +68,7 @@ const store = {
     if (error) throw error;
   },
 };
-const handler = createResetHandler({ store, sendMail, appUrl: Deno.env.get('APP_URL') || 'https://stagnesacademy.vercel.app/' });
+const handler = createResetHandler({ store, sendMail });
 Deno.serve(async (req: Request) => {
   const cors = {
     'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || '*',
