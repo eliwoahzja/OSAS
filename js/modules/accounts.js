@@ -221,7 +221,7 @@ function resetRequestQueue() {
   const section = h('section', { class: 'bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Requests' },
     h('div', { class: 'flex flex-wrap items-center justify-between gap-3' },
       h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Requests'),
-        h('p', { class: 'text-sm text-gray-500 mt-1' }, 'Review requests before emailing a link to set a new password.')), refresh), rows);
+        h('p', { class: 'text-sm text-gray-500 mt-1' }, 'Review account creation and password reset requests.')), refresh), rows);
   async function load() {
     refresh.disabled = true; rows.replaceChildren(skeletonTable(3, 5));
     try {

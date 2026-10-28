@@ -474,7 +474,7 @@ export function showLogin({ onSuccess }) {
       } catch (error) { err.show(error.message); save.disabled = false; save.textContent = 'Save new password'; }
     } }, h('p', { class: 'lg-eyebrow' }, 'Approved account request'),
     h('h2', { class: 'lg-title' }, 'Choose a new password'),
-    h('p', { class: 'lg-lead' }, 'Use 8 to 128 characters. This link expires 30 minutes after approval and works once.'),
+    h('p', { class: 'lg-lead' }, 'This link expires 30 minutes after approval and works once.'),
     field({ label: 'New password', icon: 'lock', input: password, trailing: eyeToggle([password, confirm]) }),
     field({ label: 'Confirm new password', icon: 'lock', input: confirm }), err.el, save, back);
     card.appendChild(form);
