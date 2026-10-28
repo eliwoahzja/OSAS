@@ -4,6 +4,8 @@ import {
 } from '../ui.js';
 import * as api from '../api.js';
 import { loadTable } from './table-loader.js';
+import { isAdmin } from '../auth.js';
+import { EARTHQUAKE_HAZARD, EARTHQUAKE_PREVENTION, earthquakePreventionPlan } from './risk-prevention.js';
 import {
   generateRiskRationale, generateLegacyRationale,
   showRiskExplanationModal, showRiskRationaleDetailsModal, getRiskDriverSummary,
@@ -109,7 +111,7 @@ export function saveRiskLocalDetails(id, hazard, details) {
   } catch {}
 }
 
-function riskForm(el) {
+function riskForm(el, initial = {}) {
   let closeModal = () => {};
   let currentStep = 1;
 
@@ -125,6 +127,7 @@ function riskForm(el) {
     owner: '',
     review_date: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10),
     custom_reason: '',
+    ...initial,
   };
 
   const form = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible max-w-2xl w-full' });
@@ -165,7 +168,7 @@ function riskForm(el) {
     h('label', { class: labelCls }, 'Hazard Description *'),
     h('input', {
       class: inputCls,
-      placeholder: 'e.g. Chemical storage leak in Science Wing Lab 2',
+      placeholder: 'e.g. Earthquake Hazards in School Buildings',
       required: true,
       value: f.hazard,
       oninput: (e) => { f.hazard = e.target.value; },
@@ -298,9 +301,9 @@ function riskForm(el) {
 
   const metaGrid = h('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1' },
     h('div', { class: 'sm:col-span-2' },
-      h('label', { class: labelCls }, 'Mitigation Plan'),
+      h('label', { class: labelCls }, 'Prevention / Security Controls *'),
       h('textarea', {
-        class: `${inputCls} min-h-[60px]`,
+        class: `${inputCls} min-h-[150px]`, required: true, 'aria-label': 'Prevention / Security Controls',
         placeholder: 'Describe preventive controls, repair schedule, or response actions…',
         value: f.mitigation,
         oninput: (e) => { f.mitigation = e.target.value; },
@@ -470,6 +473,11 @@ function riskForm(el) {
         errBox1.classList.remove('hidden');
         return;
       }
+      if (!f.mitigation.trim()) {
+        errBox1.textContent = 'Enter the prevention measures and security controls before proceeding.';
+        errBox1.classList.remove('hidden');
+        return;
+      }
       errBox1.classList.add('hidden');
       currentStep = 2;
       headerSubtitle.textContent = 'Step 2 of 2: Document why this hazard is rated at this level and its root causes.';
@@ -504,6 +512,7 @@ function riskForm(el) {
     const score = computeRiskScore(f);
     const level = scoreToLevel(score);
 
+    if (!f.mitigation.trim()) { goToStep(1); return; }
     if (!f.custom_reason.trim()) {
       errBox2.textContent = `Please type out the reason or root cause why this assessment is rated ${level} before saving.`;
       errBox2.classList.remove('hidden');
@@ -561,6 +570,7 @@ function riskForm(el) {
 }
 
 export async function riskAssessment(el) {
+  if (!isAdmin()) { el.replaceChildren(h('p', { role: 'alert' }, 'Risk Assessment is for administrators only.')); return; }
   const columns = [
     { key: 'hazard', label: 'Hazard', render: (r) => h('span', { class: 'font-semibold text-gray-900 block max-w-[300px]' }, r.hazard) },
     { key: 'likelihood', label: 'Likelihood', render: (r) => pill(r.likelihood, r.likelihood === 'High' ? 'red' : r.likelihood === 'Medium' ? 'amber' : 'green') },
@@ -632,18 +642,29 @@ export async function riskAssessment(el) {
         }, driverInfo.shortSummary || 'Baseline Limits');
       },
     },
-    { key: 'mitigation', label: 'Mitigation Plan', render: (r) => h('span', { class: 'block max-w-[320px] text-gray-600' }, r.mitigation || '—') },
+    { key: 'mitigation', label: 'Prevention / Security Controls', render: (r) => h('span', { class: 'block max-w-[320px] text-gray-600' }, r.mitigation || '—') },
     { key: 'owner', label: 'Owner' },
     { key: 'review_date', label: 'Review Date', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.review_date)) },
   ];
-  return loadTable(el, {
+  const rows = await loadTable(el, {
     table: 'risks', columns, iconName: 'security',
-    title: 'Risk Assessment Tool',
-    subtitle: 'Hazards with quantitative scoring, computed risk levels, mitigation plans, and review owners.',
+    title: 'Risk Assessment',
+    subtitle: 'Assess school-building hazards, record prevention measures, and assign responsible staff.',
     actionLabel: 'New Risk',
     onAction: () => riskForm(el),
     searchKeys: ['hazard', 'mitigation', 'owner', 'risk_level'],
     searchPlaceholder: 'Search by hazard or owner…',
     empty: { title: 'No risks assessed yet', text: 'Add the first hazard to start the risk register.' },
   });
+  const guide = h('details', { class: 'bg-white border border-gray-200 rounded-2xl p-5' },
+    h('summary', { class: 'font-bold text-gray-900 cursor-pointer' }, EARTHQUAKE_HAZARD),
+    h('div', { class: 'pt-4 space-y-4 text-sm text-gray-600' },
+      h('h3', { class: 'font-bold text-gray-900' }, 'Prevention / Security Controls'),
+      h('ol', { class: 'list-decimal pl-5 space-y-2' }, EARTHQUAKE_PREVENTION.map((text) => h('li', {}, text))),
+      h('p', {}, 'For a Critical risk, isolate the unsafe area, keep students out, notify school leadership, and obtain professional clearance before reopening.'),
+      h('a', { href: 'https://www.phivolcs.dost.gov.ph/earthquake-preparedness/', target: '_blank', rel: 'noopener noreferrer', class: 'text-pink-600 underline' }, 'PHIVOLCS earthquake preparedness resources'),
+      h('button', { type: 'button', class: 'btn-primary', onclick: () => riskForm(el, { hazard: EARTHQUAKE_HAZARD, mitigation: earthquakePreventionPlan() }) }, 'Use this prevention plan')));
+  const wrap = el.firstElementChild;
+  wrap?.insertBefore(guide, wrap.children[1] || null);
+  return rows;
 }

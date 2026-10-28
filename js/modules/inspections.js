@@ -15,7 +15,7 @@ const CLINIC_RE = /nurse|clinic|health/i;
 async function loadClinicRecipients() {
   const contacts = await api.listRows('emergency_contacts');
   return contacts.filter((c) =>
-    c.category === 'school' && c.email &&
+    c.category === 'school' && c.active !== false && c.email &&
     CLINIC_RE.test(`${c.name || ''} ${c.role || ''} ${c.relationship || ''}`));
 }
 
@@ -362,7 +362,7 @@ export async function emergencyRoles(el) {
     table: 'emergency_roles', iconName: 'groups',
     transformRows: (rows) => rows.map((r) => ({ ...r, building: plan(r)?.building || r.building, floor: plan(r)?.floor || r.floor })),
     selectFilters: [{ key: 'evacuation_plan_id', label: 'All floor plans', options: planOptions.slice(1) }],
-    title: 'Emergency Roles by Floor and Zone',
+    title: 'Emergency Roles',
     subtitle: 'Associate responsibilities with existing evacuation maps without changing evacuation routes.',
     actionLabel: 'Assign responsibility', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
     columns: [

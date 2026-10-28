@@ -366,7 +366,7 @@ export function showRiskRationaleDetailsModal(r) {
 
   if (r.mitigation) {
     body.appendChild(h('div', { class: 'bg-gray-50 p-3.5 rounded-2xl border border-gray-100 space-y-1' },
-      h('span', { class: 'text-[11px] font-bold text-gray-500 uppercase tracking-wider block' }, 'Mitigation Plan'),
+      h('span', { class: 'text-[11px] font-bold text-gray-500 uppercase tracking-wider block' }, 'Prevention / Security Controls'),
       h('p', { class: 'text-xs text-gray-700 leading-relaxed' }, r.mitigation),
     ));
   }

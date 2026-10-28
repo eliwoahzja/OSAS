@@ -44,6 +44,7 @@ export function notificationGrades(row) {
 }
 
 export async function parentNotifications(el) {
+  if (!isAdmin()) { el.replaceChildren(errorBanner('Parent Notifications is for administrators only.')); return; }
   return renderNotifications(el);
 }
 

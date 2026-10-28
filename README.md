@@ -21,7 +21,7 @@ A web dashboard for logging campus incidents, scheduling drills, tracking safety
 | **Accounts** (admin) | Create / list / delete Administrator and Student accounts. |
 | **Emergency roles / contacts** | Directory of guardians (per student) and school responders. |
 
-The dashboard refreshes itself every 15 seconds (polling, not websockets).
+The dashboard refreshes on incident Realtime events, local writes and window focus, with a 15-second polling fallback.
 
 ## Architecture
 
@@ -132,3 +132,11 @@ Sign-in → **Forgot password?** submits an approval request. Administrators rec
 Apply `supabase/migrations/20261028134104_admin_password_reset_requests.sql` and deploy `supabase/functions/password-reset` with JWT gateway verification disabled. Public request and token-completion routes use their own controls; list/approve/reject validate the session and `app_metadata.role` on the server. The tables and submit RPC are accessible only to the service role. Links contain 32 random bytes, expire after 30 minutes, and are stored only as SHA-256 hashes. Public responses do not reveal whether an email exists. Requests are limited to five per source IP per hour and one per account per hour, with pending requests deduplicated.
 
 The function reuses existing `MAILEROO_API_KEY` / `MAILEROO_FROM` or `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` secrets. `APP_URL` controls the trusted destination in emails (default `https://stagnesacademy.vercel.app/`). Failed emails keep requests visible in Accounts for review/retry. Automated tests use fake delivery and do not email users or change live passwords.
+
+### Latest stakeholder changes
+
+`tropanggala87@gmail.com` uses its existing account and password with Administrator access and email-code sign-in. The active school nurse contact already uses that address for stock alerts. Other admin accounts remain available. Public registration has been removed from the UI and auth module; administrators create student accounts through Accounts. Local Supabase config disables signup. The pending `20261028212107_managed_account_creation_guard.sql` additionally blocks unprovisioned account inserts on the hosted project; apply it before treating hosted public signup as disabled. Admin-created accounts include trusted app metadata and pass the guard.
+
+Parent Notifications is admin-only in navigation, its module, the send function, and the hosted read policy (`20261028212100_admin_notification_privacy.sql`). Emergency Roles keeps its existing assignments and maps with the shorter heading. Risk Assessment includes an editable ten-point earthquake prevention example, requires prevention measures on new assessments, and links to PHIVOLCS guidance. Existing risks are retained.
+
+The incident charts use every page of live incident rows, refresh on Realtime events, local writes and focus, and retain 15-second polling. Student dashboards do not fetch admin-only inspection/drill/stock tables. The yearly chart supports zero or one year of records. Demo data remains separate from live API data.

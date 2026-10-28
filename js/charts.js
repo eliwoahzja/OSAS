@@ -207,8 +207,8 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
   if (!items || !items.length) {
     return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center' },
       h('div', { class: 'w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mb-4' }, icon('chart-column', 'text-2xl')),
-      h('p', { class: 'text-sm font-bold text-gray-800' }, 'No historical data yet'),
-      h('p', { class: 'text-[13px] text-gray-500 mt-1' }, 'Incidents from past years will appear here once recorded.'),
+      h('p', { class: 'text-sm font-bold text-gray-800' }, 'No incident reports yet'),
+      h('p', { class: 'text-[13px] text-gray-500 mt-1' }, 'Saved incident reports will appear here as they are logged.'),
     );
   }
 
