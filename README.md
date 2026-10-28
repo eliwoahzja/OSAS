@@ -140,3 +140,9 @@ The function reuses existing `MAILEROO_API_KEY` / `MAILEROO_FROM` or `SMTP_HOST`
 Parent Notifications is admin-only in navigation, its module, the send function, and the hosted read policy (`20261028212100_admin_notification_privacy.sql`). Emergency Roles keeps its existing assignments and maps with the shorter heading. Risk Assessment includes an editable ten-point earthquake prevention example, requires prevention measures on new assessments, and links to PHIVOLCS guidance. Existing risks are retained.
 
 The incident charts use every page of live incident rows, refresh on Realtime events, local writes and focus, and retain 15-second polling. Student dashboards do not fetch admin-only inspection/drill/stock tables. The yearly chart supports zero or one year of records. Demo data remains separate from live API data.
+
+### Approval requests for registration and recovery
+
+Both sign-in request forms collect a full name and email before submitting. The registration link opens a request form, rather than an email client. Every administrator with an email address receives the request. The Accounts queue shows the submitted name separately from the saved account name and distinguishes registration from password recovery.
+
+`20261028215619_approved_account_requests.sql` adds registration requests to the protected queue. An approved registration link creates a Student account only when its owner submits a new password. Existing accounts are never reused or reset by a registration request. Password-reset requests retain their existing account and role. Approval links remain hashed, expire after 30 minutes, support revocation and work once. Server-side validation requires a full name; generic responses and shared rate limits prevent account enumeration and duplicate mail requests.

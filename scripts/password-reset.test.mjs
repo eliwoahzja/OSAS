@@ -12,8 +12,10 @@ function setup() {
     async get() { return { ...row }; },
     async list() { const { token_hash, ...visible } = row; return [visible]; },
     async actor(jwt) { return jwt === 'admin' ? { id: 'admin', app_metadata: { role: 'admin' } } : jwt === 'student' ? { id: 'owner', app_metadata: { role: 'client' }, user_metadata: { role: 'admin' } } : null; },
+    async emailExists() { return false; },
+    async createAccount(record, password) { writes.push({ user: 'new-student', password }); return { id: 'new-student' }; },
     async account() { return { id: 'owner', email: row.email }; },
-    async adminEmails() { return ['admin@example.test']; },
+    async adminEmails() { return ['admin@example.test', 'other-admin@example.test']; },
     async patch(key, patch, status) { assert.equal(key, id); if (status) assert.equal(row.status, status); Object.assign(row, patch); },
     async claim(key, states, patch, match) {
       if (key !== id || !states.includes(row.status) || (match && (match.token_hash !== row.token_hash || row.expires_at <= match.expires_after))) return null;
@@ -23,6 +25,7 @@ function setup() {
   };
   const handler = createResetHandler({ store, appUrl: 'https://school.example/', now: () => now, sendMail: async (...args) => { if (failMail) throw new Error('Provider failed'); sent.push(args); } });
   const call = async (body, jwt = '') => {
+    if (body.action === 'request' && body.name === undefined) body = { ...body, name: 'Sample Requester' };
     const res = await handler(new Request('https://functions.example/password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: jwt ? `Bearer ${jwt}` : '' }, body: JSON.stringify(body) }));
     return { status: res.status, data: await res.json() };
   };
@@ -37,7 +40,7 @@ test('requests email administrators with escaped account details and uniform pub
     assert.equal(r.status, 200); assert.equal(r.data.message, REQUEST_MESSAGE);
   }
   assert.equal(s.sent.length, 1);
-  assert.deepEqual(s.sent[0][0], ['admin@example.test']);
+  assert.deepEqual(s.sent[0][0], ['admin@example.test', 'other-admin@example.test']);
   assert.match(s.sent[0][2], /&lt;Student&gt;/); assert.match(s.sent[0][2], /student@example.test/);
   assert.match(s.sent[0][2], /#\/accounts/); assert.equal(s.writes.length, 0);
 });
@@ -99,4 +102,20 @@ test('account policy failures leave an approved token available for correction',
   const body = { action: 'complete', id, token: s.approvedToken(), password: 'ValidPass123!' };
   assert.equal((await s.call(body)).status, 400); assert.equal(s.row.status, 'approved');
   s.failPassword(false); assert.equal((await s.call(body)).status, 200);
+});
+
+test('registration creates no account until approval and password submission, then only once', async () => {
+  const s = setup(); s.row.request_kind='registration'; s.row.user_id=null; s.row.submitted_name='New Student';
+  await s.call({action:'request',kind:'registration',name:'New Student',email:s.row.email});
+  assert.equal(s.writes.length,0);
+  await s.call({action:'approve',id},'admin'); assert.equal(s.writes.length,0);
+  const body={action:'complete',id,token:s.approvedToken(),password:'SafePass123!'};
+  assert.equal((await s.call(body)).status,200); assert.equal(s.writes.length,1);
+  assert.equal(s.row.user_id,'new-student'); assert.equal((await s.call(body)).status,400);
+});
+test('full name is required and request type cannot escalate access', async () => {
+  const s=setup();
+  assert.equal((await s.call({action:'request',email:s.row.email,name:''})).status,400);
+  assert.equal((await s.call({action:'request',email:s.row.email,name:'Person',kind:'admin'})).status,400);
+  assert.equal(s.sent.length,0);
 });

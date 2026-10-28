@@ -1,5 +1,5 @@
 // Dependency injection keeps security and delivery behavior testable without email or live accounts.
-export const REQUEST_MESSAGE = 'If this email belongs to an account, an administrator will review your request. After approval, you will receive a password reset link.';
+export const REQUEST_MESSAGE = 'Your details have been submitted for administrator review. If the request is eligible and approved, you will receive an email with a link to set your password.';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[a-f0-9]{64}$/;
@@ -24,7 +24,7 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
   if (root.protocol !== 'https:' && root.hostname !== 'localhost' && root.hostname !== '127.0.0.1') throw new Error('APP_URL must use HTTPS.');
   const link = (fragment: string) => { const u = new URL(root); u.hash = fragment; return u.href; };
   const details = (r: any) => [
-    ['Account name', r.name], ['Account email', r.email], ['Account type', r.role === 'admin' ? 'Administrator' : 'Student'],
+    ['Request type', r.request_kind === 'registration' ? 'Registration' : 'Password reset'], ['Submitted full name', r.submitted_name || r.name], ['Saved account name', r.request_kind === 'registration' ? 'New account' : r.name], ['Account email', r.email], ['Account type', r.role === 'admin' ? 'Administrator' : 'Student'],
     ['Account created', r.account_created_at], ['Last sign-in', r.last_sign_in_at || 'Never'], ['Requested at', r.requested_at],
   ].map(([key, value]) => `<tr><th style="text-align:left;padding:6px">${key}</th><td style="padding:6px">${escapeHtml(value)}</td></tr>`).join('');
 
@@ -37,16 +37,20 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
     try {
       if (body.action === 'request') {
         const email = String(body.email || '').trim().toLowerCase();
+        const name = String(body.name || '').trim();
+        const kind = body.kind || 'reset';
+        if (!['reset', 'registration'].includes(kind)) return response({ error: 'Invalid request type.' }, 400);
+        if (name.length < 2 || name.length > 120) return response({ error: 'Enter your full name (2 to 120 characters).' }, 400);
         if (email.length > 254 || !EMAIL.test(email)) return response({ error: 'Enter a valid email address.' }, 400);
         const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-        const id = await store.submit(email, await digest(`osas-reset-ip:${ip}`));
+        const id = await store.submit(email, await digest(`osas-reset-ip:${ip}`), name, kind);
         if (id) {
           const record = await store.get(id);
           try {
             const admins = await store.adminEmails();
             if (!admins.length) throw new Error('No administrator email configured.');
-            await sendMail(admins, '[SAAC OSAS] Password reset approval requested',
-              `<h2>Password reset approval requested</h2><p>Review the account details before approving this request.</p><table>${details(record)}</table><p><a href="${escapeHtml(link('/accounts'))}">Open Accounts to approve or reject</a></p><p>Sign in as an administrator. This email does not grant approval.</p>`);
+            await sendMail(admins, '[SAAC OSAS] Account approval requested',
+              `<h2>Account approval requested</h2><p>Review the account details before approving this request.</p><table>${details(record)}</table><p><a href="${escapeHtml(link('/accounts'))}">Open Accounts to approve or reject</a></p><p>Sign in as an administrator. This email does not grant approval.</p>`);
             await store.patch(id, { notification_error: null });
           } catch {
             await store.patch(id, { notification_error: 'Administrator email delivery failed. Review this request in Accounts.' });
@@ -64,15 +68,20 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
         const record = await store.claim(id, ['approved'], { status: 'resetting' }, { token_hash: await digest(supplied), expires_after: new Date(now()).toISOString() });
         if (!record) return response(invalidLink, 400);
         try {
-          const account = await store.account(record.user_id);
-          if (!account || String(account.email).toLowerCase() !== record.email) throw new Error('The account email changed. Ask an administrator for a new link.');
-          await store.updatePassword(record.user_id, password);
+          if (record.request_kind === 'registration') {
+            const created = await store.createAccount(record, password);
+            record.user_id = created.id;
+          } else {
+            const account = await store.account(record.user_id);
+            if (!account || String(account.email).toLowerCase() !== record.email) throw new Error('The account email changed. Ask an administrator for a new link.');
+            await store.updatePassword(record.user_id, password);
+          }
         } catch (error) {
           await store.patch(id, { status: 'approved' }, 'resetting');
           return response({ error: String((error as Error).message || 'Password update failed. Try again.') }, 400);
         }
-        await store.patch(id, { status: 'completed', token_hash: null, completed_at: new Date(now()).toISOString() }, 'resetting');
-        return response({ message: 'Password updated. Sign in with your new password.' });
+        await store.patch(id, { status: 'completed', user_id: record.user_id, token_hash: null, completed_at: new Date(now()).toISOString() }, 'resetting');
+        return response({ message: record.request_kind === 'registration' ? 'Account created. Sign in with your email and new password.' : 'Password updated. Sign in with your new password.' });
       }
       if (!['list', 'approve', 'reject'].includes(body.action)) return response({ error: 'Unknown action.' }, 400);
       const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
@@ -94,10 +103,12 @@ export function createResetHandler({ store, sendMail, appUrl, now = Date.now }: 
       });
       if (!record) return response({ error: 'This request has already been reviewed or is being processed.' }, 409);
       try {
-        const account = await store.account(record.user_id);
-        if (!account || String(account.email).toLowerCase() !== record.email) throw new Error('Account email changed.');
-        await sendMail([record.email], '[SAAC OSAS] Your approved password reset link',
-          `<h2>Your password reset request was approved</h2><p>Hello ${escapeHtml(record.name)},</p><p>An administrator approved the request for ${escapeHtml(record.email)}. Set your own new password using the link below.</p><p><a href="${escapeHtml(link('/reset-password?request=' + id + '&token=' + secret))}">Set a new password</a></p><p>This link expires in 30 minutes and works once. Your current password remains unchanged until you submit a new one. If you did not request this, contact the OSAS office.</p>`);
+        if (record.request_kind !== 'registration') {
+          const account = await store.account(record.user_id);
+          if (!account || String(account.email).toLowerCase() !== record.email) throw new Error('Account email changed.');
+        } else if (await store.emailExists(record.email)) throw new Error('This email already has an account.');
+        await sendMail([record.email], '[SAAC OSAS] Your approved password setup link',
+          `<h2>Your account request was approved</h2><p>Hello ${escapeHtml(record.name)},</p><p>An administrator approved the request for ${escapeHtml(record.email)}. Set your own new password using the link below.</p><p><a href="${escapeHtml(link('/reset-password?request=' + id + '&token=' + secret))}">Set a new password</a></p><p>This link expires in 30 minutes and works once. For a reset, your current password remains unchanged until you submit a new one. For registration, your student account is created after you set your password. If you did not request this, contact the OSAS office.</p>`);
       } catch {
         await store.patch(id, { status: 'pending', token_hash: null, expires_at: null, notification_error: 'Reset email delivery failed or the account email changed. Check the account and retry approval.' }, 'issuing');
         return response({ error: 'The reset email was not sent. The request remains pending. Check the account email and email service, then retry.' }, 502);

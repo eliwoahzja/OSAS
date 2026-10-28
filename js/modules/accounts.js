@@ -179,10 +179,10 @@ function resetRequestReview(request, reload) {
   const err = h('p', { class: 'text-sm text-red-600', role: 'alert' });
   const actions = h('div', { class: 'flex flex-wrap gap-3 pt-3' });
   const body = h('div', { class: 'p-6 sm:p-8 space-y-4' },
-    h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Review password reset request'),
+    h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Review account request'),
     h('p', { class: 'text-sm text-gray-500' }, 'Check the saved account details. Approval emails a single-use link to the account email. The user chooses their own password.'),
     h('dl', { class: 'space-y-3' }, [
-      ['Full name', request.name], ['Account email', request.email], ['Account type', roleLabel(request.role)],
+      ['Request type', request.request_kind === 'registration' ? 'Registration' : 'Password reset'], ['Submitted full name', request.submitted_name || request.name], ['Saved account name', request.request_kind === 'registration' ? 'New account' : request.name], ['Account email', request.email], ['Account type', roleLabel(request.role)],
       ['Account created', formatDateTime(request.account_created_at)],
       ['Last sign-in', request.last_sign_in_at ? formatDateTime(request.last_sign_in_at) : 'Never'],
       ['Requested', formatDateTime(request.requested_at)], ['Status', request.status],
@@ -196,7 +196,7 @@ function resetRequestReview(request, reload) {
       toast(data.message); modal.close(); await reload();
     } catch (error) { err.textContent = error.message; buttons.forEach((button) => { button.disabled = false; }); }
   } }, label);
-  if (request.status === 'pending') actions.append(act('Approve and email reset link', 'approve'));
+  if (request.status === 'pending') actions.append(act('Approve and email password link', 'approve'));
   if (['pending', 'approved'].includes(request.status)) actions.append(act(request.status === 'approved' ? 'Revoke reset link' : 'Reject request', 'reject', 'btn-ghost'));
   actions.append(h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Close'));
 }
@@ -204,19 +204,19 @@ function resetRequestReview(request, reload) {
 function resetRequestQueue() {
   const rows = h('div', { class: 'mt-4' });
   const refresh = h('button', { type: 'button', class: 'btn-ghost', onclick: () => load() }, 'Refresh requests');
-  const section = h('section', { class: 'bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Password reset requests' },
+  const section = h('section', { class: 'bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Account requests' },
     h('div', { class: 'flex flex-wrap items-center justify-between gap-3' },
-      h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Password reset requests'),
+      h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Account requests'),
         h('p', { class: 'text-sm text-gray-500 mt-1' }, 'Review requests before emailing a link to set a new password.')), refresh), rows);
   async function load() {
     refresh.disabled = true; rows.replaceChildren(skeletonTable(3, 5));
     try {
       const { requests } = await passwordResetCall({ action: 'list' }, true);
       rows.replaceChildren();
-      if (!requests.length) rows.append(emptyBanner({ icon: 'lock', title: 'No password reset requests', text: 'New requests from sign-in appear here.' }));
+      if (!requests.length) rows.append(emptyBanner({ icon: 'lock', title: 'No account requests', text: 'New requests from sign-in appear here.' }));
       else rows.append(dataTable([
         { label: 'Account', render: (r) => h('div', {}, h('strong', {}, r.name), h('small', { class: 'block text-gray-500 break-words' }, r.email)) },
-        { label: 'Type', render: (r) => roleLabel(r.role) },
+        { label: 'Request type', render: (r) => r.request_kind === 'registration' ? 'Registration' : 'Password reset' },
         { label: 'Requested', render: (r) => formatDateTime(r.requested_at) },
         { label: 'Status', render: (r) => {
           const expired = r.status === 'approved' && new Date(r.expires_at).getTime() <= Date.now();

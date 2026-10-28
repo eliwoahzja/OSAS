@@ -416,7 +416,7 @@ export function showLogin({ onSuccess }) {
       field({ label: 'Email', icon: 'user', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderResetRequest(email.value)) }, 'Forgot password?'),
-      h('p', { class: 'lg-hint' }, "Don't have an account yet? ", h('a', { href: 'mailto:' + (window.OSAS.ADMIN_EMAIL || 'tropanggala87@gmail.com'), class: 'lg-link lg-inline' }, 'Contact an admin to register.')),
+      h('p', { class: 'lg-hint' }, "Don't have an account yet? ", h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => stepTo(() => renderResetRequest('', 'registration')) }, 'Contact an admin to register.')),
       notice,
       err.el,
       submit,
@@ -426,10 +426,11 @@ export function showLogin({ onSuccess }) {
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
   }
 
-  function renderResetRequest(prefillEmail = '') {
+  function renderResetRequest(prefillEmail = '', kind = 'reset') {
     stopTimers();
     card.replaceChildren();
     const err = mkErr();
+    const fullName = h('input', { type: 'text', class: 'lg-input', autocomplete: 'name', 'aria-label': 'Full name', required: true, minlength: '2', maxlength: '120', placeholder: 'Your full name' });
     const email = h('input', { type: 'email', class: 'lg-input', autocomplete: 'email', 'aria-label': 'Account email', required: true, maxlength: '254', value: prefillEmail, placeholder: 'Your account email' });
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Request admin approval');
     const back = h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderCredentials(email.value)) }, '← Back to sign-in');
@@ -437,15 +438,16 @@ export function showLogin({ onSuccess }) {
       event.preventDefault(); err.clear(); submit.disabled = true;
       submit.textContent = 'Sending request…';
       try {
-        const data = await passwordResetCall({ action: 'request', email: email.value });
+        const data = await passwordResetCall({ action: 'request', name: fullName.value, email: email.value, kind });
         form.replaceChildren(h('h2', { class: 'lg-title' }, 'Request submitted'), h('p', { class: 'lg-lead', role: 'status' }, data.message), back);
       } catch (error) { err.show(error.message); submit.disabled = false; submit.textContent = 'Request admin approval'; }
     } }, h('p', { class: 'lg-eyebrow' }, 'Account recovery'),
-    h('h2', { class: 'lg-title' }, 'Reset your password'),
-    h('p', { class: 'lg-lead' }, 'Send a request to an administrator. After approval, we will email you a link to choose a new password.'),
+    h('h2', { class: 'lg-title' }, kind === 'registration' ? 'Request a student account' : 'Reset your password'),
+    h('p', { class: 'lg-lead' }, 'Enter your full name and email. Every administrator will receive your request. After approval, we will email you a link to set your password.'),
+    field({ label: 'Full name', icon: 'user', input: fullName }),
     field({ label: 'Account email', icon: 'envelope', input: email }), err.el, submit, back);
     card.appendChild(form);
-    return () => email.focus({ preventScroll: true });
+    return () => fullName.focus({ preventScroll: true });
   }
 
   function renderNewPassword(reset) {
@@ -470,7 +472,7 @@ export function showLogin({ onSuccess }) {
         history.replaceState(null, '', location.pathname + location.search + '#/dashboard');
         renderCredentials('', data.message)();
       } catch (error) { err.show(error.message); save.disabled = false; save.textContent = 'Save new password'; }
-    } }, h('p', { class: 'lg-eyebrow' }, 'Approved account recovery'),
+    } }, h('p', { class: 'lg-eyebrow' }, 'Approved account request'),
     h('h2', { class: 'lg-title' }, 'Choose a new password'),
     h('p', { class: 'lg-lead' }, 'Use 8 to 128 characters. This link expires 30 minutes after approval and works once.'),
     field({ label: 'New password', icon: 'lock', input: password, trailing: eyeToggle([password, confirm]) }),
