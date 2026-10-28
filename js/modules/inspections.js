@@ -216,7 +216,6 @@ export async function safetyInspections(el) {
     table: 'inspections', columns, iconName: 'fact_check', onRetry: () => safetyInspections(el),
     title: 'Safety Inspections', subtitle: h('span', {}, 'Track inspection items per area with frequency, status, and follow-up notes.',
       h('span', { class: 'inspection-subtitle-note' }, 'Keep your campus safe and compliant.')),
-    actionLabel: 'Add Inspection Item', actionIcon: 'add', adminAction: true, onAction: () => edit(null),
     searchKeys: ['item', 'area', 'inspector', 'status', 'notes', 'risk_level'],
     searchPlaceholder: 'Search item, area, status or inspector…',
     transformRows: (rows) => rows.map((r) => ({ ...r, next_due: inspectionDue(r) })),
