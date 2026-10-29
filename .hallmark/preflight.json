@@ -1,0 +1,26 @@
+{
+  "scanned": "2026-10-29",
+  "findings": {
+    "fonts": "Inter in index.html:19 and css/landing.css:4; Georgia on accented heading at css/landing.css:32",
+    "palette": "School maroon #7A1B38 in css/landing.css:24; school seal assets/logo.png",
+    "framework": "Vanilla JS ES modules, Tailwind 3 static output, package.json:10",
+    "motion": "CSS hover and smooth scroll in css/landing.css:4,24"
+  },
+  "preserve": [
+    "School seal",
+    "Maroon accent",
+    "Government-linked safety content",
+    "Guide tabs, reminder text and sign-in callbacks"
+  ],
+  "introduce": [
+    "Index-first composition",
+    "Editorial display and reading faces",
+    "Tokens and scoped base",
+    "Progressive no-script safety content"
+  ],
+  "user_updates": [
+    "Static reminders replace checklist controls",
+    "Duplicate hazard shortcut strip removed",
+    "Typhoon and flood guidance added beside earthquake and fire drill information"
+  ]
+}

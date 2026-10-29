@@ -1,0 +1,34 @@
+[
+ {
+  "mode": "redesign",
+  "depth": "full",
+  "shape": "Index-First",
+  "theme": "Editorial",
+  "axes": "light/display-condensed/chromatic-maroon",
+  "hero": "Banner",
+  "nav": "masthead",
+  "footer": "colophon block",
+  "imagery": "existing school seal only",
+  "photos": [],
+  "entry": "Public safety guide before sign-in",
+  "fingerprint": "word-led/banner/vertical-guide-tabs/native-disclosures/static-reminders/colophon",
+  "sections": [
+   "Banner",
+   "Disaster response",
+   "Drills and evacuation",
+   "Readiness reminders",
+   "Account access aside",
+   "Colophon"
+  ],
+  "signature": "Disaster response document, open at During",
+  "waived": [
+   "59: compact introduction connects directly to safety guidance"
+  ],
+  "prompt": "Revamp school public landing with Hallmark and No AI Slop; follow stakeholder screenshot requests",
+  "review": {
+   "hero": "fix: 1 resolved",
+   "finish": "ship: no open findings"
+  },
+  "date": "2026-10-29"
+ }
+]

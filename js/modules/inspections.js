@@ -162,8 +162,8 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
 
 const INSPECTION_FREQUENCIES = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'semi-annual', 'annual'];
 const inspectionFields = [
-  { key: 'item', label: 'Inspection item', required: true, maxLength: 255 },
-  { key: 'area', label: 'Area / location', required: true, maxLength: 255 },
+  { key: 'area', label: 'Room / location', required: true, maxLength: 255, placeholder: 'e.g. Room 204, Main Building' },
+  { key: 'item', label: 'Hazard / condition checked', required: true, maxLength: 255, placeholder: 'e.g. Exposed wiring or loose electric fan mounting' },
   { key: 'frequency', label: 'Frequency', type: 'select', required: true, defaultValue: 'monthly', options: INSPECTION_FREQUENCIES.map((v) => ({ value: v, label: v })) },
   { key: 'last_inspected', label: 'Last inspected', type: 'date' },
   { key: 'status', label: 'Status', type: 'select', required: true, defaultValue: 'pending', options: ['pending', 'passed', 'fail', 'overdue'].map((v) => ({ value: v, label: v })) },
@@ -172,7 +172,7 @@ const inspectionFields = [
     { value: '', label: 'Not recorded' },
     ...['Low', 'Medium', 'Moderate', 'High', 'Critical'].map((v) => ({ value: v, label: v })),
   ] },
-  { key: 'notes', label: 'Findings / follow-up notes', type: 'textarea', wide: true },
+  { key: 'notes', label: 'Room findings / follow-up notes', type: 'textarea', wide: true, placeholder: 'Describe the condition found in this room, who may be affected, and the follow-up needed.' },
   { key: 'corrective_actions', label: 'Corrective actions', type: 'textarea', wide: true },
 ];
 const inspectionDetails = [
@@ -183,14 +183,14 @@ const inspectionDetails = [
 export async function safetyInspections(el) {
   if (!isAdmin()) { el.replaceChildren(errorBanner('Safety inspections are visible to administrators only.')); return; }
   const edit = (record) => recordForm({
-    title: record ? 'Edit inspection' : 'Add inspection', table: 'inspections',
+    title: record ? 'Edit room inspection' : 'Add room inspection', table: 'inspections',
     record: record ? { ...record, status: record.recorded_status || record.status,
       frequency: ({ semiannual: 'semi-annual', yearly: 'annual' })[String(record.frequency).toLowerCase()] || String(record.frequency).toLowerCase(),
     } : null, fields: inspectionFields, onSaved: () => safetyInspections(el),
   });
   const columns = [
-    { key: 'item', label: 'Inspection item', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
-    { key: 'area', label: 'Area / location' },
+    { key: 'area', label: 'Room / location' },
+    { key: 'item', label: 'Hazard / condition checked', render: (r) => h('span', { class: 'font-semibold text-gray-900' }, r.item) },
     { key: 'frequency', label: 'Frequency' },
     { key: 'last_inspected', label: 'Last inspected', render: (r) => formatDate(r.last_inspected) },
     { key: 'next_due', label: 'Next due date', render: (r) => formatDate(inspectionDue(r)) },
@@ -214,19 +214,19 @@ export async function safetyInspections(el) {
     },
     onFilteredRows: (filtered) => { filteredRows = filtered; },
     table: 'inspections', columns, iconName: 'fact_check', onRetry: () => safetyInspections(el),
-    title: 'Safety Inspections', subtitle: h('span', {}, 'Track inspection items per area with frequency, status, and follow-up notes.',
-      h('span', { class: 'inspection-subtitle-note' }, 'Keep your campus safe and compliant.')),
+    title: 'Safety Inspections', subtitle: h('span', {}, 'Inspect each room for hazards such as exposed wiring, loose electric fans, and blocked exits.',
+      h('span', { class: 'inspection-subtitle-note' }, 'Record the room, findings, risk level, and corrective actions.')),
     searchKeys: ['item', 'area', 'inspector', 'status', 'notes', 'risk_level'],
-    searchPlaceholder: 'Search item, area, status or inspector…',
+    searchPlaceholder: 'Search room, hazard, status or inspector…',
     transformRows: (rows) => rows.map((r) => ({ ...r, next_due: inspectionDue(r) })),
     dateFilter: { key: 'next_due', label: 'Next due date', compact: true },
     paginationStyle: 'numbered',
     selectFilters: [
       { key: 'status', label: 'All statuses', options: ['pending', 'passed', 'due soon', 'fail', 'overdue'].map((v) => ({ label: v === 'fail' ? 'Failed' : v, value: v })) },
-      { key: 'area', label: 'All areas', options: [] },
+      { key: 'area', label: 'All rooms', options: [] },
       { key: 'frequency', label: 'All frequencies', options: [] },
     ],
-    empty: { title: 'No inspections recorded yet', text: 'Add an inspection item to track safety checks.' },
+    empty: { title: 'No inspections recorded yet', text: 'Add a room inspection and record the hazards or conditions checked.' },
   });
   if (!Array.isArray(rows)) return;
   const shell = el.firstElementChild;
@@ -234,7 +234,7 @@ export async function safetyInspections(el) {
   const main = shell.lastElementChild;
   main.classList.add('inspection-main');
   if (rows.length) main.firstElementChild?.classList.add('inspection-stats');
-  for (const [key, label] of [['area', 'All areas'], ['frequency', 'All frequencies']]) {
+  for (const [key, label] of [['area', 'All rooms'], ['frequency', 'All frequencies']]) {
     const select = main.querySelector(`select[aria-label="${label}"]`);
     [...new Set(rows.map((r) => r[key]).filter(Boolean))].sort().forEach((value) => {
       select?.appendChild(h('option', { value }, value));
@@ -257,7 +257,7 @@ export async function safetyInspections(el) {
   const aside = h('aside', { class: 'inspection-aside', 'aria-label': 'Inspection tools and schedule' },
     panel('Quick Actions',
       h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => edit(null) },
-        shortcutIcon('add'), h('span', {}, 'Add Inspection Item', h('small', {}, 'Create a new inspection record'))),
+        shortcutIcon('add'), h('span', {}, 'Add Room Inspection', h('small', {}, 'Check a room for safety hazards'))),
       h('button', { type: 'button', class: 'inspection-shortcut', onclick: () => openInspectionCalendar(rows, show) },
         shortcutIcon('calendar_month'), h('span', {}, 'View Calendar', h('small', {}, 'Check scheduled inspections'))),
       h('button', { type: 'button', class: 'inspection-shortcut', onclick: () =>
@@ -286,6 +286,7 @@ export async function safetyInspections(el) {
 }
 
 export async function emergencyRoles(el) {
+  if (!isAdmin()) { el.replaceChildren(errorBanner('Emergency roles are visible to administrators only.')); return; }
   let plans = [], staff = [], existing = [];
   try {
     [plans, staff, existing] = await Promise.all([

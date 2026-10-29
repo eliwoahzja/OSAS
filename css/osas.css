@@ -668,3 +668,5 @@ body[data-route="dashboard"]:has(.student-dashboard) #view { flex:0 0 auto; over
 @media(max-width:767px) {
   .student-dashboard .dashboard-analytics-grid { grid-template-columns:minmax(0,1fr); }
 }
+
+@media(min-width:1280px){.dashboard-analytics-grid.xl\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr));}}

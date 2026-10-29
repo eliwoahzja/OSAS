@@ -14,6 +14,12 @@ test('incident statistics use supplied rows, with zero, one and multiple calenda
   assert.deepEqual(more.years_by_year.map(r => [r.year, r.incidents]), [[2025, 1], [2026, 2]]);
   assert.deepEqual(more.incident_breakdown, [{ label: 'medical', value: 2 }, { label: 'security', value: 1 }]);
 });
+test('reports awaiting admin classification are counted without invented types', () => {
+  const result = computeStats([{date:'2026-10-29', type:null, status:'open'}], [], [], [], []);
+  assert.equal(result.incidents_total, 1);
+  assert.deepEqual(result.incident_breakdown, [{label:'Unclassified',value:1}]);
+  assert.deepEqual(result.years_by_year[0].byType, {Unclassified:1});
+});
 test('all incident pages are fetched beyond the API row limit', async () => {
   const dataset = Array.from({ length: 2005 }, (_, id) => ({ id })); const offsets = [];
   const rows = await fetchEveryPage(async (offset, limit) => { offsets.push(offset); return dataset.slice(offset, offset + limit); });

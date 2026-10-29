@@ -18,7 +18,7 @@ function showPublicPage() {
   document.body.dataset.session = 'public';
   document.title = 'Campus Safety | St. Agnes Academy';
   if (!document.getElementById('public-safety')) {
-    document.body.append(createSafetyLanding({ onSignIn: () => {
+    document.body.prepend(createSafetyLanding({ onSignIn: () => {
       if (!VIEWS[(location.hash || '').replace(/^#\//, '')]) history.pushState(null, '', '#/sign-in');
       openSignIn();
     } }));
@@ -49,7 +49,7 @@ const NAV = [
   { route: 'first-aid-supplies', label: 'First Aid Supplies', icon: 'medical_services', access: 'admin' },
   { route: 'risk-assessment', label: 'Risk Assessment', icon: 'security', access: 'admin' },
   { route: 'safety-reports', label: 'Safety Reports', icon: 'assessment', access: 'admin' },
-  { route: 'emergency-roles', label: 'Emergency Roles', icon: 'groups', access: 'all' },
+  { route: 'emergency-roles', label: 'Emergency Roles', icon: 'groups', access: 'admin' },
   { route: 'accounts', label: 'Accounts', icon: 'user-plus', access: 'admin' },
 ];
 
@@ -521,7 +521,6 @@ function drawStats(box, s) {
   if (admin) {
     analyticsCharts.unshift(
       pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
-      pieChart(s.supplies_status || [], { title: 'Supply Stock Health', isDonut: true }),
     );
   }
   if (!admin) analyticsCharts.push(yearBarChart(s.years_by_year || [], { title: 'Incidents by Year', subtitle: 'Saved incident reports by calendar year. Updates when reports change.' }));
@@ -530,10 +529,10 @@ function drawStats(box, s) {
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
       h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, admin ? 'Incident, Inspection & Supplies Health' : 'Incident Reports'),
       h('p', { class: 'text-[15px] text-gray-500 mt-1' }, admin
-        ? 'Pie chart breakdown of supplies inventory, stock health, incidents, and inspection status.'
+        ? 'Live breakdown of supplies inventory, incidents, and inspection status.'
         : 'Live breakdown of reported incidents.'),
     ),
-    h('div', { class: `dashboard-analytics-grid grid md:grid-cols-2 ${admin ? 'xl:grid-cols-4' : ''} gap-5` }, ...analyticsCharts),
+    h('div', { class: `dashboard-analytics-grid grid md:grid-cols-2 ${admin ? 'xl:grid-cols-3' : ''} gap-5` }, ...analyticsCharts),
   ));
 
   const yearsData = s.years_by_year || [];
@@ -580,7 +579,7 @@ async function renderDashboard(el) {
       h('div', { class: 'h-7 w-80 bg-gray-200/90 rounded-xl' }),
       h('div', { class: 'h-4 w-96 max-w-full bg-gray-100 rounded-full' }),
     ),
-    skeletonAnalyticsGrid(auth.isAdmin() ? 4 : 2),
+    skeletonAnalyticsGrid(auth.isAdmin() ? 3 : 2),
   ));
   skeletonBox.appendChild(skeletonTrendChart());
   statsWrap.appendChild(skeletonBox);

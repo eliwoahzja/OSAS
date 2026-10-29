@@ -1,6 +1,6 @@
 export function computeStats(incidents, inspections, drills, supplies, contacts) {
   const typeCount = {};
-  incidents.forEach((i) => { typeCount[i.type] = (typeCount[i.type] || 0) + 1; });
+  incidents.forEach((i) => { const type = i.type || 'Unclassified'; typeCount[type] = (typeCount[type] || 0) + 1; });
   const statusCount = {};
   inspections.forEach((i) => { statusCount[i.status] = (statusCount[i.status] || 0) + 1; });
   const total = inspections.length || 1;
@@ -12,7 +12,8 @@ export function computeStats(incidents, inspections, drills, supplies, contacts)
     if (!year) return;
     if (!yearMap[year]) yearMap[year] = { year, incidents: 0, byType: {} };
     yearMap[year].incidents++;
-    yearMap[year].byType[i.type] = (yearMap[year].byType[i.type] || 0) + 1;
+    const type = i.type || 'Unclassified';
+    yearMap[year].byType[type] = (yearMap[year].byType[type] || 0) + 1;
   });
   const years_by_year = Object.values(yearMap).sort((a, b) => a.year - b.year);
 

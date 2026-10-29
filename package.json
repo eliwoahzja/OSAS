@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "build": "node scripts/lint.mjs && mkdir -p dist && cp -r index.html js css assets dist/",
+    "build": "node scripts/render-public-fallback.mjs && node scripts/lint.mjs && mkdir -p dist && cp -r index.html js css assets dist/",
     "build:css": "npx --yes tailwindcss@3.4.17 -i css/tailwind.input.css -o css/tailwind.css --minify",
     "lint": "node scripts/lint.mjs",
     "test": "node --test scripts/*.test.mjs"

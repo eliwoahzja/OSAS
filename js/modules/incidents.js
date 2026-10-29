@@ -1,6 +1,6 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal, checkRow,
+  capitalize, toast, openModal,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin, currentUser, subscribeIncidentChanges } from '../auth.js';
@@ -178,17 +178,22 @@ export async function incidentLogging(el) {
   const L = incidentLabels(isAdmin());
   const columns = [
     { key: 'date', label: 'Date / Time', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
-    { key: 'type', label: 'Type', render: (r) => pill(r.type) },
-    { key: 'location', label: 'Location' },
+    { key: 'type', label: 'Type', render: (r) => pill(r.type || 'To review') },
+    { key: 'location', label: 'Location', render: (r) => r.location || 'Not recorded' },
     { key: 'description', label: 'Description', render: (r) => h('span', { class: 'block w-72 max-w-[22rem] text-gray-600 leading-snug' }, r.description) },
     { key: 'reporter', label: 'Reporter' },
-    { key: 'severity', label: 'Severity', render: (r) => pill(r.severity) },
+    { key: 'severity', label: 'Severity', render: (r) => pill(r.severity || 'To review') },
     { key: 'status', label: 'Status', render: (r) => h('span', { 'data-incident-status': r.id }, pill(r.status)) },
     ...(admin ? [{ key: 'actions', label: 'Actions', render: (r) => h('button', {
       type: 'button', class: 'btn-ghost text-xs',
       'aria-label': (r.status === 'resolved' ? 'Reopen incident: ' : 'Resolve incident: ') + r.description,
       onclick: () => recordForm({ title: 'Update incident status', table: 'incidents', record: { ...r, status: r.status === 'resolved' ? 'open' : 'resolved' },
-        fields: [{ key: 'status', label: 'Status', type: 'select', required: true, options: [{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }] }],
+        fields: [
+          { key: 'status', label: 'Status', type: 'select', required: true, options: [{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }] },
+          { key: 'type', label: 'Type', type: 'select', options: [{ value: '', label: 'To review' }, ...INCIDENT_TYPES.map((value) => ({ value, label: capitalize(value) }))] },
+          { key: 'severity', label: 'Severity', type: 'select', options: [{ value: '', label: 'To review' }, ...SEVERITIES.map((value) => ({ value, label: capitalize(value) }))] },
+          { key: 'location', label: 'Location', maxLength: 255 },
+        ],
         onSaved: () => incidentLogging(el),
       }),
     }, r.status === 'resolved' ? 'Reopen' : 'Mark resolved') }] : []),
@@ -236,23 +241,9 @@ function incidentForm(el) {
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, L.modalTitle)),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
   const grid = form.querySelector('.grid');
-  const f = { type: 'medical', location: '', description: '', severity: 'medium', studentId: '', notifyParent: false };
-
-  const sel = (label, options, val, onChange) => {
-    return h('div', {}, h('label', { class: labelCls }, label),
-      h('select', { class: inputCls, onchange: (e) => onChange(e.target.value) },
-        options.map((o) => h('option', { value: o, selected: o === val }, capitalize(o)))));
-  };
-  const txt = (label, placeholder, onChange) => {
-    return h('div', {}, h('label', { class: labelCls }, label),
-      h('input', { class: inputCls, placeholder, oninput: (e) => onChange(e.target.value) }));
-  };
-
-  grid.appendChild(sel('Type', INCIDENT_TYPES, f.type, (v) => { f.type = v; }));
-  grid.appendChild(sel('Severity', SEVERITIES, f.severity, (v) => { f.severity = v; }));
-  grid.appendChild(txt('Location', 'e.g. Gymnasium', (v) => { f.location = v; }));
+  const f = { description: '' };
   const reporter = reporterName();
-  grid.appendChild(h('div', {}, h('label', { class: labelCls, for: 'incident-reporter' }, 'Reporter'),
+  grid.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls, for: 'incident-reporter' }, 'Reporter'),
     h('div', { class: 'relative' },
       h('input', {
         id: 'incident-reporter', class: `${inputCls} bg-gray-50 pr-9 text-gray-500 cursor-not-allowed`,
@@ -261,37 +252,8 @@ function incidentForm(el) {
       icon('lock', 'text-[11px] text-gray-400 absolute right-3.5 top-1/2 -translate-y-1/2'),
     ),
     h('p', { class: 'lg-field-hint' }, 'Auto-filled from your account')));
-  grid.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Description'),
-    h('textarea', { class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'What happened?', oninput: (e) => { f.description = e.target.value; } })));
-
-  const studentWrap = h('div', { class: 'sm:col-span-2' });
-  grid.appendChild(studentWrap);
-  const notifyWrap = h('div', { class: 'hidden sm:col-span-2 flex items-center gap-3' });
-  grid.appendChild(notifyWrap);
-
-  api.listRows('students').then((students) => {
-    const picker = h('select', { class: inputCls, onchange: (e) => { f.studentId = e.target.value; renderNotify(); } },
-      h('option', { value: '' }, 'No student involved'),
-      students.map((s) => h('option', { value: s.id }, `${s.name} — Grade ${s.grade}`)));
-    studentWrap.appendChild(h('label', { class: labelCls }, 'Student (optional — enables parent alert)'));
-    studentWrap.appendChild(picker);
-  }).catch(() => {
-    studentWrap.appendChild(h('p', { class: 'text-[12px] text-gray-400' }, 'Student list unavailable.'));
-  });
-
-  const renderNotify = () => {
-    notifyWrap.innerHTML = '';
-    if (!f.studentId) { notifyWrap.classList.add('hidden'); return; }
-    if (!isAdmin()) return;
-    notifyWrap.classList.remove('hidden');
-    notifyWrap.appendChild(checkRow({
-      id: 'incident-notify',
-      label: 'Notify parent?',
-      hint: 'Emails an urgent incident alert linked to this incident.',
-      checked: f.notifyParent,
-      onChange: (v) => { f.notifyParent = v; },
-    }));
-  };
+  grid.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls, for: 'incident-description' }, 'Description'),
+    h('textarea', { id: 'incident-description', required: true, maxLength: 10000, class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'Describe what happened and where. Include any immediate help needed.', oninput: (e) => { f.description = e.target.value; } })));
 
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
   grid.appendChild(errBox);
@@ -301,8 +263,8 @@ function incidentForm(el) {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (!f.location.trim() || !f.description.trim()) {
-      errBox.textContent = 'Location and description are required.';
+    if (!f.description.trim()) {
+      errBox.textContent = 'Describe what happened before submitting your report.';
       errBox.classList.remove('hidden');
       return;
     }
@@ -311,27 +273,12 @@ function incidentForm(el) {
     btn.disabled = true;
     btn.textContent = 'Saving…';
     try {
-      const created = await api.insertRow('incidents', {
+      await api.insertRow('incidents', {
         date: new Date().toISOString().slice(0, 10),
         time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-        type: f.type, location: f.location.trim(), description: f.description.trim(),
-        reporter, severity: f.severity,
-        status: 'open', student_id: f.studentId || null,
+        description: f.description.trim(), reporter, status: 'open',
       });
-      if (f.notifyParent && f.studentId && isAdmin()) {
-        const res = await api.sendNotification({
-          notif_type: 'incident_alert', priority: 'urgent',
-          student_id: f.studentId,
-          notify_all_parents: false,
-          related_incident_id: created.id,
-          title: `${capitalize(f.type)} — Student Incident`,
-          message: f.description.trim(),
-          contact_method: 'email',
-        });
-        toast(res.ok ? L.alertSent(res.channel) : L.alertFailed(res.error), res.ok ? 'success' : 'error');
-      } else {
-        toast(L.saved());
-      }
+      toast(L.saved());
       closeModal();
       incidentLogging(el);
     } catch (err) {

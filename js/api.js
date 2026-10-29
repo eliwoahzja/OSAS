@@ -97,6 +97,13 @@ function recordMockActivity(table, action, oldValue, newValue) {
 
 function insertMock(table, payload) {
   const row = { id: mockNextId(table), ...payload };
+  if (table === 'incidents') {
+    const me = auth.currentUser();
+    row.submitted_by = me?.id || null;
+    row.reporter = me?.name || me?.email || 'Student';
+    row.type ??= null; row.severity ??= null; row.location ??= null;
+    if (!auth.isAdmin()) { row.status = 'open'; row.student_id = null; row.type = null; row.severity = null; row.location = null; }
+  }
   MOCK[table] = MOCK[table] || [];
   MOCK[table].unshift(row);
   recordMockActivity(table, 'insert', null, row);
@@ -127,6 +134,11 @@ function deleteMock(table, id) {
 
 function listMock(table, filters = {}) {
   let rows = snapshot(table);
+  if (table === 'incidents' && !auth.isAdmin()) {
+    const id = auth.currentUser()?.id;
+    rows = id ? rows.filter((r) => r.submitted_by === id) : [];
+  }
+  if (table === 'emergency_roles' && !auth.isAdmin()) return [];
   const byId = (list, id) => list.find((x) => x.id === id) || null;
   if (table === 'emergency_contacts') {
     rows = rows.map((r) => ({ ...r, students: r.student_id ? byId(MOCK.students, r.student_id) : null }));
@@ -153,10 +165,16 @@ const EMBEDS = {
 };
 
 export async function listRows(table, filters = {}) {
+  if (table === 'emergency_roles' && !auth.isAdmin()) throw new Error('Emergency roles are visible to administrators only.');
   if (isDemoMode()) return listMock(table, filters);
   const query = { select: EMBEDS[table] || '*', order: 'created_at.desc' };
   for (const [k, v] of Object.entries(filters)) {
     if (v) query[k] = k === 'category' ? `eq.${v}` : `ilike.*${v}*`;
+  }
+  if (table === 'incidents' && !auth.isAdmin()) {
+    const id = auth.currentUser()?.id;
+    if (!id) throw new Error('Sign in to view your reports.');
+    query.submitted_by = `eq.${id}`;
   }
   let rows;
   try {
@@ -306,7 +324,7 @@ export async function getDashboardStats() {
     );
   }
   const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
-    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,type,status', order: 'id.asc', offset, limit } })),
+    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,type,status', order: 'id.asc', offset, limit, ...(!auth.isAdmin() ? { submitted_by: `eq.${auth.currentUser()?.id}` } : {}) } })),
     includeSupplies ? restFetch('GET', 'inspections', { query: { select: '*' } }) : [],
     includeSupplies ? restFetch('GET', 'drills', { query: { select: '*' } }) : [],
     includeSupplies ? restFetch('GET', 'supplies', { query: { select: '*' } }) : [],

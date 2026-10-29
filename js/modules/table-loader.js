@@ -27,7 +27,7 @@ export const SUMMARY = {
     { label: 'Resolved', value: rows.filter((r) => r.status === 'resolved').length, icon: 'task_alt', chipCls: 'bg-emerald-50 text-emerald-600' },
   ],
   inspections: (rows) => [
-    { label: 'Total Items', description: 'All inspection items', value: rows.length, icon: 'fact_check', chipCls: 'bg-blue-50 text-blue-600' },
+    { label: 'Total Checks', description: 'Room hazard checks', value: rows.length, icon: 'fact_check', chipCls: 'bg-blue-50 text-blue-600' },
     { label: 'Passed', description: 'Completed & safe', value: rows.filter((r) => r.status === 'passed').length, icon: 'check_circle', chipCls: 'bg-emerald-50 text-emerald-600' },
     { label: 'Due Soon', description: 'Within 7 days', value: rows.filter((r) => r.status === 'due soon').length, icon: 'schedule', chipCls: 'bg-amber-50 text-amber-700' },
     { label: 'Overdue', description: 'Past due date', value: rows.filter((r) => r.status === 'overdue').length, icon: 'warning', chipCls: 'bg-red-50 text-red-600' },
