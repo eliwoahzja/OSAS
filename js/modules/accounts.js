@@ -36,7 +36,8 @@ async function call(payload) {
 
 function openEditModal(user, isSelf, onSaved) {
   const name = h('input', { type: 'text', class: inputCls, value: user.name || '', required: true, autocomplete: 'off' });
-  const email = h('input', { type: 'email', class: inputCls, value: user.email || '', required: true, autocomplete: 'off' });
+  const username = h('input', { id: 'account-edit-username', type: 'text', class: inputCls, value: user.username || '', required: true, maxlength: '64', pattern: '[a-zA-Z0-9]([a-zA-Z0-9._-]{0,62}[a-zA-Z0-9])?', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false' });
+  const email = h('input', { id: 'account-edit-email', type: 'email', class: inputCls, value: user.email || '', required: true, autocomplete: 'off' });
   const password = h('input', { type: 'password', class: inputCls, placeholder: 'Leave blank to keep the current password', autocomplete: 'new-password' });
   const role = h('select', { class: inputCls },
     h('option', { value: 'client' }, 'Student — standard tabs only'),
@@ -54,7 +55,7 @@ function openEditModal(user, isSelf, onSaved) {
       err.classList.add('hidden');
       save.disabled = true;
       try {
-        const payload = { action: 'update', id: user.id, name: name.value, email: email.value, role: role.value };
+        const payload = { action: 'update', id: user.id, name: name.value, username: username.value, email: email.value, role: role.value };
         if (password.value) payload.password = password.value;
         await call(payload);
         toast('Account updated.');
@@ -72,7 +73,9 @@ function openEditModal(user, isSelf, onSaved) {
       h('p', { class: 'text-xs text-gray-500 mt-0.5' }, isSelf ? 'You can’t change your own account type.' : 'Changes apply the next time they sign in.'),
     ),
     h('div', {}, h('label', { class: labelCls }, 'Full name'), name),
-    h('div', {}, h('label', { class: labelCls }, 'Email'), email),
+    h('div', {}, h('label', { class: labelCls, for: username.id }, 'Username'), username),
+    h('div', {}, h('label', { class: labelCls, for: email.id }, 'Email'), email,
+      h('p', { class: 'text-xs text-gray-500 mt-1' }, 'Verification codes and password reset links go to this address.')),
     h('div', {}, h('label', { class: labelCls }, 'New password'), password),
     h('div', {}, h('label', { class: labelCls }, 'Account type'), role),
     err,
@@ -122,7 +125,8 @@ function openDeleteModal(user, onDeleted) {
 
 function openCreateModal(onCreated) {
   const name = h('input', { type: 'text', class: inputCls, placeholder: 'Full name', required: true, autocomplete: 'off' });
-  const email = h('input', { type: 'text', class: inputCls, placeholder: 'j.reyes or name@saac.edu.ph', required: true, autocomplete: 'off' });
+  const username = h('input', { id: 'account-create-username', type: 'text', class: inputCls, placeholder: 'j.reyes', required: true, maxlength: '64', pattern: '[a-zA-Z0-9]([a-zA-Z0-9._-]{0,62}[a-zA-Z0-9])?', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false' });
+  const email = h('input', { id: 'account-create-email', type: 'email', class: inputCls, placeholder: 'name@example.com', required: true, autocomplete: 'off' });
   const password = h('input', { type: 'password', class: inputCls, placeholder: 'At least 8 characters', required: true, autocomplete: 'new-password' });
   const role = h('select', { class: inputCls },
     h('option', { value: 'client' }, 'Student — standard tabs only'),
@@ -146,7 +150,7 @@ function openCreateModal(onCreated) {
       err.classList.add('hidden');
       save.disabled = true;
       try {
-        await call({ action: 'create', name: name.value, email: email.value, password: password.value, role: role.value });
+        await call({ action: 'create', name: name.value, username: username.value, email: email.value, password: password.value, role: role.value });
         toast(`Account created for ${email.value.trim()}. Share the password with them securely.`);
         modal.close();
         onCreated();
@@ -162,7 +166,9 @@ function openCreateModal(onCreated) {
       h('p', { class: 'text-xs text-gray-500 mt-0.5' }, 'They sign in with this username or email and password, then enter a code emailed to them.'),
     ),
     h('div', {}, h('label', { class: labelCls }, 'Full name'), name),
-    h('div', {}, h('label', { class: labelCls }, 'Username or email'), email),
+    h('div', {}, h('label', { class: labelCls, for: username.id }, 'Username'), username),
+    h('div', {}, h('label', { class: labelCls, for: email.id }, 'Email'), email,
+      h('p', { class: 'text-xs text-gray-500 mt-1' }, 'Verification codes and password reset links go to this address.')),
     h('div', {}, h('label', { class: labelCls }, 'Temporary password'), password, gen),
     h('div', {}, h('label', { class: labelCls }, 'Account type'), role),
     err,
@@ -182,7 +188,7 @@ function resetRequestReview(request, reload) {
     h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Review account request'),
     h('p', { class: 'text-sm text-gray-500' }, 'Check the saved account details. Approval emails a single-use link to the account email. The user chooses their own password.'),
     h('dl', { class: 'space-y-3' }, [
-      ['Request type', request.request_kind === 'registration' ? 'Registration' : 'Password reset'], ['Submitted full name', request.submitted_name || request.name], ['Saved account name', request.request_kind === 'registration' ? 'New account' : request.name], ['Account email', request.email], ['Account type', roleLabel(request.role)],
+      ['Request type', request.request_kind === 'registration' ? 'Registration' : 'Password reset'], ['Submitted full name', request.submitted_name || request.name], ['Saved account name', request.request_kind === 'registration' ? 'New account' : request.name], ['Username', request.username || '—'], ['Account email', request.email], ['Account type', roleLabel(request.role)],
       ['Account created', formatDateTime(request.account_created_at)],
       ['Last sign-in', request.last_sign_in_at ? formatDateTime(request.last_sign_in_at) : 'Never'],
       ['Requested', formatDateTime(request.requested_at)], ['Status', request.status],
@@ -223,13 +229,14 @@ function resetRequestQueue() {
       h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Requests'),
         h('p', { class: 'text-sm text-gray-500 mt-1' }, 'Review account creation and password reset requests.')), refresh), rows);
   async function load() {
-    refresh.disabled = true; rows.replaceChildren(skeletonTable(3, 5));
+    refresh.disabled = true; rows.replaceChildren(skeletonTable(3, 6));
     try {
       const { requests } = await passwordResetCall({ action: 'list' }, true);
       rows.replaceChildren();
       if (!requests.length) rows.append(emptyBanner({ icon: 'lock', title: 'No requests', text: 'New requests from sign-in appear here.' }));
       else rows.append(dataTable([
         { label: 'Account', render: (r) => h('div', {}, h('strong', {}, r.name), h('small', { class: 'block text-gray-500 break-words' }, r.email)) },
+        { label: 'Username', render: (r) => h('span', { class: 'font-medium text-gray-700' }, r.username || '—') },
         { label: 'Request type', render: (r) => r.request_kind === 'registration' ? 'Registration' : 'Password reset' },
         { label: 'Requested', render: (r) => formatDateTime(r.requested_at) },
         { label: 'Status', render: (r) => {
@@ -254,7 +261,7 @@ export async function accounts(el) {
 
   const load = async () => {
     holder.innerHTML = '';
-    holder.appendChild(skeletonTable(5, 5));
+    holder.appendChild(skeletonTable(5, 6));
     try {
       const { users, me } = await call({ action: 'list' });
       holder.innerHTML = '';
@@ -265,6 +272,7 @@ export async function accounts(el) {
       users.sort((a, b) => (a.role === b.role ? a.email.localeCompare(b.email) : a.role === 'admin' ? -1 : 1));
       holder.appendChild(dataTable([
         { label: 'Name', render: (u) => h('span', { class: 'font-semibold text-gray-900' }, u.name) },
+        { label: 'Username', render: (u) => h('span', { class: 'font-medium text-gray-700' }, u.username || '—') },
         { label: 'Email', key: 'email' },
         { label: 'Type', render: (u) => pill(roleLabel(u.role), u.role === 'admin' ? 'pink' : 'blue') },
         { label: 'Last sign-in', render: (u) => (u.last_sign_in_at ? formatDateTime(u.last_sign_in_at) : 'Never') },

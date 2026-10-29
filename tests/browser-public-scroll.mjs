@@ -17,6 +17,7 @@ try {
     page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(origin);
     await page.locator('#public-safety').waitFor();
+    await page.evaluate(() => document.fonts.ready);
     await page.mouse.move(viewport.width / 2, viewport.height / 2);
     await page.mouse.wheel(0, 650);
     await page.waitForFunction(() => window.scrollY > 200);
@@ -26,22 +27,56 @@ try {
     if (viewport.width > 900) {
       await page.getByRole('navigation', { name: 'Safety brochure' }).getByRole('link', { name: 'Drills', exact: true }).click();
       await page.waitForFunction(() => document.activeElement?.id === 'safety-drills');
-      const drill = await page.locator('#safety-drills').boundingBox();
-      assert.ok(drill.y >= 0 && drill.y < viewport.height);
+      await page.waitForFunction(() => {
+        const { top } = document.getElementById('safety-drills').getBoundingClientRect();
+        return top >= 0 && top < innerHeight;
+      });
       await page.getByRole('navigation', { name: 'Safety brochure' }).getByRole('link', { name: 'Reminders', exact: true }).click();
       await page.waitForFunction(() => document.activeElement?.id === 'safety-ready');
     }
     await page.evaluate(() => scrollTo(0, 0));
     await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await page.getByRole('heading', { name: 'Welcome Back', exact: true }).waitFor();
+    assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).overflowY), 'hidden');
+    assert.equal(await page.evaluate(() => getComputedStyle(document.body).overflowY), 'hidden');
+    assert.equal(await page.evaluate(() => innerWidth - document.documentElement.clientWidth), 0, 'The background document must not have a second scrollbar');
+    assert.equal(await page.locator('#login-overlay').evaluate((el) => getComputedStyle(el).overflowY), 'auto');
+    if (viewport.width < 900) {
+      const login = page.locator('#login-overlay');
+      await login.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+      const submit = await page.getByRole('button', { name: 'Sign In', exact: true }).boundingBox();
+      assert.ok(submit.y >= 0 && submit.y + submit.height <= viewport.height, 'The mobile login button must be reachable');
+      await login.evaluate((el) => { el.scrollTop = 0; });
+    }
     await page.getByRole('button', { name: 'Back to safety guide' }).click();
     await page.locator('#login-overlay').waitFor({ state: 'detached' });
+    assert.equal(await page.evaluate(() => document.documentElement.classList.contains('lg-open')), false);
     await page.evaluate(() => scrollTo(0, 0));
     await page.mouse.move(viewport.width / 2, viewport.height / 2);
     await page.mouse.wheel(0, 650);
     await page.waitForFunction(() => scrollY > 200);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     assert.deepEqual(errors, []);
+    await context.close();
+  }
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    const context = await browser.newContext({ viewport, reducedMotion: 'no-preference' });
+    await context.route('https://**/*', (route) => route.abort());
+    const page = await context.newPage();
+    await page.goto(origin);
+    await page.locator('#public-safety').waitFor();
+    assert.equal(await page.locator('.safety-hero h1').evaluate((el) => getComputedStyle(el).animationName), 'safety-lift');
+    const panel = page.locator('.safety-guide-panel');
+    assert.equal(await panel.evaluate((el) => el.classList.contains('is-revealed')), false);
+    await panel.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.safety-guide-panel')).opacity === '1');
+    assert.equal(await panel.evaluate((el) => el.classList.contains('is-revealed')), true);
+    const reminder = page.locator('.safety-reminder-sheet');
+    await reminder.scrollIntoViewIfNeeded();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.safety-reminder-sheet')).opacity === '1');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    assert.equal(await page.locator('.safety-hero h1').evaluate((el) => getComputedStyle(el).animationName), 'none');
+    assert.equal(await page.locator('[data-reveal]').evaluateAll((items) => items.every((el) => getComputedStyle(el).opacity === '1')), true);
     await context.close();
   }
   const fallback = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1440, height: 900 } });
@@ -54,7 +89,7 @@ try {
   await page.keyboard.press('PageDown');
   await page.waitForFunction(() => scrollY > 200);
   await fallback.close();
-  console.log('Public scroll OK: desktop and mobile wheel, PageDown, section navigation, sign-in/back, no horizontal overflow, and no-JavaScript fallback.');
+  console.log('Public page OK: desktop/mobile scroll, navigation, initial and scroll animations, reduced motion, login single-scrollbar/back, reachable mobile submit, no horizontal overflow, and no-JavaScript fallback.');
 } finally {
   await browser.close();
 }

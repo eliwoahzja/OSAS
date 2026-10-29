@@ -70,6 +70,16 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
   };
   const context = createContext({
     URL, URLSearchParams, TextEncoder,
+    fetch: async (url, options) => {
+      assert.equal(url, 'https://project.example/functions/v1/username-auth');
+      const payload = JSON.parse(options.body);
+      records.push(['usernameAuth', payload]);
+      return {
+        ok: failure !== 'username',
+        json: async () => failure === 'username' ? { error: 'Incorrect username or password.' }
+          : payload.action === 'sign-in' ? { session: recovered } : { message: 'Request sent.' },
+      };
+    },
     sessionStorage,
     setTimeout: (fn, delay) => { const timer = setTimeout(fn, delay); timer.unref(); return timer; },
     window: {
@@ -175,6 +185,38 @@ test('normal password sign-in still requires a separate email verification code'
   assert.equal(otp[1].options.shouldCreateUser, false);
   await auth.verifyCode('student@saac.ph', '123456');
   assert.equal(auth.isSignedIn(), true);
+});
+
+test('saved username sends the OTP to the actual account email and still requires verification', async () => {
+  const { auth, records } = await loadAuth();
+  const next = await auth.signIn('  Student.Name  ', 'Password12');
+  assert.equal(next.step, 'otp');
+  assert.equal(next.email, 'student@saac.ph');
+  const lookup = records.find(([method]) => method === 'usernameAuth');
+  assert.equal(lookup[1].username, 'student.name');
+  assert.equal(lookup[1].action, 'sign-in');
+  assert.equal(records.find(([method]) => method === 'signInWithOtp')[1].email, 'student@saac.ph');
+  assert.equal(auth.isSignedIn(), false);
+  await auth.verifyCode(next.email, '123456');
+  assert.equal(auth.isSignedIn(), true);
+});
+
+test('bad username credentials cannot set a session or send OTPs', async () => {
+  const { auth, records } = await loadAuth({ failure: 'username' });
+  await assert.rejects(auth.signIn('student.name', 'WrongPassword12'), /Incorrect username or password/);
+  assert.equal(auth.isSignedIn(), false);
+  assert.equal(records.some(([method]) => ['setSession', 'signInWithOtp'].includes(method)), false);
+});
+
+test('username recovery does not guess an email or reveal an address in the browser', async () => {
+  const { auth, records } = await loadAuth();
+  await auth.requestPasswordReset('  Student.Name  ');
+  assert.equal(records.length, 1);
+  assert.equal(records[0][0], 'usernameAuth');
+  assert.equal(records[0][1].action, 'recover');
+  assert.equal(records[0][1].username, 'student.name');
+  assert.equal(records[0][1].redirectTo, 'https://school.example/?recovery=1');
+  assert.equal(auth.isSignedIn(), false);
 });
 
 

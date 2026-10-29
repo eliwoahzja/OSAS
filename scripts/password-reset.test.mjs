@@ -14,6 +14,8 @@ function setup(appUrl = 'https://school.example/', { emailDomain } = {}) {
     async list() { const { token_hash, ...visible } = row; return [visible]; },
     async actor(jwt) { return jwt === 'admin' ? { id: 'admin', app_metadata: { role: 'admin' } } : jwt === 'student' ? { id: 'owner', app_metadata: { role: 'client' }, user_metadata: { role: 'admin' } } : null; },
     async emailExists() { return this.existing; },
+    async usernameExists() { return this.existing; },
+    async usernameEmail() { return row.email; },
     async createAccount(record, password) { writes.push({ user: 'new-student', password }); return { id: 'new-student' }; },
     async account() { return { id: 'owner', email: row.email }; },
     async adminEmails() { return ['admin@example.test', 'other-admin@example.test']; },

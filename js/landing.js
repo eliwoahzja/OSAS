@@ -168,8 +168,8 @@ export function createSafetyLanding({ onSignIn }) {
   } }, label);
   const signIn = (label, cls = 'safety-button') => h('button', { type: 'button', class: cls, onclick: onSignIn }, label, icon('arrow-right'));
 
-  const tabs = h('div', { class: 'safety-tabs', role: 'tablist', 'aria-label': 'Disaster guides' });
-  const panel = h('div', { class: 'safety-guide-panel', role: 'tabpanel', id: 'safety-guide-panel', tabindex: '0' });
+  const tabs = h('div', { class: 'safety-tabs', role: 'tablist', 'aria-label': 'Disaster guides', 'data-reveal': '' });
+  const panel = h('div', { class: 'safety-guide-panel', role: 'tabpanel', id: 'safety-guide-panel', tabindex: '0', 'data-reveal': '' });
   function selectGuide(index, focus = false) {
     const guide = GUIDES[index];
     [...tabs.children].forEach((button, i) => {
@@ -221,15 +221,15 @@ export function createSafetyLanding({ onSignIn }) {
         ),
       ),
       h('section', { id: 'safety-guides', class: 'safety-container safety-section', 'aria-labelledby': 'safety-guides-title', tabindex: '-1' },
-        h('div', { class: 'safety-section-heading' }, h('div', {}, h('p', { class: 'safety-kicker' }, '01 / Know the hazards'), h('h2', { id: 'safety-guides-title' }, 'Know what to do.')),
+        h('div', { class: 'safety-section-heading', 'data-reveal': '' }, h('div', {}, h('p', { class: 'safety-kicker' }, '01 / Know the hazards'), h('h2', { id: 'safety-guides-title' }, 'Know what to do.')),
           h('p', {}, 'Simple steps for before, during, and after an emergency. Choose a guide to begin.')),
         tabs, panel,
       ),
       h('section', { id: 'safety-drills', class: 'safety-drills safety-section', 'aria-labelledby': 'safety-drills-title', tabindex: '-1' }, h('div', { class: 'safety-container' },
-        h('div', { class: 'safety-section-heading' }, h('div', {}, h('p', { class: 'safety-kicker' }, '02 / Practice the response'), h('h2', { id: 'safety-drills-title' }, 'Every drill is preparation.')),
+        h('div', { class: 'safety-section-heading', 'data-reveal': '' }, h('div', {}, h('p', { class: 'safety-kicker' }, '02 / Practice the response'), h('h2', { id: 'safety-drills-title' }, 'Every drill is preparation.')),
           h('p', {}, 'Listen to the briefing, follow your teacher or marshal, and use your school’s posted evacuation plan.')),
         h('div', { class: 'safety-drill-grid' },
-          DRILLS.map(({ title, entries, sourceLabel, sourceUrl }, i) => h('article', { class: 'safety-drill-entry' },
+          DRILLS.map(({ title, entries, sourceLabel, sourceUrl }, i) => h('article', { class: 'safety-drill-entry', 'data-reveal': '' },
             h('div', { class: 'safety-drill-title' }, icon(GUIDES[i].icon), h('h3', {}, title)),
             h('ol', {}, entries.map(([name, text]) => h('li', {}, h('strong', {}, name), h('p', {}, text)))),
             h('p', { class: 'safety-source' }, external(sourceLabel, sourceUrl)))),
@@ -237,13 +237,13 @@ export function createSafetyLanding({ onSignIn }) {
         h('p', { class: 'safety-drill-note' }, icon('circle-info'), 'For drill dates and your assigned assembly area, follow official school announcements and your classroom evacuation plan.'),
       )),
       h('section', { id: 'safety-ready', class: 'safety-container safety-section safety-ready', 'aria-labelledby': 'safety-ready-title', tabindex: '-1' },
-        h('div', {}, h('p', { class: 'safety-kicker' }, '03 / Your next step'), h('h2', { id: 'safety-ready-title' }, 'A little preparation.', h('br'), 'A clear plan.'),
+        h('div', { 'data-reveal': '' }, h('p', { class: 'safety-kicker' }, '03 / Your next step'), h('h2', { id: 'safety-ready-title' }, 'A little preparation.', h('br'), 'A clear plan.'),
           h('p', { class: 'safety-lead' }, 'Read these reminders before your next school drill. Ask your teacher about anything you have not confirmed.'),
           h('div', { class: 'safety-plan-note' }, icon('map'), h('p', {}, h('strong', {}, 'Know your actual route.'), ' Check the evacuation map posted in your classroom. Confirm the assembly area and any assistance arrangements with school staff.'))),
-        h('div', { class: 'safety-reminder-sheet' }, h('div', { class: 'safety-reminder-head' }, h('h3', {}, 'Readiness reminders')),
+        h('div', { class: 'safety-reminder-sheet', 'data-reveal': '' }, h('div', { class: 'safety-reminder-head' }, h('h3', {}, 'Readiness reminders')),
           h('ul', { class: 'safety-reminders' }, REMINDERS.map((text) => h('li', {}, text)))),
       ),
-      h('section', { class: 'safety-container safety-workspace', 'aria-labelledby': 'safety-workspace-title' },
+      h('section', { class: 'safety-container safety-workspace', 'aria-labelledby': 'safety-workspace-title', 'data-reveal': '' },
         h('div', {}, h('p', { class: 'safety-kicker' }, 'Your school workspace'), h('h2', { id: 'safety-workspace-title' }, 'Stay connected with OSAS.'), h('p', {}, 'Sign in to view school emergency contacts and evacuation plans, or submit an incident report.')),
         signIn('Sign in to your account'),
       ),
@@ -253,5 +253,58 @@ export function createSafetyLanding({ onSignIn }) {
       h('p', {}, 'During an emergency, follow school marshals and local authorities.'),
     )),
   );
+
   return root;
+}
+
+// Start after mounting so the initial viewport check uses real element bounds.
+// Return a disposer for sign-in/sign-out cycles; never leave hidden content or
+// scroll listeners attached to a removed public page.
+export function startLandingAnimations(root) {
+  const pending = new Set(root.querySelectorAll('[data-reveal]'));
+  const motion = matchMedia('(prefers-reduced-motion: reduce)');
+  let frame = 0;
+  let stopped = false;
+  const stop = () => {
+    stopped = true;
+    cancelAnimationFrame(frame);
+    window.removeEventListener('scroll', schedule);
+    window.removeEventListener('resize', schedule);
+    root.removeEventListener('focusin', onFocus);
+    motion.removeEventListener('change', onMotion);
+    root.classList.remove('has-scroll-reveals');
+  };
+  const reveal = (item) => { item.classList.add('is-revealed'); pending.delete(item); };
+  const update = () => {
+    frame = 0;
+    if (stopped) return;
+    if (!root.isConnected) { stop(); return; }
+    const threshold = window.innerHeight * 0.92;
+    for (const item of pending) {
+      if (item.getBoundingClientRect().top < threshold) reveal(item);
+    }
+    if (!pending.size) stop();
+  };
+  const schedule = () => { if (!stopped && !frame) frame = requestAnimationFrame(update); };
+  const onFocus = (event) => {
+    for (const item of pending) {
+      if (item.contains(event.target)) reveal(item);
+    }
+    schedule();
+  };
+  const onMotion = () => {
+    if (!motion.matches) return;
+    pending.forEach(reveal);
+    stop();
+  };
+  if (motion.matches) { pending.forEach(reveal); return stop; }
+  root.classList.add('has-scroll-reveals');
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', schedule, { passive: true });
+  root.addEventListener('focusin', onFocus);
+  motion.addEventListener('change', onMotion);
+  update();
+  // Font loading can move the next section into view without a scroll event.
+  document.fonts?.ready.then(schedule);
+  return stop;
 }

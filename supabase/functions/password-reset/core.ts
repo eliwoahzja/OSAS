@@ -54,15 +54,19 @@ export function createResetHandler({ store, sendMail, appUrl = PUBLIC_APP_URL, e
       if (body.action === 'request') {
         const account = resolveAccount(body.email);
         if (!account) return response({ error: 'Enter a valid username or email address.' }, 400);
-        const email = account.email;
+        let email = account.email;
         const name = String(body.name || '').trim();
         const kind = body.kind || 'reset';
         if (!['reset', 'registration'].includes(kind)) return response({ error: 'Invalid request type.' }, 400);
         if (name.length < 2 || name.length > 120) return response({ error: 'Enter your full name (2 to 120 characters).' }, 400);
         // Usernames map to the account email, so an already-registered username
         // is reported directly instead of the uniform public response.
-        if (kind === 'registration' && account.username && await store.emailExists(email)) {
+        if (kind === 'registration' && account.username && (await store.usernameExists(account.username) || await store.emailExists(email))) {
           return response({ error: 'Username is already taken.' }, 400);
+        }
+        if (kind === 'reset' && account.username) {
+          email = await store.usernameEmail(account.username);
+          if (!email) return response({ message: REQUEST_MESSAGE });
         }
         const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
         const id = await store.submit(email, await digest(`osas-reset-ip:${ip}`), name, kind);

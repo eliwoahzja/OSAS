@@ -216,7 +216,8 @@ pre::-webkit-scrollbar-thumb:hover,
   to { transform: rotate(360deg); }
 }
 
-.lg-root { position: fixed; inset: 0; z-index: 100; display: flex; background: #F6F3EA; font-family: 'Inter', sans-serif; overflow-y: auto; overflow-x: hidden; }
+html.lg-open, html.lg-open body { overflow: hidden !important; }
+.lg-root { position: fixed; inset: 0; z-index: 100; display: flex; background: #F6F3EA; font-family: 'Inter', sans-serif; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 .lg-root.lg-flipped { flex-direction: row-reverse; }
 .lg-switch { font-size: 13.5px; color: #6B7280; margin-top: 10px !important; }
 .lg-switch-btn { border: 0; background: none; padding: 0; color: #7A1B38; font-weight: 700; font-size: inherit; cursor: pointer; }

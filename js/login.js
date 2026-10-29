@@ -378,8 +378,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         err.clear();
         let addr = '';
         try {
-          // A bare username resolves to its school mailbox, so every emailed
-          // code still goes to the account's email address.
+          // Keep bare usernames intact; the server resolves the saved mailbox.
           addr = auth.accountAddress(email.value);
         } catch (bad) {
           err.show(bad.message || 'Enter your username or school email.');
@@ -455,7 +454,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         try {
           await auth.requestPasswordReset(contact);
           armCooldown('recovery', contact);
-          notice.textContent = 'If this email has an account, a password reset link has been sent. Check your inbox and spam folder.';
+          notice.textContent = 'If this account exists, a password reset link has been sent. Check your inbox and spam folder.';
           notice.classList.remove('lg-hidden');
         } catch (error) {
           err.show(error.message || 'Could not send the reset email.');
@@ -674,6 +673,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       await done(anim(overlay, [{ opacity: 1 }, { opacity: 0 }], { duration: 480, easing: 'ease-in', delay: 120 }));
     }
     overlay.remove();
+    document.documentElement.classList.remove('lg-open');
     onSuccess();
   }
 
@@ -701,9 +701,10 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
 
   let busy = false;
   const overlay = h('div', { id: 'login-overlay', class: `lg-root${onBack ? ' lg-with-return' : ''}` }, brand, side);
-  const close = () => { stopTimers(); closeModal(true); overlay.remove(); };
+  const close = () => { stopTimers(); closeModal(true); overlay.remove(); document.documentElement.classList.remove('lg-open'); };
   if (onBack) overlay.append(h('button', { type: 'button', class: 'lg-public-return', onclick: () => { close(); onBack(); } }, fa('arrow-left'), 'Back to safety guide'));
   document.body.appendChild(overlay);
+  document.documentElement.classList.add('lg-open');
   const reset = readResetLink();
   if (reset) history.replaceState(null, '', location.pathname + location.search + '#/reset-password');
   const focusFirst = recovery.active ? renderResetPassword(recovery.email)

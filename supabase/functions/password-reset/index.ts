@@ -24,9 +24,13 @@ const store = {
     return checked(await query.select('*').maybeSingle());
   },
   async list() {
-    return checked(await svc.from(TABLE)
+    const requests = checked(await svc.from(TABLE)
       .select('id,email,name,submitted_name,request_kind,role,account_created_at,last_sign_in_at,requested_at,status,reviewed_at,expires_at,completed_at,notification_error')
       .is('archived_at', null).order('requested_at', { ascending: false }).limit(100));
+    if (!requests.length) return requests;
+    const profiles = checked(await svc.from('users').select('email,username').in('email', requests.map((r: any) => r.email)));
+    const usernames = new Map(profiles.map((p: any) => [p.email, p.username]));
+    return requests.map((r: any) => ({ ...r, username: usernames.get(r.email) || '' }));
   },
   async actor(jwt: string) {
     const { data, error } = await svc.auth.getUser(jwt);
@@ -52,6 +56,12 @@ const store = {
   async emailExists(email: string) {
     return checked(await svc.rpc('account_request_email_exists', { p_email: email }));
   },
+  async usernameExists(username: string) {
+    return Boolean(checked(await svc.from('users').select('id').eq('username', username).maybeSingle()));
+  },
+  async usernameEmail(username: string) {
+    return checked(await svc.from('users').select('email').eq('username', username).maybeSingle())?.email || null;
+  },
   async createAccount(record: any, password: string) {
     // Never reuse an existing account or accept a role supplied by the requester.
     const { data, error } = await svc.auth.admin.createUser({
@@ -59,8 +69,7 @@ const store = {
       app_metadata: { role: 'client' }, user_metadata: { name: record.submitted_name || record.name },
     });
     if (error || !data.user) throw new Error('Could not create the account. The email may already be registered or the password may not meet account policy.');
-    const profile = await svc.from('users').upsert({ id: data.user.id, email: record.email, full_name: record.submitted_name || record.name, role: 'staff' });
-    if (profile.error) console.error('Account profile sync failed');
+    // The Auth trigger creates the profile and a unique username atomically.
     return data.user;
   },
   async updatePassword(id: string, password: string) {

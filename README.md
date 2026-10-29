@@ -129,6 +129,25 @@ The demo and fresh-database seed include all ten supplied First Aid Supplies row
 
 Student accounts are provided during enrollment. The sign-in page has no registration or Contact Admin link. **Forgot password?** sends a Supabase Auth reset email directly to the account's registered inbox; no administrator approval is required. A valid link opens the new-password form before normal app startup. Recovery credentials use a separate, tab-local session, so they never become a dashboard sign-in in another tab. Saving the password ends recovery and returns to the usual sign-in flow.
 
+### Saved usernames
+
+Accounts have a separate, unique `username` in `public.users` (the Supabase-managed `auth.users` schema is not extended). The Accounts table and create/edit forms show this username alongside its delivery email. Usernames are case-insensitive, 1–64 characters, and allow letters, numbers, dots, dashes, and underscores, starting and ending with a letter or number. Duplicate creates/renames show **Username is already taken.**
+
+Migration `20261029100000_account_usernames.sql` assigns usernames to existing accounts using their email local part, normalizing unsupported characters and adding a numeric suffix for collisions. IDs, inboxes, and passwords are unchanged. An Auth trigger keeps profiles synchronized, preserves usernames when an email changes, and enforces unique usernames transactionally. Only trusted admin `app_metadata.username` can rename an account through Auth; user-editable metadata cannot do so.
+
+Bare-username login/recovery uses the `username-auth` Edge Function to resolve the saved email privately; it does **not** append a school domain. The email/session is returned only after a correct password. Login still runs the existing email-code step, and recovery retains neutral responses. Email-based login/recovery continues to work. Supabase Auth's configured redirect allowlist applies to recovery links.
+
+Deploy the migration before the matching functions/frontend:
+
+```sh
+supabase db push --linked
+supabase functions deploy manage-accounts password-reset username-auth --use-api
+```
+
+`username-auth` is a pre-login endpoint (`verify_jwt = false` in `supabase/config.toml`); the account-management function still verifies the administrator's JWT. Never publish a service-role key in client configuration.
+
+Regression checks: `npm test`, `tests/browser-accounts.mjs`, `tests/browser-public-scroll.mjs`, and `tests/browser-recovery.mjs` (browser scripts require a local server, Playwright, and optionally `CHROMIUM_PATH`/`PLAYWRIGHT_MODULE`). `scripts/check-username-migration.mjs` runs an isolated migration test when `@electric-sql/pglite` is installed or `PGLITE_MODULE` points to its module. `supabase/tests/account_usernames.sql` is transactional and rolls back all fixtures.
+
 Configure Auth SMTP and the Reset Password template in Supabase, and allow the exact same-origin `/?recovery=1` redirect for each deployed host. The supplied template is `supabase/templates/recovery.html`. See [EMAIL-WIRING.md](EMAIL-WIRING.md#self-service-password-recovery) for setup and a real-email delivery check. Changes to `supabase/config.toml` configure local Supabase only.
 
 Previously issued admin-approved account setup links remain supported for compatibility with enrolled-account provisioning. Their protected request history and Accounts review tools remain available; normal password recovery no longer submits requests to that queue.

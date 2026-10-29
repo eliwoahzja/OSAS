@@ -396,3 +396,7 @@ enabled = true
 # Public request and token completion routes, admin actions validate the user's JWT in the function.
 [functions.password-reset]
 verify_jwt = false
+
+# Password/recovery requests must work before a user has a session.
+[functions.username-auth]
+verify_jwt = false

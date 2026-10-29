@@ -10,9 +10,10 @@ import * as modules from './modules.js';
 import { roleLabel, incidentLabels } from './labels.js';
 import { showLogin } from './login.js';
 import { startDashboardUpdates } from './live-dashboard.js';
-import { createSafetyLanding } from './landing.js';
+import { createSafetyLanding, startLandingAnimations } from './landing.js';
 
 let closeLogin = null;
+let stopLandingAnimations = null;
 function showPublicPage() {
   stopDashboardUpdates();
   document.body.dataset.session = 'public';
@@ -22,6 +23,7 @@ function showPublicPage() {
       if (!VIEWS[(location.hash || '').replace(/^#\//, '')]) history.pushState(null, '', '#/sign-in');
       openSignIn();
     } }));
+    stopLandingAnimations = startLandingAnimations(document.getElementById('public-safety'));
   }
   document.getElementById('public-safety').inert = Boolean(document.getElementById('login-overlay'));
 }
@@ -337,6 +339,8 @@ function resetPageScroll() {
 function enterApp() {
   closeLogin?.();
   closeLogin = null;
+  stopLandingAnimations?.();
+  stopLandingAnimations = null;
   document.getElementById('public-safety')?.remove();
   document.body.dataset.session = 'active';
   if (location.hash === '#/sign-in' || location.hash === '#/' || location.hash.startsWith('#/reset-password')) history.replaceState(null, '', '#/dashboard');

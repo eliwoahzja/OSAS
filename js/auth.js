@@ -5,15 +5,11 @@ const validEmailOtp = (token) => /^\d+$/.test(token)
   && token.length >= EMAIL_OTP_MIN_LENGTH
   && token.length <= EMAIL_OTP_MAX_LENGTH;
 const emailOtpHint = `Enter the complete ${EMAIL_OTP_MIN_LENGTH}–${EMAIL_OTP_MAX_LENGTH}-digit code from your email.`;
-// School accounts are known by a username (j.reyes) that resolves to the
-// mailbox j.reyes@<school domain>. Entering either form sign-ins up the same
-// account, and every emailed code goes to that resolved mailbox.
-const SCHOOL_EMAIL_DOMAIN = String((window.OSAS && window.OSAS.EMAIL_DOMAIN) || 'saac.edu.ph').toLowerCase();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
 
-// Accepts "j.reyes" or "j.reyes@saac.edu.ph" and returns the account email
-// the username maps to. Throws a user-facing error for invalid input.
+// Normalize an identifier without inventing an email address. Username-to-email
+// resolution happens server-side, and reveals the email only after authentication.
 export function accountAddress(input) {
   const raw = String(input || '').trim().toLowerCase();
   if (!raw) throw new Error('Enter your username or school email.');
@@ -24,7 +20,22 @@ export function accountAddress(input) {
   if (!USERNAME_RE.test(raw)) {
     throw new Error('Usernames can only use letters, numbers, dots, dashes, or underscores.');
   }
-  return `${raw}@${SCHOOL_EMAIL_DOMAIN}`;
+  return raw;
+}
+
+async function usernameAuth(payload) {
+  const cfg = window.OSAS || {};
+  let response;
+  try {
+    response = await fetch(`${cfg.SUPABASE_URL}/functions/v1/username-auth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: cfg.SUPABASE_ANON_KEY },
+      body: JSON.stringify(payload),
+    });
+  } catch { throw new Error('Could not reach the sign-in service. Check your connection and try again.'); }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(data?.error || 'Sign-in failed. Please try again.');
+  return data;
 }
 let client = null;
 let recoveryClient = null;
@@ -150,7 +161,7 @@ function toSession(s) {
 
 function friendly(err, fallback) {
   const m = String((err && err.message) || '');
-  if (/invalid login credentials/i.test(m)) return 'Incorrect email or password.';
+  if (/invalid login credentials/i.test(m)) return 'Incorrect username, email, or password.';
   if (/token has expired|invalid/i.test(m) && /token|otp|code/i.test(m)) return 'That code is incorrect or has expired. Request a new one.';
   if (/rate limit|too many|security purposes/i.test(m)) return 'Too many attempts. Please wait a minute before trying again.';
   return m || fallback;
@@ -192,10 +203,19 @@ export function currentUser() {
 
 export async function signIn(email, password) {
   const c = await requireClient();
-  const addr = accountAddress(email);
+  const identifier = accountAddress(email);
+  let addr = identifier;
   checkingPassword = true;
   try {
-    const { data: signed, error } = await c.auth.signInWithPassword({ email: addr, password });
+    let signed;
+    let error;
+    if (identifier.includes('@')) {
+      ({ data: signed, error } = await c.auth.signInWithPassword({ email: identifier, password }));
+    } else {
+      const { session: verified } = await usernameAuth({ action: 'sign-in', username: identifier, password });
+      ({ data: signed, error } = await c.auth.setSession({ access_token: verified.access_token, refresh_token: verified.refresh_token }));
+      addr = signed?.session?.user?.email || '';
+    }
     if (error) {
       if (/email not confirmed/i.test(error.message || '')) {
         const e = new Error('Please verify your email address first.');
@@ -204,6 +224,7 @@ export async function signIn(email, password) {
       }
       throw new Error(friendly(error, 'Sign-in failed.'));
     }
+    if (!signed?.session || !EMAIL_RE.test(addr)) throw new Error('Sign-in failed. Please try again.');
     if (needsPin(addr) && signed && signed.session) {
       pendingPin = { email: addr, session: toSession(signed.session), userId: signed.session.user.id };
       return { step: 'pin', email: addr };
@@ -315,10 +336,14 @@ export function passwordRecovery() {
 }
 
 export async function requestPasswordReset(email) {
-  const c = await requireClient();
   const addr = accountAddress(email);
   const redirect = new URL(window.location.pathname, window.location.origin);
   redirect.searchParams.set('recovery', '1');
+  if (!addr.includes('@')) {
+    await usernameAuth({ action: 'recover', username: addr, redirectTo: redirect.href });
+    return;
+  }
+  const c = await requireClient();
   const { error } = await c.auth.resetPasswordForEmail(addr, {
     redirectTo: redirect.href,
   });
