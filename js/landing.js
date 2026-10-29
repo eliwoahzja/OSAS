@@ -1,4 +1,4 @@
-import { h } from './ui.js';
+import { h, icon } from './ui.js';
 
 export const GUIDES = [
   {
@@ -163,10 +163,11 @@ export function createSafetyLanding({ onSignIn }) {
   const jump = (id, label, cls = '') => h('a', { href: `#${id}`, class: cls, onclick: (event) => {
     event.preventDefault();
     const destination = root.querySelector(`#${id}`);
-    destination?.scrollIntoView({ block: 'start' });
+    destination?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
     destination?.focus({ preventScroll: true });
   } }, label);
-  const signIn = (label, cls = 'safety-sign-in') => h('button', { type: 'button', class: cls, onclick: onSignIn }, label);
+  const signIn = (label, cls = 'safety-button') => h('button', { type: 'button', class: cls, onclick: onSignIn }, label, icon('arrow-right'));
+
   const tabs = h('div', { class: 'safety-tabs', role: 'tablist', 'aria-label': 'Disaster guides' });
   const panel = h('div', { class: 'safety-guide-panel', role: 'tabpanel', id: 'safety-guide-panel', tabindex: '0' });
   function selectGuide(index, focus = false) {
@@ -177,11 +178,12 @@ export function createSafetyLanding({ onSignIn }) {
     });
     panel.setAttribute('aria-labelledby', `safety-tab-${guide.id}`);
     panel.replaceChildren(
-      h('div', { class: 'safety-guide-intro' }, h('h3', {}, guide.title), h('p', {}, guide.summary)),
-      h('div', { class: 'safety-guide-stages' }, guide.stages.map(([stage, title, items]) => h('details', { open: stage === 'During' },
-        h('summary', {}, h('span', {}, stage), h('span', {}, title)),
-        h('ul', {}, items.map((item) => h('li', {}, item))))),
-        h('p', { class: 'safety-source' }, external(guide.source, guide.url), guide.extraSource ? external(...guide.extraSource) : null)),
+      h('div', { class: 'safety-guide-intro' }, h('span', { class: 'safety-guide-symbol' }, icon(guide.icon)),
+        h('p', { class: 'safety-kicker' }, guide.label), h('h3', {}, guide.title), h('p', {}, guide.summary)),
+      h('div', { class: 'safety-guide-stages' }, guide.stages.map(([stage, title, items]) => h('section', {},
+        h('p', { class: 'safety-stage-label' }, stage), h('h4', {}, title), h('ul', {}, items.map((item) => h('li', {}, item))))),
+        h('div', { class: 'safety-source' }, 'Read the full guidance: ', external(guide.source, guide.url),
+          guide.extraSource ? external(...guide.extraSource) : null)),
     );
     if (focus) tabs.children[index].focus();
   }
@@ -195,54 +197,63 @@ export function createSafetyLanding({ onSignIn }) {
       if (event.key === 'End') next = GUIDES.length - 1;
       if (next !== undefined) { event.preventDefault(); selectGuide(next, true); }
     },
-  }, guide.title)));
+  }, icon(guide.icon), guide.title)));
   selectGuide(0);
 
-  const drill = (title, entries, sourceLabel, sourceUrl, open = false) => h('details', { class: 'safety-drill-entry', open },
-    h('summary', {}, h('h3', {}, title)), h('ol', {}, entries.map(([name, text]) => h('li', {}, h('strong', {}, name), h('p', {}, text)))),
-    h('p', { class: 'safety-source' }, external(sourceLabel, sourceUrl)));
   root.append(
     h('a', { class: 'safety-skip', href: '#safety-main', onclick: (event) => { event.preventDefault(); root.querySelector('#safety-main').focus(); } }, 'Skip to content'),
+    h('div', { class: 'safety-topline' }, h('div', { class: 'safety-container' }, h('span', {}, 'Office of Student Affairs & Services'), h('span', {}, 'School safety starts with you'))),
     h('header', { class: 'safety-header' }, h('div', { class: 'safety-container safety-nav' },
-      jump('safety-top', h('span', { class: 'safety-brand' }, h('img', { src: '/assets/logo.png', alt: '', width: '44', height: '44' }), h('span', {}, h('strong', {}, 'St. Agnes Academy'), h('small', {}, 'Office of Student Affairs & Services'))), 'safety-home'),
-      h('nav', { 'aria-label': 'Safety brochure' }, jump('safety-guides', 'Safety guides'), jump('safety-drills', 'Drills'), jump('safety-ready', 'Reminders')),
+      jump('safety-top', h('span', { class: 'safety-brand' }, h('img', { src: '/assets/logo.png', alt: 'St. Agnes Academy seal', width: '46', height: '46' }), h('span', {}, h('strong', {}, 'St. Agnes Academy'), h('small', {}, 'OSAS · Safety & preparedness')))),
+      h('nav', { 'aria-label': 'Safety brochure' }, jump('safety-guides', 'Disaster guides'), jump('safety-drills', 'Drills'), jump('safety-ready', 'Reminders')),
       signIn('Sign in'),
     )),
     h('main', { id: 'safety-main', tabindex: '-1' },
       h('section', { id: 'safety-top', class: 'safety-container safety-hero', 'aria-labelledby': 'safety-hero-title', tabindex: '-1' },
-        h('h1', { id: 'safety-hero-title' }, 'Campus safety guide.'),
-        h('p', { class: 'safety-lead' }, 'Read the response steps before your next school drill.'),
-        h('div', { class: 'safety-hero-actions' }, jump('safety-guides', 'Read the guides', 'safety-button'), jump('safety-drills', 'School drill information', 'safety-text-link')),
-      ),
-      h('section', { id: 'safety-guides', class: 'safety-container safety-section safety-guides', 'aria-labelledby': 'safety-guides-title', tabindex: '-1' },
-        h('div', { class: 'safety-section-heading' }, h('h2', { id: 'safety-guides-title' }, 'Disaster response'),
-          h('p', {}, 'Before, during, and after an emergency.')),
-        h('div', { class: 'safety-guide-content' }, tabs, panel),
-      ),
-      h('section', { id: 'safety-drills', class: 'safety-container safety-section safety-drills', 'aria-labelledby': 'safety-drills-title', tabindex: '-1' },
-        h('div', { class: 'safety-section-heading' }, h('h2', { id: 'safety-drills-title' }, 'Drills and evacuation'),
-          h('p', {}, 'Follow your teacher or marshal and the posted campus plan.')),
-        h('div', { class: 'safety-drill-grid' },
-          DRILLS.map(({ title, entries, sourceLabel, sourceUrl, open }) => drill(title, entries, sourceLabel, sourceUrl, open)),
+        h('div', { class: 'safety-hero-copy' }, h('p', { class: 'safety-kicker' }, h('span', {}), 'Your campus safety guide'),
+          h('h1', { id: 'safety-hero-title' }, 'Prepared today.', h('br'), h('em', {}, 'Safer together.')),
+          h('p', { class: 'safety-lead' }, 'Know the hazards. Learn the response. Be ready for the next drill. A practical guide for every student, staff member, and family.'),
+          h('div', { class: 'safety-hero-actions' }, jump('safety-guides', h('span', {}, 'Explore disaster guides', icon('arrow-down')), 'safety-button'), jump('safety-drills', 'Learn the drill', 'safety-text-link')),
+          h('p', { class: 'safety-open-note' }, icon('book-open'), 'Read, learn, and prepare. No account needed.'),
         ),
-        h('p', { class: 'safety-drill-note' }, 'For drill dates and your assigned assembly area, follow official school announcements and your classroom evacuation plan.'),
+        h('div', { class: 'safety-hero-visual' },
+          h('div', { class: 'safety-visual-top' }, h('span', {}, 'EARTHQUAKE ESSENTIALS'), icon('shield-halved')),
+          h('img', { src: '/assets/earthquake-cover.svg', alt: 'A person crouches under a sturdy table, protects their head, and holds a table leg.', width: '520', height: '320', fetchpriority: 'high' }),
+          h('div', { class: 'safety-visual-copy' }, h('span', {}, 'WHEN THE GROUND SHAKES'), h('h2', {}, 'Drop. Cover. Hold.'), h('p', {}, 'Protect your head and neck. Stay under cover until the shaking stops.')),
+        ),
       ),
+      h('section', { id: 'safety-guides', class: 'safety-container safety-section', 'aria-labelledby': 'safety-guides-title', tabindex: '-1' },
+        h('div', { class: 'safety-section-heading' }, h('div', {}, h('p', { class: 'safety-kicker' }, '01 / Know the hazards'), h('h2', { id: 'safety-guides-title' }, 'Know what to do.')),
+          h('p', {}, 'Simple steps for before, during, and after an emergency. Choose a guide to begin.')),
+        tabs, panel,
+      ),
+      h('section', { id: 'safety-drills', class: 'safety-drills safety-section', 'aria-labelledby': 'safety-drills-title', tabindex: '-1' }, h('div', { class: 'safety-container' },
+        h('div', { class: 'safety-section-heading' }, h('div', {}, h('p', { class: 'safety-kicker' }, '02 / Practice the response'), h('h2', { id: 'safety-drills-title' }, 'Every drill is preparation.')),
+          h('p', {}, 'Listen to the briefing, follow your teacher or marshal, and use your school’s posted evacuation plan.')),
+        h('div', { class: 'safety-drill-grid' },
+          DRILLS.map(({ title, entries, sourceLabel, sourceUrl }, i) => h('article', { class: 'safety-drill-entry' },
+            h('div', { class: 'safety-drill-title' }, icon(GUIDES[i].icon), h('h3', {}, title)),
+            h('ol', {}, entries.map(([name, text]) => h('li', {}, h('strong', {}, name), h('p', {}, text)))),
+            h('p', { class: 'safety-source' }, external(sourceLabel, sourceUrl)))),
+        ),
+        h('p', { class: 'safety-drill-note' }, icon('circle-info'), 'For drill dates and your assigned assembly area, follow official school announcements and your classroom evacuation plan.'),
+      )),
       h('section', { id: 'safety-ready', class: 'safety-container safety-section safety-ready', 'aria-labelledby': 'safety-ready-title', tabindex: '-1' },
-        h('div', { class: 'safety-section-heading' }, h('h2', { id: 'safety-ready-title' }, 'Before your next drill'),
-          h('p', {}, 'Ask your teacher about anything you have not confirmed.')),
-        h('div', { class: 'safety-reminders' }, h('h3', {}, 'Readiness reminders'), h('ul', {}, REMINDERS.map((text) => h('li', {}, text)))),
-        h('p', { class: 'safety-plan-note' }, 'Check the evacuation map posted in your classroom. Confirm the assembly area and any assistance arrangements with school staff.'),
+        h('div', {}, h('p', { class: 'safety-kicker' }, '03 / Your next step'), h('h2', { id: 'safety-ready-title' }, 'A little preparation.', h('br'), 'A clear plan.'),
+          h('p', { class: 'safety-lead' }, 'Read these reminders before your next school drill. Ask your teacher about anything you have not confirmed.'),
+          h('div', { class: 'safety-plan-note' }, icon('map'), h('p', {}, h('strong', {}, 'Know your actual route.'), ' Check the evacuation map posted in your classroom. Confirm the assembly area and any assistance arrangements with school staff.'))),
+        h('div', { class: 'safety-reminder-sheet' }, h('div', { class: 'safety-reminder-head' }, h('h3', {}, 'Readiness reminders')),
+          h('ul', { class: 'safety-reminders' }, REMINDERS.map((text) => h('li', {}, text)))),
       ),
-      h('aside', { class: 'safety-container safety-section safety-workspace', 'aria-labelledby': 'safety-workspace-title' },
-        h('h2', { id: 'safety-workspace-title' }, 'Sign in to OSAS'),
-        h('div', {}, h('p', {}, 'View school emergency contacts and evacuation plans, or submit an incident report.'), signIn('Sign in to your account')),
+      h('section', { class: 'safety-container safety-workspace', 'aria-labelledby': 'safety-workspace-title' },
+        h('div', {}, h('p', { class: 'safety-kicker' }, 'Your school workspace'), h('h2', { id: 'safety-workspace-title' }, 'Stay connected with OSAS.'), h('p', {}, 'Sign in to view school emergency contacts and evacuation plans, or submit an incident report.')),
+        signIn('Sign in to your account'),
       ),
     ),
     h('footer', { class: 'safety-footer' }, h('div', { class: 'safety-container' },
-      h('p', {}, h('strong', {}, 'St. Agnes Academy'), h('span', {}, 'Office of Student Affairs & Services')),
-      h('p', {}, 'During an emergency, follow school marshals and local authorities.'), jump('safety-top', 'Back to top'),
+      h('div', { class: 'safety-footer-brand' }, h('img', { src: '/assets/logo.png', alt: '', width: '36', height: '36', loading: 'lazy' }), h('p', {}, h('strong', {}, 'St. Agnes Academy'), h('span', {}, 'Office of Student Affairs & Services'))),
+      h('p', {}, 'During an emergency, follow school marshals and local authorities.'), jump('safety-top', h('span', {}, 'Back to top', icon('arrow-up'))),
     )),
   );
-  root.querySelector('.safety-home').setAttribute('aria-label', 'St. Agnes Academy safety guide home');
   return root;
 }
