@@ -6,28 +6,28 @@ const validEmailOtp = (token) => /^\d+$/.test(token)
   && token.length <= EMAIL_OTP_MAX_LENGTH;
 const emailOtpHint = `Enter the complete ${EMAIL_OTP_MIN_LENGTH}–${EMAIL_OTP_MAX_LENGTH}-digit code from your email.`;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
+const STUDENT_ID_RE = /^s\d{9}$/;
 
-// Normalize an identifier without inventing an email address. Username-to-email
+// Normalize an identifier without inventing an email address. Student-ID-to-email
 // resolution happens server-side, and reveals the email only after authentication.
 export function accountAddress(input) {
   const raw = String(input || '').trim().toLowerCase();
-  if (!raw) throw new Error('Enter your username or school email.');
+  if (!raw) throw new Error('Enter your student ID or email.');
   if (raw.includes('@')) {
     if (raw.length <= 254 && EMAIL_RE.test(raw)) return raw;
-    throw new Error('Enter your username or a valid school email address.');
+    throw new Error('Enter your student ID or a valid email address.');
   }
-  if (!USERNAME_RE.test(raw)) {
-    throw new Error('Usernames can only use letters, numbers, dots, dashes, or underscores.');
+  if (!STUDENT_ID_RE.test(raw)) {
+    throw new Error('Enter your student ID (for example, s260000001), not a username.');
   }
   return raw;
 }
 
-async function usernameAuth(payload) {
+async function studentAuth(payload) {
   const cfg = window.OSAS || {};
   let response;
   try {
-    response = await fetch(`${cfg.SUPABASE_URL}/functions/v1/username-auth`, {
+    response = await fetch(`${cfg.SUPABASE_URL}/functions/v1/student-auth`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: cfg.SUPABASE_ANON_KEY },
       body: JSON.stringify(payload),
@@ -161,7 +161,7 @@ function toSession(s) {
 
 function friendly(err, fallback) {
   const m = String((err && err.message) || '');
-  if (/invalid login credentials/i.test(m)) return 'Incorrect username, email, or password.';
+  if (/invalid login credentials/i.test(m)) return 'Incorrect student ID, email, or password.';
   if (/token has expired|invalid/i.test(m) && /token|otp|code/i.test(m)) return 'That code is incorrect or has expired. Request a new one.';
   if (/rate limit|too many|security purposes/i.test(m)) return 'Too many attempts. Please wait a minute before trying again.';
   return m || fallback;
@@ -212,7 +212,7 @@ export async function signIn(email, password) {
     if (identifier.includes('@')) {
       ({ data: signed, error } = await c.auth.signInWithPassword({ email: identifier, password }));
     } else {
-      const { session: verified } = await usernameAuth({ action: 'sign-in', username: identifier, password });
+      const { session: verified } = await studentAuth({ action: 'sign-in', student_id: identifier, password });
       ({ data: signed, error } = await c.auth.setSession({ access_token: verified.access_token, refresh_token: verified.refresh_token }));
       addr = signed?.session?.user?.email || '';
     }
@@ -340,7 +340,7 @@ export async function requestPasswordReset(email) {
   const redirect = new URL(window.location.pathname, window.location.origin);
   redirect.searchParams.set('recovery', '1');
   if (!addr.includes('@')) {
-    await usernameAuth({ action: 'recover', username: addr, redirectTo: redirect.href });
+    await studentAuth({ action: 'recover', student_id: addr, redirectTo: redirect.href });
     return;
   }
   const c = await requireClient();

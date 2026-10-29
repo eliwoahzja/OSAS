@@ -4,7 +4,7 @@ import { createResetHandler, digest, REQUEST_MESSAGE } from '../supabase/functio
 
 const id = '11111111-1111-4111-8111-111111111111';
 const timestamp = Date.parse('2026-10-28T10:00:00Z');
-function setup(appUrl = 'https://school.example/', { emailDomain } = {}) {
+function setup(appUrl = 'https://school.example/') {
   const row = { id, user_id: 'owner', name: '<Student>', email: 'student@example.test', role: 'client', status: 'pending', requested_at: new Date(timestamp).toISOString(), account_created_at: '2026-01-01T00:00:00Z' };
   const sent = []; const writes = []; let now = timestamp; let failMail = false; let failPassword = false;
   const store = {
@@ -14,9 +14,7 @@ function setup(appUrl = 'https://school.example/', { emailDomain } = {}) {
     async list() { const { token_hash, ...visible } = row; return [visible]; },
     async actor(jwt) { return jwt === 'admin' ? { id: 'admin', app_metadata: { role: 'admin' } } : jwt === 'student' ? { id: 'owner', app_metadata: { role: 'client' }, user_metadata: { role: 'admin' } } : null; },
     async emailExists() { return this.existing; },
-    async usernameExists() { return this.existing; },
-    async usernameEmail() { return row.email; },
-    async createAccount(record, password) { writes.push({ user: 'new-student', password }); return { id: 'new-student' }; },
+    async createAccount(record, password) { writes.push({ user: 'new-student', password }); return { id: 'new-student', student_id: 's260000001' }; },
     async account() { return { id: 'owner', email: row.email }; },
     async adminEmails() { return ['admin@example.test', 'other-admin@example.test']; },
     async patch(key, patch, status) { assert.equal(key, id); if (status) assert.equal(row.status, status); Object.assign(row, patch); },
@@ -26,7 +24,7 @@ function setup(appUrl = 'https://school.example/', { emailDomain } = {}) {
     },
     async updatePassword(user, password) { if (failPassword) throw new Error('Password does not meet the account policy.'); writes.push({ user, password }); },
   };
-  const handler = createResetHandler({ store, appUrl: appUrl ?? undefined, emailDomain, now: () => now, sendMail: async (...args) => { if (failMail) throw new Error('Provider failed'); sent.push(args); } });
+  const handler = createResetHandler({ store, appUrl: appUrl ?? undefined, now: () => now, sendMail: async (...args) => { if (failMail) throw new Error('Provider failed'); sent.push(args); } });
   const call = async (body, jwt = '') => {
     if (body.action === 'request' && body.name === undefined) body = { ...body, name: 'Sample Requester' };
     const res = await handler(new Request('https://functions.example/password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: jwt ? `Bearer ${jwt}` : '' }, body: JSON.stringify(body) }));
@@ -47,20 +45,15 @@ test('requests email administrators with escaped account details and uniform pub
   assert.match(s.sent[0][2], /&lt;Student&gt;/); assert.match(s.sent[0][2], /student@example.test/);
   assert.match(s.sent[0][2], /#\/accounts/); assert.equal(s.writes.length, 0);
 });
-test('username registration maps to the school mailbox and rejects taken usernames', async () => {
-  const s = setup('https://school.example/', { emailDomain: 'example.test' });
-  const created = await s.call({ action: 'request', email: 'j.reyes', name: 'Juan Reyes', kind: 'registration' });
-  assert.equal(created.status, 200);
-  assert.equal(created.data.message, REQUEST_MESSAGE);
-  assert.equal(s.sent.length, 1);
-  assert.match(s.sent[0][2], /j\.reyes@example\.test/);
-
-  const taken = setup('https://school.example/', { emailDomain: 'example.test' });
-  taken.storeExisting(true);
-  const reject = await taken.call({ action: 'request', email: 'j.reyes', name: 'Juan Reyes', kind: 'registration' });
-  assert.equal(reject.status, 400);
-  assert.equal(reject.data.error, 'Username is already taken.');
-  assert.equal(taken.sent.length, 0);
+test('registration requires an email and forbids requester-supplied student IDs', async () => {
+  const s = setup();
+  assert.equal((await s.call({ action: 'request', email: 'j.reyes', name: 'Juan Reyes', kind: 'registration' })).status, 400);
+  for (const extra of [{ student_id: 's260000001' }, { username: 'j.reyes' }]) {
+    const result = await s.call({ action: 'request', email: s.row.email, kind: 'registration', ...extra });
+    assert.equal(result.status, 400);
+    assert.match(result.data.error, /generated automatically/);
+  }
+  assert.equal(s.sent.length, 0);
 });
 test('admin endpoints reject anonymous users and user-editable administrator metadata', async () => {
   const s = setup();
@@ -130,6 +123,28 @@ test('registration creates no account until approval and password submission, th
   const body={action:'complete',id,token:s.approvedToken(),password:'SafePass123!'};
   assert.equal((await s.call(body)).status,200); assert.equal(s.writes.length,1);
   assert.equal(s.row.user_id,'new-student'); assert.equal((await s.call(body)).status,400);
+});
+
+test('registration returns and emails the generated student ID without exposing a password', async () => {
+  const s = setup(); s.row.request_kind = 'registration'; s.row.user_id = null;
+  await s.call({ action: 'approve', id }, 'admin');
+  const result = await s.call({ action: 'complete', id, token: s.approvedToken(), password: 'SafePass123!' });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.student_id, 's260000001');
+  assert.match(result.data.message, /s260000001/);
+  assert.deepEqual(s.sent.at(-1)[0], ['student@example.test']);
+  assert.match(s.sent.at(-1)[2], /s260000001/);
+  assert.doesNotMatch(s.sent.at(-1)[2], /SafePass123!/);
+});
+
+test('ID email failure does not undo registration or hide the generated ID', async () => {
+  const s = setup(); s.row.request_kind = 'registration'; s.row.user_id = null;
+  await s.call({ action: 'approve', id }, 'admin');
+  const token = s.approvedToken(); s.failMail(true);
+  const result = await s.call({ action: 'complete', id, token, password: 'SafePass123!' });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.student_id, 's260000001');
+  assert.equal(s.row.status, 'completed');
 });
 test('full name is required and request type cannot escalate access', async () => {
   const s=setup();

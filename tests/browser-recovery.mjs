@@ -82,7 +82,7 @@ async function scenario() {
       const record = { method: request.method(), path: url.pathname, body: request.postData() ? request.postDataJSON() : null };
       requests.push(record);
       const fail = (message) => route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message }) });
-      if (url.pathname === '/functions/v1/username-auth') {
+      if (url.pathname === '/functions/v1/student-auth') {
         if (record.body.action === 'recover') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ message: 'Request sent.' }) });
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ session: {
           access_token: 'test-access', refresh_token: 'test-refresh', user: { email: 'student@example.test' },
@@ -141,32 +141,33 @@ try {
   assert.deepEqual(email.errors, []);
   await email.context.close();
 
-  const username = await scenario();
-  await username.page.goto(`${origin}/#/sign-in`);
-  await username.page.locator('input[autocomplete="username"]').fill('Student.Name');
-  await username.page.locator('input[autocomplete="current-password"]').fill('Password12');
-  await username.page.getByRole('button', { name: 'Sign In', exact: true }).click();
-  await username.page.getByRole('heading', { name: 'Check your email', exact: true }).waitFor();
-  assert.equal(username.requests.find((r) => r.path === '/functions/v1/username-auth').body.username, 'student.name');
-  assert.equal(username.requests.find((r) => r.path === '/auth/v1/otp').body.email, 'student@example.test');
-  assert.equal(await username.page.evaluate(async () => (await import('/js/auth.js')).isSignedIn()), false);
-  assert.equal(dashboardRequests(username.requests).length, 0);
-  assert.deepEqual(username.errors, []);
-  await username.context.close();
+  const student = await scenario();
+  await student.page.goto(`${origin}/#/sign-in`);
+  assert.equal(await student.page.getByText('Student ID or email', { exact: true }).count(), 1);
+  await student.page.locator('input[autocomplete="username"]').fill('S260000001');
+  await student.page.locator('input[autocomplete="current-password"]').fill('Password12');
+  await student.page.getByRole('button', { name: 'Sign In', exact: true }).click();
+  await student.page.getByRole('heading', { name: 'Check your email', exact: true }).waitFor();
+  assert.equal(student.requests.find((r) => r.path === '/functions/v1/student-auth').body.student_id, 's260000001');
+  assert.equal(student.requests.find((r) => r.path === '/auth/v1/otp').body.email, 'student@example.test');
+  assert.equal(await student.page.evaluate(async () => (await import('/js/auth.js')).isSignedIn()), false);
+  assert.equal(dashboardRequests(student.requests).length, 0);
+  assert.deepEqual(student.errors, []);
+  await student.context.close();
 
-  const usernameReset = await scenario();
-  await usernameReset.page.goto(`${origin}/#/sign-in`);
-  await usernameReset.page.locator('input[autocomplete="username"]').fill('Student.Name');
-  await usernameReset.page.getByRole('button', { name: 'Forgot password?', exact: true }).click();
-  await usernameReset.page.getByRole('button', { name: 'Send Reset Link', exact: true }).click();
-  await usernameReset.page.getByRole('status').filter({ hasText: 'If this account exists' }).waitFor();
-  const usernameRecovery = usernameReset.requests.find((r) => r.path === '/functions/v1/username-auth');
-  assert.equal(usernameRecovery.body.action, 'recover');
-  assert.equal(usernameRecovery.body.username, 'student.name');
-  assert.equal(usernameRecovery.body.redirectTo, `${origin}/?recovery=1`);
-  assert.equal(usernameReset.requests.some((r) => r.path === '/auth/v1/recover'), false, 'The browser must not guess a school mailbox');
-  assert.deepEqual(usernameReset.errors, []);
-  await usernameReset.context.close();
+  const studentReset = await scenario();
+  await studentReset.page.goto(`${origin}/#/sign-in`);
+  await studentReset.page.locator('input[autocomplete="username"]').fill('S260000001');
+  await studentReset.page.getByRole('button', { name: 'Forgot password?', exact: true }).click();
+  await studentReset.page.getByRole('button', { name: 'Send Reset Link', exact: true }).click();
+  await studentReset.page.getByRole('status').filter({ hasText: 'If this account exists' }).waitFor();
+  const studentRecovery = studentReset.requests.find((r) => r.path === '/functions/v1/student-auth');
+  assert.equal(studentRecovery.body.action, 'recover');
+  assert.equal(studentRecovery.body.student_id, 's260000001');
+  assert.equal(studentRecovery.body.redirectTo, `${origin}/?recovery=1`);
+  assert.equal(studentReset.requests.some((r) => r.path === '/auth/v1/recover'), false, 'The browser must not guess a school mailbox');
+  assert.deepEqual(studentReset.errors, []);
+  await studentReset.context.close();
 
   const recovery = await scenario();
   await recovery.page.goto(recoveryUrl);

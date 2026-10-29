@@ -9,8 +9,8 @@ const browser = await chromium.launch({
   headless: true, args: ['--no-sandbox'],
 });
 const users = [
-  { id: 'admin', name: 'Administrator', username: 'school.admin', email: 'administrator@gmail.com', role: 'admin' },
-  { id: 'student', name: 'Student One', username: 'student.one', email: 'student@gmail.com', role: 'client' },
+  { id: 'admin', name: 'Administrator', student_id: null, email: 'administrator@gmail.com', role: 'admin' },
+  { id: 'student', name: 'Student One', student_id: 's260000001', email: 'student@gmail.com', role: 'client' },
 ];
 try {
   const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1440, height: 1000 } });
@@ -38,37 +38,45 @@ try {
       assert.ok(url.pathname.endsWith('/manage-accounts'));
       if (payload.action === 'list') return json({ users, me: 'admin' });
       writes.push(payload);
-      if (payload.username === 'school.admin') return json({ error: 'Username is already taken.' }, 400);
+      assert.equal(payload.student_id, undefined, 'Student IDs must never be submitted by a create/edit form');
+      assert.equal(payload.username, undefined, 'Usernames must no longer be collected');
       if (payload.action === 'update') Object.assign(users.find((user) => user.id === payload.id), payload);
-      return json({ user: payload });
+      if (payload.action === 'create') users.push({ id: 'new-student', ...payload, student_id: 's260000002' });
+      return json({ user: { ...payload, student_id: 's260000002' } });
     }
     if (url.origin === origin) return route.continue();
     return route.abort('blockedbyclient');
   });
   await page.goto(`${origin}/__account_test`);
-  await page.getByRole('cell', { name: 'student.one', exact: true }).waitFor();
-  assert.equal(await page.getByRole('columnheader', { name: 'Username', exact: true }).count(), 1);
-  const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 'student.one', exact: true }) });
+  await page.getByRole('cell', { name: 's260000001', exact: true }).waitFor();
+  assert.equal(await page.getByRole('columnheader', { name: 'Student ID', exact: true }).count(), 1);
+  assert.equal(await page.getByRole('columnheader', { name: 'Username', exact: true }).count(), 0);
+  const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 's260000001', exact: true }) });
   await row.getByRole('button', { name: 'Edit', exact: true }).click();
   await page.locator('.osas-modal-loader').waitFor({ state: 'detached' });
   const modal = page.locator('.osas-modal-card');
-  assert.equal(await modal.getByLabel('Username', { exact: true }).inputValue(), 'student.one');
+  assert.equal(await modal.getByLabel('Student ID', { exact: true }).inputValue(), 's260000001');
+  assert.equal(await modal.getByLabel('Student ID', { exact: true }).evaluate((el) => el.readOnly), true);
   assert.equal(await modal.getByLabel('Email', { exact: true }).inputValue(), 'student@gmail.com');
-  await modal.getByLabel('Username', { exact: true }).fill('school.admin');
-  await modal.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await modal.getByText('Username is already taken.', { exact: true }).waitFor();
-  await modal.getByLabel('Username', { exact: true }).fill('student.renamed');
+  await modal.getByLabel('Email', { exact: true }).fill('new-email@gmail.com');
   await modal.getByRole('button', { name: 'Save changes', exact: true }).click();
   await modal.waitFor({ state: 'detached' });
-  await page.getByRole('cell', { name: 'student.renamed', exact: true }).waitFor();
-  assert.equal(writes.at(-1).email, 'student@gmail.com', 'Changing a username must not change the code delivery email');
+  await page.getByRole('cell', { name: 's260000001', exact: true }).waitFor();
+  assert.equal(writes.at(-1).email, 'new-email@gmail.com');
   await page.getByRole('button', { name: 'Create account', exact: true }).click();
   await page.locator('.osas-modal-loader').waitFor({ state: 'detached' });
-  assert.equal(await modal.getByLabel('Username', { exact: true }).count(), 1);
+  assert.equal(await modal.getByLabel('Username', { exact: true }).count(), 0);
+  assert.equal(await modal.getByLabel('Student ID', { exact: true }).count(), 0);
   assert.equal(await modal.getByLabel('Email', { exact: true }).getAttribute('type'), 'email');
+  await modal.getByPlaceholder('Full name', { exact: true }).fill('New Student');
+  await modal.getByLabel('Email', { exact: true }).fill('new-student@gmail.com');
+  await modal.getByPlaceholder('At least 8 characters', { exact: true }).fill('Password12');
+  await modal.getByRole('button', { name: 'Create account', exact: true }).click();
+  await modal.waitFor({ state: 'detached' });
+  await page.getByRole('cell', { name: 's260000002', exact: true }).waitFor();
   assert.deepEqual(errors, []);
   await context.close();
-  console.log('Account UI OK: stored usernames, separate username/email fields, duplicate error, and rename without changing the mailbox.');
+  console.log('Account UI OK: student ID column, read-only ID, no username/manual-ID registration field, unchanged ID after email edit, and automatic ID shown after creation.');
 } finally {
   await browser.close();
 }

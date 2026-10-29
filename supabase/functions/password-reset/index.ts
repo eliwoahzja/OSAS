@@ -28,9 +28,9 @@ const store = {
       .select('id,email,name,submitted_name,request_kind,role,account_created_at,last_sign_in_at,requested_at,status,reviewed_at,expires_at,completed_at,notification_error')
       .is('archived_at', null).order('requested_at', { ascending: false }).limit(100));
     if (!requests.length) return requests;
-    const profiles = checked(await svc.from('users').select('email,username').in('email', requests.map((r: any) => r.email)));
-    const usernames = new Map(profiles.map((p: any) => [p.email, p.username]));
-    return requests.map((r: any) => ({ ...r, username: usernames.get(r.email) || '' }));
+    const profiles = checked(await svc.from('users').select('email,student_id').in('email', requests.map((r: any) => r.email)));
+    const studentIds = new Map(profiles.map((p: any) => [p.email, p.student_id]));
+    return requests.map((r: any) => ({ ...r, student_id: studentIds.get(r.email) || null }));
   },
   async actor(jwt: string) {
     const { data, error } = await svc.auth.getUser(jwt);
@@ -56,12 +56,6 @@ const store = {
   async emailExists(email: string) {
     return checked(await svc.rpc('account_request_email_exists', { p_email: email }));
   },
-  async usernameExists(username: string) {
-    return Boolean(checked(await svc.from('users').select('id').eq('username', username).maybeSingle()));
-  },
-  async usernameEmail(username: string) {
-    return checked(await svc.from('users').select('email').eq('username', username).maybeSingle())?.email || null;
-  },
   async createAccount(record: any, password: string) {
     // Never reuse an existing account or accept a role supplied by the requester.
     const { data, error } = await svc.auth.admin.createUser({
@@ -69,16 +63,16 @@ const store = {
       app_metadata: { role: 'client' }, user_metadata: { name: record.submitted_name || record.name },
     });
     if (error || !data.user) throw new Error('Could not create the account. The email may already be registered or the password may not meet account policy.');
-    // The Auth trigger creates the profile and a unique username atomically.
-    return data.user;
+    // The Auth trigger creates the profile and student ID atomically.
+    const profile = checked(await svc.from('users').select('student_id').eq('id', data.user.id).single());
+    return { ...data.user, student_id: profile.student_id };
   },
   async updatePassword(id: string, password: string) {
     const { error } = await svc.auth.admin.updateUserById(id, { password });
     if (error) throw error;
   },
 };
-const EMAIL_DOMAIN = (Deno.env.get('EMAIL_DOMAIN') || 'saac.edu.ph').toLowerCase();
-const handler = createResetHandler({ store, sendMail, emailDomain: EMAIL_DOMAIN });
+const handler = createResetHandler({ store, sendMail });
 Deno.serve(async (req: Request) => {
   const cors = {
     'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || '*',

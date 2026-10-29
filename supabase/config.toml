@@ -400,3 +400,6 @@ verify_jwt = false
 # Password/recovery requests must work before a user has a session.
 [functions.username-auth]
 verify_jwt = false
+
+[functions.student-auth]
+verify_jwt = false

@@ -14,11 +14,10 @@ function setup() {
     { id: studentId, email: 'student@gmail.com', app_metadata: { role: 'client' }, user_metadata: { name: 'Student One' } },
   ];
   const profiles = [
-    { id: adminId, email: users[0].email, username: 'school.admin' },
-    { id: studentId, email: users[1].email, username: 'student.one' },
+    { id: adminId, email: users[0].email, student_id: null },
+    { id: studentId, email: users[1].email, student_id: 's260000001' },
   ];
   const writes = [];
-  let race = false;
   const svc = {
     auth: {
       async getUser(token) { return { data: { user: token === 'admin' ? users[0] : users[1] } }; },
@@ -27,19 +26,15 @@ function setup() {
         async getUserById(id) { return { data: { user: users.find((u) => u.id === id) } }; },
         async createUser(attributes) {
           writes.push(attributes);
-          if (race) {
-            profiles.push({ id: 'concurrent-user', username: attributes.app_metadata.username });
-            return { error: { message: 'Database error saving new user' } };
-          }
           const user = { id: '11000000-0000-4000-8000-000000000003', ...attributes };
           users.push(user);
-          profiles.push({ id: user.id, email: user.email, username: user.app_metadata.username || user.email.split('@')[0] });
+          profiles.push({ id: user.id, email: user.email, student_id: user.app_metadata.role === 'client' ? 's260000002' : null });
           return { data: { user } };
         },
         async updateUserById(id, attributes) {
           writes.push(attributes);
           Object.assign(users.find((u) => u.id === id), attributes);
-          Object.assign(profiles.find((p) => p.id === id), { email: attributes.email, username: attributes.app_metadata.username });
+          Object.assign(profiles.find((p) => p.id === id), { email: attributes.email });
           return {};
         },
       },
@@ -70,52 +65,55 @@ function setup() {
     }));
     return { status: response.status, data: await response.json() };
   };
-  return { users, profiles, writes, call, simulateRace() { race = true; } };
+  return { users, profiles, writes, call };
 }
 
-test('account list returns saved usernames, not email prefixes', async () => {
+test('account list returns saved student IDs and no username login fields', async () => {
   const s = setup();
   const response = await s.call({ action: 'list' });
   assert.equal(response.status, 200);
-  assert.equal(response.data.users[1].username, 'student.one');
+  assert.equal(response.data.users[1].student_id, 's260000001');
+  assert.equal(response.data.users[1].username, undefined);
   assert.equal(response.data.users[1].email, 'student@gmail.com');
   assert.equal((await s.call({ action: 'list' }, 'student')).status, 403);
 });
 
-test('account create separates the username from the verification mailbox', async () => {
+test('account create returns an auto-generated ID, separate from the verification mailbox', async () => {
   const s = setup();
-  const response = await s.call({ action: 'create', username: '  J.Reyes  ', email: 'personal@gmail.com', name: 'Juan Reyes', password: 'Password12', role: 'client' });
+  const response = await s.call({ action: 'create', email: 'personal@gmail.com', name: 'Juan Reyes', password: 'Password12', role: 'client' });
   assert.equal(response.status, 201);
-  assert.equal(response.data.user.username, 'j.reyes');
+  assert.equal(response.data.user.student_id, 's260000002');
   assert.equal(s.writes[0].email, 'personal@gmail.com');
-  assert.equal(s.writes[0].app_metadata.username, 'j.reyes');
+  assert.equal(s.writes[0].app_metadata.username, undefined);
+  assert.equal(s.writes[0].app_metadata.student_id, undefined);
 });
 
-test('duplicate create and rename reject case-insensitively without changing accounts', async () => {
+test('callers cannot supply, overwrite, or rename generated IDs', async () => {
   const s = setup();
-  const create = await s.call({ action: 'create', username: 'SCHOOL.ADMIN', email: 'new@gmail.com', name: 'New Account', password: 'Password12', role: 'client' });
-  const rename = await s.call({ action: 'update', id: studentId, username: 'School.Admin' });
-  assert.equal(create.status, 400);
-  assert.equal(rename.status, 400);
-  assert.equal(create.data.error, 'Username is already taken.');
-  assert.equal(rename.data.error, 'Username is already taken.');
+  for (const extra of [{ student_id: 's260000001' }, { username: 'School.Admin' }]) {
+    const create = await s.call({ action: 'create', email: 'new@gmail.com', name: 'New Account', password: 'Password12', role: 'client', ...extra });
+    const rename = await s.call({ action: 'update', id: studentId, ...extra });
+    assert.equal(create.status, 400);
+    assert.equal(rename.status, 400);
+    assert.match(create.data.error, /generated automatically/);
+    assert.match(rename.data.error, /cannot be edited/);
+  }
   assert.equal(s.writes.length, 0);
 });
 
-test('changing a username retains its email and partial edits retain its username', async () => {
+test('changing the name or email retains the generated student ID', async () => {
   const s = setup();
-  const renamed = await s.call({ action: 'update', id: studentId, username: 'student.renamed' });
+  const renamed = await s.call({ action: 'update', id: studentId, name: 'Student Renamed' });
   assert.equal(renamed.status, 200);
   assert.equal(renamed.data.user.email, 'student@gmail.com');
   const emailChanged = await s.call({ action: 'update', id: studentId, email: 'another@gmail.com' });
-  assert.equal(emailChanged.data.user.username, 'student.renamed');
+  assert.equal(emailChanged.data.user.student_id, 's260000001');
   assert.equal(s.profiles[1].email, 'another@gmail.com');
 });
 
-test('a concurrent username claim receives the exact duplicate message', async () => {
+test('administrator creation does not assign a student ID', async () => {
   const s = setup();
-  s.simulateRace();
-  const result = await s.call({ action: 'create', username: 'j.reyes', email: 'new@gmail.com', name: 'Juan Reyes', password: 'Password12', role: 'client' });
-  assert.equal(result.status, 400);
-  assert.equal(result.data.error, 'Username is already taken.');
+  const result = await s.call({ action: 'create', email: 'new@gmail.com', name: 'Juan Reyes', password: 'Password12', role: 'admin' });
+  assert.equal(result.status, 201);
+  assert.equal(result.data.user.student_id, null);
 });

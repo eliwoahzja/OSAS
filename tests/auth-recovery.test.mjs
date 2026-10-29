@@ -71,12 +71,12 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
   const context = createContext({
     URL, URLSearchParams, TextEncoder,
     fetch: async (url, options) => {
-      assert.equal(url, 'https://project.example/functions/v1/username-auth');
+      assert.equal(url, 'https://project.example/functions/v1/student-auth');
       const payload = JSON.parse(options.body);
-      records.push(['usernameAuth', payload]);
+      records.push(['studentAuth', payload]);
       return {
-        ok: failure !== 'username',
-        json: async () => failure === 'username' ? { error: 'Incorrect username or password.' }
+        ok: failure !== 'student-id',
+        json: async () => failure === 'student-id' ? { error: 'Incorrect student ID or password.' }
           : payload.action === 'sign-in' ? { session: recovered } : { message: 'Request sent.' },
       };
     },
@@ -187,13 +187,13 @@ test('normal password sign-in still requires a separate email verification code'
   assert.equal(auth.isSignedIn(), true);
 });
 
-test('saved username sends the OTP to the actual account email and still requires verification', async () => {
+test('student ID sends the OTP to the actual account email and still requires verification', async () => {
   const { auth, records } = await loadAuth();
-  const next = await auth.signIn('  Student.Name  ', 'Password12');
+  const next = await auth.signIn('  S260000001  ', 'Password12');
   assert.equal(next.step, 'otp');
   assert.equal(next.email, 'student@saac.ph');
-  const lookup = records.find(([method]) => method === 'usernameAuth');
-  assert.equal(lookup[1].username, 'student.name');
+  const lookup = records.find(([method]) => method === 'studentAuth');
+  assert.equal(lookup[1].student_id, 's260000001');
   assert.equal(lookup[1].action, 'sign-in');
   assert.equal(records.find(([method]) => method === 'signInWithOtp')[1].email, 'student@saac.ph');
   assert.equal(auth.isSignedIn(), false);
@@ -201,22 +201,28 @@ test('saved username sends the OTP to the actual account email and still require
   assert.equal(auth.isSignedIn(), true);
 });
 
-test('bad username credentials cannot set a session or send OTPs', async () => {
-  const { auth, records } = await loadAuth({ failure: 'username' });
-  await assert.rejects(auth.signIn('student.name', 'WrongPassword12'), /Incorrect username or password/);
+test('bad student ID credentials cannot set a session or send OTPs', async () => {
+  const { auth, records } = await loadAuth({ failure: 'student-id' });
+  await assert.rejects(auth.signIn('s260000001', 'WrongPassword12'), /Incorrect student ID or password/);
   assert.equal(auth.isSignedIn(), false);
   assert.equal(records.some(([method]) => ['setSession', 'signInWithOtp'].includes(method)), false);
 });
 
-test('username recovery does not guess an email or reveal an address in the browser', async () => {
+test('student ID recovery does not guess an email or reveal an address in the browser', async () => {
   const { auth, records } = await loadAuth();
-  await auth.requestPasswordReset('  Student.Name  ');
+  await auth.requestPasswordReset('  S260000001  ');
   assert.equal(records.length, 1);
-  assert.equal(records[0][0], 'usernameAuth');
+  assert.equal(records[0][0], 'studentAuth');
   assert.equal(records[0][1].action, 'recover');
-  assert.equal(records[0][1].username, 'student.name');
+  assert.equal(records[0][1].student_id, 's260000001');
   assert.equal(records[0][1].redirectTo, 'https://school.example/?recovery=1');
   assert.equal(auth.isSignedIn(), false);
+});
+
+test('legacy usernames are rejected instead of silently guessing a mailbox', async () => {
+  const { auth, records } = await loadAuth();
+  await assert.rejects(auth.signIn('j.reyes', 'Password12'), /student ID.*not a username/);
+  assert.equal(records.length, 0);
 });
 
 

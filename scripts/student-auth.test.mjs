@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createUsernameAuthHandler } from '../supabase/functions/username-auth/core.ts';
+import { createStudentAuthHandler } from '../supabase/functions/student-auth/core.ts';
 
 const session = { access_token: 'access', refresh_token: 'refresh', user: { id: 'student', email: 'student@gmail.com' } };
 function setup({ exists = true, badPassword = false, unavailable = false, wrongAccount = false } = {}) {
   const calls = [];
-  const handler = createUsernameAuthHandler({
-    async lookup(username) {
-      calls.push(['lookup', username]);
+  const handler = createStudentAuthHandler({
+    async lookup(studentId) {
+      calls.push(['lookup', studentId]);
       if (unavailable) throw new Error('Database failure');
       return exists ? { id: wrongAccount ? 'another-student' : session.user.id, email: session.user.email } : null;
     },
@@ -18,7 +18,7 @@ function setup({ exists = true, badPassword = false, unavailable = false, wrongA
     async recover(email, redirectTo) { calls.push(['recover', email, redirectTo]); return {}; },
   });
   const call = async (body, method = 'POST') => {
-    const res = await handler(new Request('https://project.example/functions/v1/username-auth', {
+    const res = await handler(new Request('https://project.example/functions/v1/student-auth', {
       method, ...(method === 'POST' ? { body: JSON.stringify(body) } : {}),
     }));
     return { status: res.status, data: await res.json(), headers: res.headers };
@@ -26,19 +26,19 @@ function setup({ exists = true, badPassword = false, unavailable = false, wrongA
   return { calls, call };
 }
 
-test('saved username authenticates against its real mailbox, not a guessed school domain', async () => {
+test('generated student ID authenticates against its saved mailbox', async () => {
   const s = setup();
-  const response = await s.call({ action: 'sign-in', username: '  J.Reyes  ', password: 'Password12' });
+  const response = await s.call({ action: 'sign-in', student_id: '  S260000001  ', password: 'Password12' });
   assert.equal(response.status, 200);
-  assert.deepEqual(s.calls, [['lookup', 'j.reyes'], ['signIn', 'student@gmail.com', 'Password12']]);
+  assert.deepEqual(s.calls, [['lookup', 's260000001'], ['signIn', 'student@gmail.com', 'Password12']]);
   assert.deepEqual(response.data.session, session);
   assert.equal(response.headers.get('cache-control'), 'no-store');
 });
 
-test('unknown usernames and bad passwords have identical errors without leaking email', async () => {
+test('unknown student IDs and bad passwords have identical errors without leaking email', async () => {
   const unknown = setup({ exists: false });
   const wrong = setup({ badPassword: true });
-  const body = { action: 'sign-in', username: 'j.reyes', password: 'WrongPassword12' };
+  const body = { action: 'sign-in', student_id: 's260000001', password: 'WrongPassword12' };
   const a = await unknown.call(body);
   const b = await wrong.call(body);
   assert.equal(a.status, 400);
@@ -48,10 +48,10 @@ test('unknown usernames and bad passwords have identical errors without leaking 
   assert.doesNotMatch(JSON.stringify(b.data), /gmail|refresh|access/);
 });
 
-test('username reset uses the saved mailbox and a neutral public response', async () => {
+test('student ID reset uses the saved mailbox and a neutral public response', async () => {
   const known = setup();
   const unknown = setup({ exists: false });
-  const body = { action: 'recover', username: 'j.reyes', redirectTo: 'https://school.example/?recovery=1' };
+  const body = { action: 'recover', student_id: 's260000001', redirectTo: 'https://school.example/?recovery=1' };
   const a = await known.call(body);
   const b = await unknown.call(body);
   assert.equal(a.status, 200);
@@ -61,20 +61,20 @@ test('username reset uses the saved mailbox and a neutral public response', asyn
   assert.doesNotMatch(JSON.stringify(a.data), /gmail|student/);
 });
 
-test('username endpoint validates requests and never provides a public email lookup', async () => {
+test('student endpoint rejects usernames, malformed IDs, and public email lookup', async () => {
   const s = setup();
-  for (const body of [null, [], { action: 'lookup', username: 'student' }, { action: 'sign-in', username: 'bad name', password: 'Password12' }, { action: 'sign-in', username: 'student', password: '' }, { action: 'recover', username: 'student', redirectTo: 'javascript:alert(1)' }]) {
+  for (const body of [null, [], { action: 'lookup', student_id: 's260000001' }, { action: 'sign-in', student_id: 'j.reyes', password: 'Password12' }, { action: 'sign-in', username: 'student', password: 'Password12' }, { action: 'sign-in', student_id: 's260000001', password: '' }, { action: 'recover', student_id: 's260000001', redirectTo: 'javascript:alert(1)' }]) {
     assert.equal((await s.call(body)).status, 400);
   }
   assert.equal((await s.call(null, 'GET')).status, 405);
   assert.equal(s.calls.length, 0);
   const unavailable = setup({ unavailable: true });
-  assert.equal((await unavailable.call({ action: 'sign-in', username: 'student', password: 'Password12' })).status, 503);
+  assert.equal((await unavailable.call({ action: 'sign-in', student_id: 's260000001', password: 'Password12' })).status, 503);
 });
 
 test('a stale profile cannot authenticate a different account', async () => {
   const s = setup({ wrongAccount: true });
-  const result = await s.call({ action: 'sign-in', username: 'student', password: 'Password12' });
+  const result = await s.call({ action: 'sign-in', student_id: 's260000001', password: 'Password12' });
   assert.equal(result.status, 400);
   assert.equal(result.data.session, undefined);
 });

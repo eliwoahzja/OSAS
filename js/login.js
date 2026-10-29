@@ -362,7 +362,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const notice = h('p', { class: 'lg-notice' + (noticeText ? '' : ' lg-hidden'), role: 'status' }, noticeText);
 
     const email = h('input', {
-      type: 'text', class: 'lg-input', placeholder: 'j.reyes or you@saac.edu.ph',
+      type: 'text', class: 'lg-input', placeholder: 's260000001 or you@example.com',
       autocomplete: 'username', required: true, value: prefillEmail,
     });
     const password = h('input', {
@@ -378,10 +378,10 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         err.clear();
         let addr = '';
         try {
-          // Keep bare usernames intact; the server resolves the saved mailbox.
+          // The server resolves the student ID to its saved verification email.
           addr = auth.accountAddress(email.value);
         } catch (bad) {
-          err.show(bad.message || 'Enter your username or school email.');
+          err.show(bad.message || 'Enter your student ID or email.');
           return;
         }
         submit.disabled = true;
@@ -416,7 +416,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('p', { class: 'lg-eyebrow' }, 'LOGIN'),
       h('h2', { class: 'lg-title' }, 'Welcome Back'),
       h('p', { class: 'lg-lead' }, 'Sign in to access the St. Agnes Academy OSAS Dashboard.'),
-      field({ label: 'Username or email', icon: 'user', input: email }),
+      field({ label: 'Student ID or email', icon: 'id-card', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderForgotPassword(email.value)) }, 'Forgot password?'),
       notice,
@@ -434,7 +434,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const err = mkErr();
     if (errorText) err.show(errorText, { quiet: true });
     const email = h('input', {
-      type: 'text', class: 'lg-input', placeholder: 'j.reyes or you@saac.edu.ph',
+      type: 'text', class: 'lg-input', placeholder: 's260000001 or you@example.com',
       autocomplete: 'username', required: true, value: prefillEmail,
     });
     const notice = h('p', { class: 'lg-notice lg-hidden', role: 'status' });
@@ -446,7 +446,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         err.clear();
         let contact = '';
         try { contact = auth.accountAddress(email.value); }
-        catch (bad) { err.show(bad.message || 'Enter your username or school email.'); email.focus(); return; }
+        catch (bad) { err.show(bad.message || 'Enter your student ID or email.'); email.focus(); return; }
         const wait = Math.ceil((readCooldown('recovery', contact).until - Date.now()) / 1000);
         if (wait > 0) { err.show(`Please wait ${fmt(wait)} before requesting another link.`); return; }
         submit.disabled = true;
@@ -466,8 +466,8 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     },
       h('p', { class: 'lg-eyebrow' }, 'Account recovery'),
       h('h2', { class: 'lg-title' }, 'Forgot Password'),
-      h('p', { class: 'lg-lead' }, 'Enter your username or school email. The reset link goes to that account\u2019s mailbox, where you choose a new password.'),
-      field({ label: 'Username or email', icon: 'envelope', input: email }),
+      h('p', { class: 'lg-lead' }, 'Enter your student ID or email. The reset link goes to that account\u2019s saved email address.'),
+      field({ label: 'Student ID or email', icon: 'envelope', input: email }),
       notice,
       err.el,
       submit,
@@ -544,7 +544,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         password.value = ''; confirm.value = ''; reset.token = '';
         await auth.signOut();
         history.replaceState(null, '', location.pathname + location.search + '#/dashboard');
-        renderCredentials('', data.message)();
+        renderCredentials(data.student_id || '', data.message)();
       } catch (error) { err.show(error.message); save.disabled = false; save.textContent = 'Save new password'; }
     } }, h('p', { class: 'lg-eyebrow' }, 'Approved account request'),
     h('h2', { class: 'lg-title' }, 'Choose a new password'),
