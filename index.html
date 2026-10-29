@@ -3,20 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="School safety and compliance dashboard for the Office of Student Affairs and Services: emergency contacts, incident reports, inspections, drills, and parent notifications." />
+  <meta name="description" content="St. Agnes Academy's public safety guide: earthquake, fire, typhoon and flood preparedness, school drills, and a readiness checklist from the Office of Student Affairs and Services." />
   <meta name="author" content="Office of Student Affairs and Services, Saint Agnes Academy" />
   <meta name="theme-color" content="#241A22" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co https://*.functions.supabase.co https://cdn.jsdelivr.net" />
-  <meta property="og:title" content="SAAC - OSAS Dashboard" />
+  <meta property="og:title" content="Campus Safety | St. Agnes Academy" />
   <meta property="og:type" content="website" />
-  <meta property="og:description" content="School safety and compliance dashboard for the Office of Student Affairs and Services." />
-  <title>SAAC - OSAS Dashboard</title>
+  <meta property="og:description" content="Read the disaster guides and prepare for school drills before signing in to OSAS." />
+  <title>Campus Safety | St. Agnes Academy</title>
   <link rel="icon" href="/assets/logo.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/tailwind.css" />
   <link rel="stylesheet" href="/css/fa.min.css" />
   <link rel="stylesheet" href="/css/osas.css" />
+  <link rel="stylesheet" href="/css/landing.css" />
   <noscript><p style="padding:24px;font-family:sans-serif">Please enable JavaScript to use the OSAS dashboard.</p></noscript>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -69,7 +70,7 @@
   </aside>
   <div id="sidebar-backdrop" class="fixed inset-0 bg-black/60 z-40 lg:hidden hidden" aria-hidden="true"></div>
 
-  <main class="flex-1 flex flex-col h-full overflow-hidden">
+  <main id="dashboard-shell" class="flex-1 flex flex-col h-full overflow-hidden">
     <header class="bg-transparent px-4 sm:px-10 py-4 sm:py-6 shrink-0">
       <div class="max-w-[1400px] 2xl:max-w-[1600px] mx-auto flex items-center justify-between gap-4">
         <div class="flex items-center gap-4 min-w-0">

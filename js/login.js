@@ -18,7 +18,6 @@ function armCooldown(kind, email) {
 }
 function clearCooldown(kind, email) { try { sessionStorage.removeItem(cdKey(kind, email)); } catch {} }
 const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-const waitLabel = (n) => { const s = COOLDOWNS[Math.min(n, COOLDOWNS.length - 1)]; return `${s / 60} min`; };
 
 const EASE = 'cubic-bezier(.76,0,.24,1)';
 const EASE_SWAP = 'cubic-bezier(.6,.05,.26,.99)';
@@ -205,7 +204,7 @@ function eyeToggle(inputs) {
   return eye;
 }
 
-export function showLogin({ onSuccess }) {
+export function showLogin({ onSuccess, onBack }) {
   document.getElementById('login-overlay')?.remove();
 
   const timers = new Set();
@@ -238,7 +237,6 @@ export function showLogin({ onSuccess }) {
 
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, submitLabel);
     const resendBtn = h('button', { type: 'button', class: 'lg-link lg-inline', disabled: true }, '');
-    const note = h('p', { class: 'lg-hint' });
     const rememberDevice = remember ? h('label', { class: 'lg-remember' },
       h('input', { type: 'checkbox', class: 'lg-remember-input' }),
       h('span', { class: 'lg-remember-box', 'aria-hidden': 'true' }),
@@ -248,17 +246,15 @@ export function showLogin({ onSuccess }) {
     let ticker = null;
     const stop = () => { if (ticker) { clearInterval(ticker); timers.delete(ticker); ticker = null; } };
     const tick = () => {
-      const { n, until } = readCooldown(kind, email);
+      const { until } = readCooldown(kind, email);
       const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
       if (left > 0) {
         resendBtn.disabled = true;
         resendBtn.textContent = `Resend code in ${fmt(left)}`;
-        note.textContent = `Each resend takes a little longer (up to 8 min). The next wait will be ${waitLabel(n)}.`;
       } else {
         stop();
         resendBtn.disabled = false;
         resendBtn.textContent = 'Resend code';
-        note.textContent = 'Can’t find it? Check your spam folder. Codes expire after a while.';
       }
     };
     const startTicker = () => { stop(); tick(); if (!resendBtn.disabled) return; ticker = setInterval(tick, 1000); timers.add(ticker); };
@@ -307,7 +303,7 @@ export function showLogin({ onSuccess }) {
       h('h2', { class: 'lg-title' }, title),
       h('p', { class: 'lg-lead' }, lead, ' ', h('strong', {}, email)),
       field({ label: 'Verification code', icon: 'shield-halved', input: code }),
-      h('p', { class: 'lg-hint' }, `Enter all ${OTP_MIN}–${OTP_MAX} digits exactly as shown in your email.`),
+      h('p', { class: 'lg-hint' }, 'Type the 6 digit OTP sent to your email.'),
       err.el,
       rememberDevice,
       submit,
@@ -315,7 +311,6 @@ export function showLogin({ onSuccess }) {
         back ? h('button', { type: 'button', class: 'lg-link lg-inline', onclick: back.fn }, back.label) : h('span'),
         resendBtn,
       ),
-      note,
     );
     startTicker();
     return { form, focus: () => code.focus(), stop };
@@ -625,7 +620,9 @@ export function showLogin({ onSuccess }) {
   }
 
   let busy = false;
-  const overlay = h('div', { id: 'login-overlay', class: 'lg-root' }, brand, side);
+  const overlay = h('div', { id: 'login-overlay', class: `lg-root${onBack ? ' lg-with-return' : ''}` }, brand, side);
+  const close = () => { stopTimers(); closeModal(true); overlay.remove(); };
+  if (onBack) overlay.append(h('button', { type: 'button', class: 'lg-public-return', onclick: () => { close(); onBack(); } }, fa('arrow-left'), 'Back to safety guide'));
   document.body.appendChild(overlay);
   const reset = readResetLink();
   if (reset) history.replaceState(null, '', location.pathname + location.search + '#/reset-password');
@@ -639,4 +636,5 @@ export function showLogin({ onSuccess }) {
     revealChildren(card.firstElementChild, { base: 350, step: 60 });
   }
   focusFirst();
+  return close;
 }

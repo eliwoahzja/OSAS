@@ -6,7 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const portFlag = process.argv.indexOf('--port');
+const PORT = process.env.PORT || (portFlag >= 0 ? process.argv[portFlag + 1] : 3000);
 
 app.use(express.static(__dirname));
 

@@ -10,6 +10,33 @@ import * as modules from './modules.js';
 import { roleLabel, incidentLabels } from './labels.js';
 import { showLogin } from './login.js';
 import { startDashboardUpdates } from './live-dashboard.js';
+import { createSafetyLanding } from './landing.js';
+
+let closeLogin = null;
+function showPublicPage() {
+  stopDashboardUpdates();
+  document.body.dataset.session = 'public';
+  document.title = 'Campus Safety | St. Agnes Academy';
+  if (!document.getElementById('public-safety')) {
+    document.body.append(createSafetyLanding({ onSignIn: () => {
+      if (!VIEWS[(location.hash || '').replace(/^#\//, '')]) history.pushState(null, '', '#/sign-in');
+      openSignIn();
+    } }));
+  }
+  document.getElementById('public-safety').inert = Boolean(document.getElementById('login-overlay'));
+}
+
+function openSignIn() {
+  showPublicPage();
+  closeLogin?.();
+  closeLogin = showLogin({ onSuccess: enterApp, onBack: () => {
+    closeLogin = null;
+    if (auth.isSignedIn()) { history.replaceState(null, '', '#/dashboard'); enterApp(); }
+    else { history.replaceState(null, '', '#/'); showPublicPage(); }
+  } });
+  document.getElementById('public-safety').inert = true;
+  document.title = 'Sign in | St. Agnes Academy';
+}
 
 const NAV = [
   { route: 'dashboard', label: 'Dashboard', icon: 'border-all', access: 'all' },
@@ -148,9 +175,13 @@ function stopProgress() {
 }
 
 async function route() {
-  if (location.hash.startsWith('#/reset-password?')) {
-    stopDashboardUpdates();
-    showLogin({ onSuccess: enterApp });
+  if (location.hash.startsWith('#/reset-password')) {
+    openSignIn();
+    return;
+  }
+  if (!auth.isSignedIn()) {
+    if (location.hash === '#/sign-in') openSignIn();
+    else { closeLogin?.(); closeLogin = null; showPublicPage(); }
     return;
   }
   let r = (location.hash || '#/dashboard').replace(/^#\//, '');
@@ -166,6 +197,7 @@ async function route() {
   if (r !== 'dashboard') stopDashboardUpdates();
   const view = VIEWS[r];
   const title = navLabel(NAV.find((n) => n.route === r)) || 'Dashboard';
+  document.title = `${title} | St. Agnes Academy OSAS`;
   titleEl().textContent = title;
   document.body.dataset.route = r;
   highlightSidebar(r);
@@ -303,6 +335,11 @@ function resetPageScroll() {
 }
 
 function enterApp() {
+  closeLogin?.();
+  closeLogin = null;
+  document.getElementById('public-safety')?.remove();
+  document.body.dataset.session = 'active';
+  if (location.hash === '#/sign-in' || location.hash === '#/' || location.hash.startsWith('#/reset-password')) history.replaceState(null, '', '#/dashboard');
   resetPageScroll();
   document.getElementById('sidebar-backdrop').classList.add('hidden');
   const user = auth.currentUser() || { name: 'Guest', email: '', role: 'client' };
@@ -323,9 +360,9 @@ function enterApp() {
 async function logout() {
   stopDashboardUpdates();
   await auth.signOut();
-  location.hash = '#/dashboard';
+  history.replaceState(null, '', '#/');
   document.getElementById('view').innerHTML = '';
-  showLogin({ onSuccess: enterApp });
+  showPublicPage();
 }
 
 function wireShell() {
@@ -610,6 +647,9 @@ async function boot() {
     console.error('wireShell error:', err);
   }
 
+  showPublicPage();
+  if (location.hash.startsWith('#/reset-password') || location.hash === '#/sign-in') openSignIn();
+
   try {
     await auth.restore();
   } catch (err) {
@@ -617,9 +657,9 @@ async function boot() {
   }
 
   try {
-    if (location.hash.startsWith('#/reset-password')) showLogin({ onSuccess: enterApp });
+    if (location.hash.startsWith('#/reset-password')) { if (!document.getElementById('login-overlay')) openSignIn(); }
     else if (auth.isSignedIn()) enterApp();
-    else showLogin({ onSuccess: enterApp });
+    else showPublicPage();
   } catch (err) {
     console.error('startup error:', err);
   }
