@@ -614,9 +614,6 @@ body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #vi
 .supplies-workspace th:nth-child(6) { width:10%; }
 .supplies-workspace th:nth-child(7) { width:12%; }
 .supplies-workspace th:nth-child(8) { width:10%; }
-@media(min-width:1024px) {
-  body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #sidebar { width:244px; }
-}
 @media(max-width:767px) {
   body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) > main > header,
   body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #view,
@@ -651,8 +648,6 @@ body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #vi
 }
 
 :is(.inspection-workspace,.supplies-workspace) .data-table-frame { border-radius:10px; box-shadow:none; }
-body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #sidebar-nav a > span { font-size:12px; }
-body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #sidebar-nav a { padding-top:8px; padding-bottom:8px; }
 .inspection-workspace .inspection-main > :not([hidden]) ~ :not([hidden]) { margin-top:14px; }
 .inspection-stats .reference-stat { padding-top:10px; padding-bottom:10px; }
 .inspection-main .osas-table-toolbar { padding:6px; }
