@@ -68,15 +68,6 @@ let handlingRecovery = false;
 const DEVICE_TRUST_KEY = 'osas.device.trust';
 const DEVICE_TRUST_MS = 30 * 24 * 60 * 60 * 1000;
 
-const pinAccounts = () => (window.OSAS && window.OSAS.PIN_ACCOUNTS) || {};
-const needsPin = (email) => Object.prototype.hasOwnProperty.call(pinAccounts(), String(email || '').toLowerCase());
-
-async function sha256Hex(text) {
-  if (!window.crypto || !window.crypto.subtle) throw new Error('PIN sign-in needs a secure (https) connection.');
-  const buf = await window.crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
 function pinPassed(userId) {
   try { return sessionStorage.getItem(PIN_OK_KEY) === String(userId); } catch { return false; }
 }
@@ -144,6 +135,7 @@ async function getClient(timeoutMs = 8000) {
       });
       client.auth.onAuthStateChange((_event, s) => {
         if (checkingPassword || pendingPin || handlingRecovery || recovery.active) return;
+        if (s && roleOf(s.user) === 'admin' && !pinPassed(s.user.id)) return;
         if (s) saveSession(toSession(s));
         else if (session && session.provider === 'supabase') saveSession(null);
       });
@@ -265,9 +257,22 @@ export async function signIn(email, password) {
       throw new Error(friendly(error, 'Sign-in failed.'));
     }
     if (!signed?.session || !EMAIL_RE.test(addr)) throw new Error('Sign-in failed. Please try again.');
-    if (needsPin(addr) && signed && signed.session) {
+    if (roleOf(signed.session.user) === 'admin') {
+      if (!identifier.includes('@')) {
+        await c.auth.signOut({ scope: 'local' });
+        throw new Error('Administrators sign in using their email address, then their PIN.');
+      }
       pendingPin = { email: addr, session: toSession(signed.session), userId: signed.session.user.id };
-      return { step: 'pin', email: addr };
+      try {
+        const status = await adminPinCall({ action: 'status' }, signed.session.access_token);
+        if (typeof status.has_pin !== 'boolean') throw new Error('PIN verification is unavailable. Please try again.');
+        pendingPin.needsSetup = !status.has_pin;
+        return { step: 'pin', email: addr, needsSetup: pendingPin.needsSetup };
+      } catch (error) {
+        pendingPin = null;
+        await c.auth.signOut({ scope: 'local' }).catch(() => {});
+        throw error;
+      }
     }
     if (trustedDevice(addr)) {
       saveSession(toSession(signed.session));
@@ -281,22 +286,40 @@ export async function signIn(email, password) {
   return { step: 'otp', email: addr };
 }
 
+async function adminPinCall(payload, token) {
+  const cfg = window.OSAS || {};
+  let response;
+  try {
+    response = await fetch(`${cfg.SUPABASE_URL}/functions/v1/admin-pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  } catch { throw new Error('Could not reach PIN verification. Check your connection and try again.'); }
+  const result = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(result?.error || (response.status === 401 ? 'Your sign-in expired. Enter your email and password again.' : 'PIN verification is unavailable. Please try again.'));
+  return result || {};
+}
+
 export async function verifyPin(pin) {
   if (!pendingPin) throw new Error('Your sign-in expired. Enter your email and password again.');
-  const expected = pinAccounts()[pendingPin.email];
-  const actual = await sha256Hex(`osas-pin:${pendingPin.email}:${String(pin)}`);
-  if (actual !== expected) throw new Error('Wrong PIN. Try again.');
+  if (!/^\d{4}$/.test(String(pin))) throw new Error('Enter your complete 4-digit PIN.');
   const ok = pendingPin;
+  const { data } = await client.auth.getSession();
+  if (!data?.session || data.session.user.id !== ok.userId) throw new Error('Your sign-in expired. Enter your email and password again.');
+  const result = await adminPinCall({ action: ok.needsSetup ? 'setup' : 'verify', pin: String(pin) }, data.session.access_token);
+  if (result.ok !== true) throw new Error('PIN verification failed. Please try again.');
+  if (pendingPin !== ok) throw new Error('Your sign-in expired. Enter your email and password again.');
   pendingPin = null;
   try { sessionStorage.setItem(PIN_OK_KEY, String(ok.userId)); } catch {}
-  saveSession(ok.session);
+  saveSession(toSession(data.session));
   return session;
 }
 
 export async function cancelPin() {
   if (!pendingPin) return;
   pendingPin = null;
-  try { if (client) await client.auth.signOut(); } catch {}
+  try { if (client) await client.auth.signOut({ scope: 'local' }); } catch {}
 }
 
 export async function verifySignup(email, code) {
@@ -471,8 +494,8 @@ export async function restore() {
   const { data } = await c.auth.getSession();
   if (data && data.session) {
     const u = data.session.user;
-    if (needsPin(u.email) && !pinPassed(u.id)) {
-      try { await c.auth.signOut(); } catch {}
+    if (roleOf(u) === 'admin' && !pinPassed(u.id)) {
+      try { await c.auth.signOut({ scope: 'local' }); } catch {}
       saveSession(null);
       return null;
     }

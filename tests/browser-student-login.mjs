@@ -100,7 +100,7 @@ async function scenario(identifier, role = 'client') {
 }
 
 try {
-  for (const [identifier, role] of [[' S260000101 ', 'client'], ['personal@example.test', 'client'], ['s260000102', 'admin']]) {
+  for (const [identifier, role] of [[' S260000101 ', 'client'], ['personal@example.test', 'client']]) {
     const test = await scenario(identifier, role);
     const code = test.page.getByRole('textbox', { name: 'Email verification code', exact: true });
     await code.fill('1234');
@@ -123,7 +123,7 @@ try {
     assert.deepEqual(test.errors, []);
     await test.context.close();
   }
-  console.log('Student login OK: student ID/email/admin ID -> saved mailbox OTP -> dashboard, invalid OTP retry, private student ID hydration, and restored session. All backend requests intercepted.');
+  console.log('Student login OK: student ID/email -> saved mailbox OTP -> dashboard, invalid OTP retry, private student ID hydration, and restored session. All backend requests intercepted.');
 } finally {
   await browser.close();
 }

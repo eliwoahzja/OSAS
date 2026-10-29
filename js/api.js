@@ -105,6 +105,10 @@ function insertMock(table, payload) {
   const row = { id: mockNextId(table), ...payload };
   if (table === 'incidents') {
     const me = auth.currentUser();
+    const reportedAt = new Date();
+    row.created_at = reportedAt.toISOString();
+    row.date = new Date(reportedAt.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    row.time = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' }).format(reportedAt);
     row.submitted_by = me?.id || null;
     row.reporter = me?.name || me?.email || 'Student';
     row.type ??= null; row.severity ??= null; row.location ??= null;
@@ -122,6 +126,9 @@ function updateMock(table, id, patch) {
   const i = rows.findIndex((r) => r.id === id);
   if (i < 0) throw new Error('Record not found');
   const previous = rows[i];
+  if (table === 'incidents') {
+    patch = { ...patch, created_at: previous.created_at, date: previous.date, time: previous.time, submitted_by: previous.submitted_by };
+  }
   rows[i] = { ...rows[i], ...patch };
   recordMockActivity(table, 'update', previous, rows[i]);
   persistMock();

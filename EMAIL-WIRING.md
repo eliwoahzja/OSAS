@@ -175,3 +175,7 @@ labels it as such. When a real session is present, the app uses live data only.
   is configured," that is the problem.
 - If the function returns `delivery.status = failed`, the error field will name
   the provider issue (for example Maileroo 401, or SMTP auth failure).
+
+## Administrator PIN sign-in
+
+Email verification codes are used for student sign-in. Administrators enter their email/password and then a four-digit PIN; their first sign-in prompts them to choose and confirm it. Deploy the `admin-pin` function after its migration. It verifies the authenticated admin role and password authentication, stores only bcrypt hashes privately, and locks PIN attempts for 15 minutes after five failures. No OTP email is sent during routine administrator sign-in. Account emails and passwords are preserved.

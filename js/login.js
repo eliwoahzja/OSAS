@@ -390,7 +390,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         try {
           const r = await auth.signIn(addr, password.value);
           if (r.step === 'pin') {
-            stepTo(() => renderPin(r.email));
+            stepTo(() => renderPin(r.email, Boolean(r.needsSetup)));
           } else if (r.step === 'signed-in') {
             finish();
           } else {
@@ -416,13 +416,13 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('p', { class: 'lg-eyebrow' }, 'LOGIN'),
       h('h2', { class: 'lg-title' }, 'Welcome Back'),
       h('p', { class: 'lg-lead' }, 'Sign in to access the St. Agnes Academy OSAS Dashboard.'),
-      field({ label: 'Student ID', icon: 'id-card', input: email }),
+      field({ label: 'Student ID or admin email', icon: 'id-card', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderForgotPassword(email.value)) }, 'Forgot password?'),
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'An OTP will be sent to your email shortly after you login.'),
+      h('p', { class: 'lg-hint' }, 'Students enter an emailed code. Administrators enter their PIN.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
@@ -555,23 +555,41 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     return () => password.focus({ preventScroll: true });
   }
 
-  function renderPin(addr) {
+  function renderPin(addr, setup = false) {
     stopTimers();
     card.innerHTML = '';
     const LEN = 4;
     let value = '';
     let busy = false;
+    let firstPin = '';
 
     const err = mkErr();
     const dots = Array.from({ length: LEN }, () => h('span', { class: 'lg-pin-dot' }));
     const dotRow = h('div', { class: 'lg-pin-dots', role: 'status', 'aria-live': 'polite', 'aria-label': 'PIN entry' }, dots);
     const scan = h('div', { class: 'lg-pin-scan' }, h('span', { class: 'lg-pin-ring' }), h('span', { class: 'lg-pin-ring lg-pin-ring-2' }), fa('lock'));
+    const title = h('h2', { class: 'lg-title lg-center' }, setup ? 'Create your PIN' : 'Enter your PIN');
+    const lead = h('p', { class: 'lg-lead lg-center' }, setup ? 'Choose a 4-digit PIN for ' : 'Confirm it’s you, ', h('strong', {}, addr));
 
     const paint = () => dots.forEach((d, i) => d.classList.toggle('is-filled', i < value.length));
 
     async function submitPin() {
       busy = true;
       try {
+        if (setup && !firstPin) {
+          firstPin = value;
+          value = '';
+          paint();
+          title.textContent = 'Confirm your PIN';
+          lead.textContent = 'Enter the same 4-digit PIN again.';
+          busy = false;
+          return;
+        }
+        if (setup && value !== firstPin) {
+          firstPin = '';
+          title.textContent = 'Create your PIN';
+          lead.textContent = 'Choose a 4-digit PIN and confirm it.';
+          throw new Error('The PINs do not match. Choose your PIN again.');
+        }
         await auth.verifyPin(value);
         dotRow.classList.add('is-ok');
         scan.classList.add('is-ok');
@@ -640,8 +658,8 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const form = h('div', { class: 'lg-form lg-pin' },
       h('p', { class: 'lg-eyebrow' }, 'Admin verification'),
       scan,
-      h('h2', { class: 'lg-title lg-center' }, 'Enter your PIN'),
-      h('p', { class: 'lg-lead lg-center' }, 'Confirm it’s you, ', h('strong', {}, addr)),
+      title,
+      lead,
       dotRow,
       err.el,
       pad,

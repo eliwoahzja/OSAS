@@ -165,7 +165,7 @@ export function moduleShell({ icon: iconName, title, subtitle, actionLabel, acti
   const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4' });
   const left = h('div');
   const sharedTitle = document.getElementById('page-title');
-  if (sharedTitle && ['safety-inspections', 'first-aid-supplies', 'emergency-contacts', 'emergency-roles'].includes(document.body.dataset.route)) {
+  if (sharedTitle && ['safety-inspections', 'first-aid-supplies', 'emergency-contacts'].includes(document.body.dataset.route)) {
     sharedTitle.textContent = title;
   } else {
     left.appendChild(h('h2', { class: 'text-2xl sm:text-[28px] font-extrabold text-gray-900 tracking-tight' }, title));

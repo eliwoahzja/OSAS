@@ -104,3 +104,17 @@ test('mock lists, dashboard counts and writes apply the same account ownership',
   await assert.rejects(api.updateRow('incidents', other.id, { description: 'Changed' }), /Only administrators/);
   assert.equal(calls.length, 0);
 });
+
+test('mock reports stamp submission time and preserve it during administrator review', async () => {
+  const { api } = await fixture({ admin: true, demo: true });
+  const before = Date.now();
+  const report = await api.insertRow('incidents', { description: 'Timestamped report', created_at: '1900-01-01T00:00:00Z', date: '1900-01-01', time: 'Wrong time' });
+  assert.ok(Date.parse(report.created_at) >= before);
+  const manila = new Date(Date.parse(report.created_at) + 8 * 60 * 60 * 1000);
+  assert.equal(report.date, manila.toISOString().slice(0, 10));
+  const reviewed = await api.updateRow('incidents', report.id, { status: 'resolved', created_at: '1900-01-01T00:00:00Z', date: '1900-01-01', time: 'Wrong time' });
+  assert.equal(reviewed.created_at, report.created_at);
+  assert.equal(reviewed.date, report.date);
+  assert.equal(reviewed.time, report.time);
+  assert.equal(reviewed.status, 'resolved');
+});

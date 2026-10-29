@@ -51,7 +51,6 @@ const NAV = [
   { route: 'first-aid-supplies', label: 'First Aid Supplies', icon: 'medical_services', access: 'admin' },
   { route: 'risk-assessment', label: 'Risk Assessment', icon: 'security', access: 'admin' },
   { route: 'safety-reports', label: 'Safety Reports', icon: 'assessment', access: 'admin' },
-  { route: 'emergency-roles', label: 'Emergency Roles', icon: 'groups', access: 'admin' },
   { route: 'accounts', label: 'Accounts', icon: 'user-plus', access: 'admin' },
 ];
 
@@ -65,7 +64,6 @@ const VIEWS = {
   'risk-assessment': modules.riskAssessment,
   'parent-notifications': modules.parentNotifications,
   'safety-reports': modules.complianceReports,
-  'emergency-roles': modules.emergencyRoles,
   'first-aid-supplies': modules.firstAidSupplies,
   accounts: modules.accounts,
 };
@@ -187,7 +185,10 @@ async function route() {
     return;
   }
   let r = (location.hash || '#/dashboard').replace(/^#\//, '');
-  if (!VIEWS[r]) r = 'dashboard';
+  if (!VIEWS[r]) {
+    r = 'dashboard';
+    history.replaceState(null, '', '#/dashboard');
+  }
   const navItem = NAV.find((n) => n.route === r);
   if (navItem && navItem.access === 'admin' && !auth.isAdmin()) {
     toast('That section is for administrators only.');

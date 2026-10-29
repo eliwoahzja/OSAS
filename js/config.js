@@ -9,7 +9,6 @@ window.OSAS = Object.assign({
   SMTP_USER: getConfig('SMTP_USER', ''),
   SMTP_FROM: getConfig('SMTP_FROM', ''),
   ADMIN_EMAIL: getConfig('ADMIN_EMAIL', 'tropanggala87@gmail.com'),
-  PIN_ACCOUNTS: getConfig('PIN_ACCOUNTS', {}),
 }, window.OSAS || {});
 
 window.OSAS.toggleSidebar = () => {

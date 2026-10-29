@@ -296,7 +296,7 @@ export async function accounts(el) {
 
   wrap = moduleShell({
     icon: 'user-plus', title: 'Accounts',
-    subtitle: 'Administrators see every tab. Students only see the standard tabs (no Risk Assessment, Safety Reports, Emergency Roles or Accounts).',
+    subtitle: 'Administrators see every tab. Students only see the standard tabs (no Risk Assessment, Safety Reports or Accounts).',
     actionLabel: 'Create account', actionIcon: 'user-plus',
     onAction: () => openCreateModal(load),
     children: [resets.section, holder],

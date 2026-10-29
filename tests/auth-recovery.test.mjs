@@ -8,10 +8,15 @@ const recovered = {
   user: { id: 'student-1', email: 'student@saac.ph', app_metadata: {}, user_metadata: { name: 'Student One' } },
   access_token: 'recovery-access', refresh_token: 'recovery-refresh',
 };
+const administrator = {
+  ...recovered,
+  user: { ...recovered.user, id: 'admin-1', email: 'admin@saac.ph', app_metadata: { role: 'admin' } },
+};
 
-async function loadAuth({ url = 'https://school.example/', stored = null, marker = null, failure = null, profileId = 's260000001', shared = { session: stored } } = {}) {
+async function loadAuth({ url = 'https://school.example/', stored = null, marker = null, pinMarker = null, account = recovered, hasPin = true, failure = null, profileId = 's260000001', shared = { session: stored } } = {}) {
   const records = [];
   const storage = new Map(marker ? [['osas.password.recovery', marker]] : []);
+  if (pinMarker) storage.set('osas.pin.ok', pinMarker);
   const location = new URL(url);
   function makeSdk(recoveryClient) {
     let session = recoveryClient ? (marker ? stored : null) : shared.session;
@@ -22,7 +27,7 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
     async setSession(tokens) {
       records.push(['setSession', tokens]);
       if (failure === 'expired') return { data: { session: null }, error: new Error('expired') };
-      session = recovered;
+      session = account;
       if (!recoveryClient) shared.session = session;
       onChange('SIGNED_IN', session);
       return { data: { session }, error: null };
@@ -46,7 +51,7 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
     async signInWithPassword(credentials) {
       records.push(['signInWithPassword', credentials]);
       if (failure === 'provider-disabled') return { error: { code: 'email_provider_disabled', status: 422, message: 'Email logins are disabled' } };
-      session = recovered;
+      session = account;
       if (!recoveryClient) shared.session = session;
       onChange('SIGNED_IN', session);
       return { data: { session }, error: null };
@@ -57,7 +62,7 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
     },
     async verifyOtp(options) {
       records.push(['verifyOtp', options]);
-      session = recovered;
+      session = account;
       if (!recoveryClient) shared.session = session;
       onChange('SIGNED_IN', session);
       return { data: { session }, error: null };
@@ -72,6 +77,17 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
   const context = createContext({
     URL, URLSearchParams, TextEncoder,
     fetch: async (url, options) => {
+      if (new URL(url).pathname === '/functions/v1/admin-pin') {
+        const payload = JSON.parse(options.body);
+        records.push(['adminPin', payload, options]);
+        const failed = failure === 'pin-status' || (payload.action !== 'status' && payload.pin !== '1234');
+        return {
+          ok: !failed, status: failed ? 400 : 200,
+          json: async () => failed ? { error: failure === 'pin-status' ? 'PIN verification is unavailable.' : 'Wrong PIN. Try again.' }
+            : payload.action === 'status' ? { has_pin: hasPin }
+            : failure === 'pin-malformed' ? {} : { ok: true },
+        };
+      }
       if (new URL(url).pathname === '/rest/v1/users') {
         records.push(['profile', url, options]);
         return { ok: failure !== 'profile', json: async () => [{ student_id: profileId }] };
@@ -87,7 +103,7 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
           : failure === 'student-rate' ? { error: 'Too many requests. Please wait before trying again.', code: 'rate_limited' }
           : failure === 'student-endpoint' ? { message: 'Function not found' }
           : failure === 'malformed' ? {}
-          : payload.action === 'sign-in' ? { session: recovered } : { message: 'Request sent.' },
+          : payload.action === 'sign-in' ? { session: account } : { message: 'Request sent.' },
       };
     },
     sessionStorage,
@@ -293,6 +309,101 @@ test('legacy usernames are rejected instead of silently guessing a mailbox', asy
   const { auth, records } = await loadAuth();
   await assert.rejects(auth.signIn('j.reyes', 'Password12'), /student ID.*not a username/);
   assert.equal(records.length, 0);
+});
+
+test('administrator email/password requires server PIN verification and never sends an OTP', async () => {
+  const { auth, records, storage } = await loadAuth({ account: administrator });
+  const next = await auth.signIn('ADMIN@saac.ph', 'Password12');
+  assert.equal(next.step, 'pin');
+  assert.equal(next.email, 'admin@saac.ph');
+  assert.equal(next.needsSetup, false);
+  assert.equal(auth.isSignedIn(), false);
+  assert.equal(await auth.currentAccessToken(), null);
+  assert.equal(records.some(([method]) => ['signInWithOtp', 'profile'].includes(method)), false);
+  const status = records.find(([method]) => method === 'adminPin');
+  assert.equal(status[1].action, 'status');
+  assert.equal(status[2].headers.Authorization, 'Bearer recovery-access');
+  await auth.verifyPin('1234');
+  assert.equal(auth.isSignedIn(), true);
+  assert.equal(auth.isAdmin(), true);
+  assert.equal(storage.get('osas.pin.ok'), administrator.user.id);
+  assert.deepEqual(records.filter(([method]) => method === 'adminPin').map(([, payload]) => payload.action), ['status', 'verify']);
+  assert.equal(records.some(([method]) => method === 'signInWithOtp'), false);
+});
+
+test('an administrator without a PIN uses the setup endpoint before dashboard access', async () => {
+  const { auth, records } = await loadAuth({ account: administrator, hasPin: false });
+  const next = await auth.signIn('admin@saac.ph', 'Password12');
+  assert.equal(next.needsSetup, true);
+  assert.equal(auth.isSignedIn(), false);
+  await auth.verifyPin('1234');
+  assert.equal(auth.isAdmin(), true);
+  assert.equal(records.findLast(([method]) => method === 'adminPin')[1].action, 'setup');
+  assert.equal(records.some(([method]) => method === 'signInWithOtp'), false);
+});
+
+test('wrong, incomplete or malformed PIN responses retain the gate and permit retry', async () => {
+  const { auth, records } = await loadAuth({ account: administrator });
+  await auth.signIn('admin@saac.ph', 'Password12');
+  await assert.rejects(auth.verifyPin('12'), /complete 4-digit PIN/);
+  assert.equal(records.filter(([method]) => method === 'adminPin').length, 1);
+  await assert.rejects(auth.verifyPin('0000'), /Wrong PIN/);
+  assert.equal(auth.isSignedIn(), false);
+  assert.equal(await auth.currentAccessToken(), null);
+  await auth.verifyPin('1234');
+  assert.equal(auth.isAdmin(), true);
+  const malformed = await loadAuth({ account: administrator, failure: 'pin-malformed' });
+  await malformed.auth.signIn('admin@saac.ph', 'Password12');
+  await assert.rejects(malformed.auth.verifyPin('1234'), /PIN verification failed/);
+  assert.equal(malformed.auth.isSignedIn(), false);
+});
+
+test('cancelling a pending PIN signs out locally and discards the password session', async () => {
+  const { auth, records, shared, storage } = await loadAuth({ account: administrator });
+  await auth.signIn('admin@saac.ph', 'Password12');
+  await auth.cancelPin();
+  assert.equal(auth.isSignedIn(), false);
+  assert.equal(shared.session, null);
+  assert.equal(storage.has('osas.pin.ok'), false);
+  assert.equal(records.findLast(([method]) => method === 'signOut')[1].scope, 'local');
+  await assert.rejects(auth.verifyPin('1234'), /sign-in expired/);
+});
+
+test('an unavailable PIN service cannot leave an authenticated password session', async () => {
+  const { auth, shared, records } = await loadAuth({ account: administrator, failure: 'pin-status' });
+  await assert.rejects(auth.signIn('admin@saac.ph', 'Password12'), /PIN verification is unavailable/);
+  assert.equal(auth.isSignedIn(), false);
+  assert.equal(shared.session, null);
+  assert.equal(records.some(([method]) => method === 'signInWithOtp'), false);
+});
+
+test('administrator student IDs are rejected with an email instruction and no OTP', async () => {
+  const { auth, records, shared } = await loadAuth({ account: administrator });
+  await assert.rejects(auth.signIn('s260000001', 'Password12'), /Administrators sign in using their email address/);
+  assert.equal(auth.isSignedIn(), false);
+  assert.equal(shared.session, null);
+  assert.equal(records.some(([method]) => ['adminPin', 'signInWithOtp'].includes(method)), false);
+});
+
+test('reloading during the PIN step cannot restore password-only administrator access', async () => {
+  const shared = { session: null };
+  const first = await loadAuth({ account: administrator, shared });
+  await first.auth.signIn('admin@saac.ph', 'Password12');
+  assert.equal(shared.session.user.app_metadata.role, 'admin');
+  const reload = await loadAuth({ account: administrator, shared });
+  await reload.auth.restore();
+  assert.equal(reload.auth.isSignedIn(), false);
+  assert.equal(shared.session, null);
+  assert.equal(reload.records.some(([method]) => method === 'profile'), false);
+});
+
+test('a completed PIN marker permits same-tab restore and normal sign-out removes it', async () => {
+  const { auth, storage } = await loadAuth({ account: administrator, stored: administrator, pinMarker: administrator.user.id });
+  await auth.restore();
+  assert.equal(auth.isAdmin(), true);
+  await auth.signOut();
+  assert.equal(storage.has('osas.pin.ok'), false);
+  assert.equal(auth.isSignedIn(), false);
 });
 
 

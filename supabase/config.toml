@@ -403,3 +403,6 @@ verify_jwt = false
 
 [functions.student-auth]
 verify_jwt = false
+
+[functions.admin-pin]
+verify_jwt = true

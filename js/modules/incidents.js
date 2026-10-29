@@ -1,6 +1,6 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal,
+  toast, openModal,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin, currentUser, subscribeIncidentChanges } from '../auth.js';
@@ -8,9 +8,6 @@ import { incidentLabels } from '../labels.js';
 import { loadTable } from './table-loader.js';
 import { startDashboardUpdates } from '../live-dashboard.js';
 import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
-
-export const INCIDENT_TYPES = ['medical', 'slips/falls', 'fire-related', 'security', 'equipment failure'];
-export const SEVERITIES = ['low', 'medium', 'high'];
 
 const CONTACT_FIELDS = [
   { key: 'name', label: 'Contact person / organization', required: true, maxLength: 255 },
@@ -172,27 +169,36 @@ function contactForm(el) {
 }
 
 const incidentSubscriptions = new WeakMap();
+
+function reportDateTime(record) {
+  const reportedAt = record.created_at ? new Date(record.created_at) : null;
+  const validTimestamp = reportedAt && !Number.isNaN(reportedAt.getTime());
+  const date = validTimestamp
+    ? reportedAt.toLocaleDateString('en-US', { timeZone: 'Asia/Manila', year: 'numeric', month: 'short', day: 'numeric' })
+    : formatDate(record.date);
+  const time = validTimestamp
+    ? reportedAt.toLocaleTimeString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })
+    : record.time;
+  return h('span', { class: 'whitespace-nowrap' },
+    h('span', { class: 'font-semibold text-gray-900' }, date),
+    time ? h('span', { class: 'text-gray-400' }, ` · ${time}`) : null);
+}
+
 export async function incidentLogging(el) {
   incidentSubscriptions.get(el)?.();
   const admin = isAdmin();
   const L = incidentLabels(isAdmin());
   const columns = [
-    { key: 'date', label: 'Date / Time', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
-    { key: 'type', label: 'Type', render: (r) => pill(r.type || 'To review') },
-    { key: 'location', label: 'Location', render: (r) => r.location || 'Not recorded' },
-    { key: 'description', label: 'Description', render: (r) => h('span', { class: 'block w-72 max-w-[22rem] text-gray-600 leading-snug' }, r.description) },
+    { key: 'date', label: 'Date / Time', render: reportDateTime },
     { key: 'reporter', label: 'Reporter' },
-    { key: 'severity', label: 'Severity', render: (r) => pill(r.severity || 'To review') },
+    { key: 'description', label: 'Description', render: (r) => h('span', { class: 'block w-72 max-w-[22rem] text-gray-600 leading-snug' }, r.description) },
     { key: 'status', label: 'Status', render: (r) => h('span', { 'data-incident-status': r.id }, pill(r.status)) },
-    ...(admin ? [{ key: 'actions', label: 'Actions', render: (r) => h('button', {
+    ...(admin ? [{ key: 'actions', label: 'Action', render: (r) => h('button', {
       type: 'button', class: 'btn-ghost text-xs',
       'aria-label': (r.status === 'resolved' ? 'Reopen incident: ' : 'Resolve incident: ') + r.description,
       onclick: () => recordForm({ title: 'Update incident status', table: 'incidents', record: { ...r, status: r.status === 'resolved' ? 'open' : 'resolved' },
         fields: [
           { key: 'status', label: 'Status', type: 'select', required: true, options: [{ value: 'open', label: 'Open' }, { value: 'resolved', label: 'Resolved' }] },
-          { key: 'type', label: 'Type', type: 'select', options: [{ value: '', label: 'To review' }, ...INCIDENT_TYPES.map((value) => ({ value, label: capitalize(value) }))] },
-          { key: 'severity', label: 'Severity', type: 'select', options: [{ value: '', label: 'To review' }, ...SEVERITIES.map((value) => ({ value, label: capitalize(value) }))] },
-          { key: 'location', label: 'Location', maxLength: 255 },
         ],
         onSaved: () => incidentLogging(el),
       }),
@@ -204,8 +210,8 @@ export async function incidentLogging(el) {
     title: L.nav,
     subtitle: L.subtitle,
     actionLabel: admin ? null : L.action,
-    searchKeys: ['type', 'location', 'description', 'reporter', 'status'],
-    searchPlaceholder: 'Search by type, location, or reporter…',
+    searchKeys: ['reporter', 'description', 'status'],
+    searchPlaceholder: 'Search by reporter, description, or status…',
     empty: { title: L.emptyTitle, text: L.emptyText },
     onAction: () => incidentForm(el),
   });
@@ -274,8 +280,6 @@ function incidentForm(el) {
     btn.textContent = 'Saving…';
     try {
       await api.insertRow('incidents', {
-        date: new Date().toISOString().slice(0, 10),
-        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
         description: f.description.trim(), reporter, status: 'open',
       });
       toast(L.saved());

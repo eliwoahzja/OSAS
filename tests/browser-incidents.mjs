@@ -14,19 +14,20 @@ const browser = await chromium.launch({
 });
 const ownId = '11111111-1111-4111-8111-111111111111';
 const otherId = '22222222-2222-4222-8222-222222222222';
-const incident = (id, reporterId, description) => ({
+const incident = (id, reporterId, description, createdAt = '2026-10-29T16:30:00Z') => ({
   id, submitted_by: reporterId, reporter: reporterId === ownId ? 'Student One' : 'Student Two',
   description, date: '2026-10-29', time: '10:30 AM', status: 'open',
-  type: null, severity: null, location: null,
+  type: null, severity: null, location: null, created_at: createdAt,
 });
 
 async function scenario(role, empty = false) {
-  const context = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  const context = await browser.newContext({ viewport: { width: 1200, height: 900 }, timezoneId: 'America/Los_Angeles' });
   const page = await context.newPage();
   const errors = [];
   const requests = [];
   const posts = [];
-  let rows = empty ? [] : [incident('own-report', ownId, 'My original report'), incident('other-report', otherId, 'Private report from someone else')];
+  const patches = [];
+  let rows = empty ? [] : [incident('own-report', ownId, 'My original report'), incident('other-report', otherId, 'Private report from someone else', null)];
   let rejectSave = false;
   page.on('pageerror', (error) => errors.push(error.message));
   await page.route('**/*', async (route) => {
@@ -60,6 +61,15 @@ async function scenario(role, empty = false) {
         rows.unshift(created);
         return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify([created]) });
       }
+      if (request.method() === 'PATCH') {
+        const payload = request.postDataJSON();
+        patches.push(payload);
+        const id = url.searchParams.get('id')?.replace(/^eq\./, '');
+        const existing = rows.find((row) => row.id === id);
+        assert.ok(existing, 'The status action must target an existing report');
+        Object.assign(existing, payload);
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify([existing]) });
+      }
       assert.equal(request.method(), 'GET');
       // Return every row deliberately: the real API adapter must still hide other owners.
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify(rows) });
@@ -69,7 +79,7 @@ async function scenario(role, empty = false) {
   });
   await page.goto(`${origin}/__incident_test`);
   await page.getByRole('heading', { name: role === 'admin' ? 'Incident Logging' : 'Report Incident', exact: true }).waitFor();
-  return { page, context, requests, posts, errors, failSave: () => { rejectSave = true; } };
+  return { page, context, requests, posts, patches, errors, failSave: () => { rejectSave = true; } };
 }
 
 try {
@@ -77,6 +87,9 @@ try {
   await client.page.getByRole('heading', { name: 'Report Incident', exact: true }).waitFor();
   assert.equal(await client.page.getByText('My original report', { exact: true }).count(), 1);
   assert.equal(await client.page.getByText('Private report from someone else', { exact: true }).count(), 0);
+  assert.deepEqual(await client.page.locator('table thead th').allTextContents(), ['Date / Time', 'Reporter', 'Description', 'Status']);
+  await client.page.getByText('Oct 30, 2026', { exact: true }).waitFor();
+  await client.page.getByText('· 12:30 AM', { exact: true }).waitFor();
   assert.equal(client.requests[0].query.get('submitted_by'), `eq.${ownId}`);
   assert.equal(client.requests[0].headers.authorization, 'Bearer test-access-token');
   await client.page.getByRole('button', { name: 'Report Incident', exact: true }).click();
@@ -98,17 +111,30 @@ try {
   assert.equal(client.posts[0].description, 'A blocked exit needs attention.');
   assert.equal(client.posts[0].reporter, 'Student One');
   assert.equal(client.posts[0].submitted_by, ownId);
-  for (const key of ['type', 'severity', 'location', 'student_id', 'notify_parent']) assert.equal(key in client.posts[0], false);
+  for (const key of ['type', 'severity', 'location', 'student_id', 'notify_parent', 'date', 'time', 'created_at']) assert.equal(key in client.posts[0], false);
   assert.equal(await client.page.getByText('Private report from someone else', { exact: true }).count(), 0);
-  assert.equal(await client.page.getByText('To review', { exact: true }).count(), 4);
+  assert.equal(await client.page.getByText('To review', { exact: true }).count(), 0);
   assert.deepEqual(client.errors, []);
   await client.context.close();
 
   const admin = await scenario('admin');
   await admin.page.getByRole('heading', { name: 'Incident Logging', exact: true }).waitFor();
   await admin.page.getByText('Private report from someone else', { exact: true }).waitFor();
+  assert.deepEqual(await admin.page.locator('table thead th').allTextContents(), ['Date / Time', 'Reporter', 'Description', 'Status', 'Action']);
+  await admin.page.getByText('Oct 29, 2026', { exact: true }).waitFor();
+  await admin.page.getByText('· 10:30 AM', { exact: true }).waitFor();
   assert.equal(await admin.page.getByRole('button', { name: 'Report Incident', exact: true }).count(), 0);
   assert.equal(admin.requests[0].query.has('submitted_by'), false);
+  await admin.page.getByRole('button', { name: 'Resolve incident: My original report', exact: true }).click();
+  const statusModal = admin.page.locator('.osas-modal-card');
+  await statusModal.getByRole('heading', { name: 'Update incident status', exact: true }).waitFor();
+  assert.deepEqual(await statusModal.locator('label').allTextContents(), ['Status']);
+  assert.equal(await statusModal.locator('input,textarea').count(), 0);
+  await statusModal.getByLabel('Status', { exact: true }).selectOption('resolved');
+  await statusModal.getByRole('button', { name: 'Save changes', exact: true }).click();
+  await admin.page.getByRole('button', { name: 'Reopen incident: My original report', exact: true }).waitFor();
+  assert.deepEqual(admin.patches, [{ status: 'resolved' }]);
+  await admin.page.getByText('Oct 30, 2026', { exact: true }).waitFor();
   assert.deepEqual(admin.errors, []);
   await admin.context.close();
 
@@ -130,7 +156,7 @@ try {
   }
   assert.deepEqual(empty.errors, []);
   await empty.context.close();
-  console.log('Browser incidents OK: client privacy, admin visibility, two-field form, immutable reporter, save/reload, empty state, failed save retry. All backend traffic intercepted.');
+  console.log('Browser incidents OK: exact column order, Manila report timestamps, legacy timestamp fallback, status-only admin action, client privacy, two-field form, immutable reporter, server-owned timestamps, save/reload, empty state, failed save retry. All backend traffic intercepted.');
 } finally {
   await browser.close();
 }

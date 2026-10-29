@@ -10,7 +10,7 @@ A web dashboard for logging campus incidents, scheduling drills, tracking safety
 
 | Module | What is implemented |
 |---|---|
-| **Incident logging** | Students submit a description with their account-filled, read-only reporter name and see only their own reports. Administrators review all reports, classify incidents, and update their status. |
+| **Incident logging** | Students submit a description with their account-filled, read-only reporter name and see only their own reports. Administrators review all reports and update their status. The columns are Date / Time, Reporter, Description, Status, Action. |
 | **Drill scheduling** | Fire, earthquake, lockdown and evacuation drills. Optional event notice emailed to an audience (all parents, or a grade). |
 | **Evacuation plans** | Floor-plan upload to Supabase Storage with exits, routes, assembly point and version. |
 | **Safety inspections** | Checklist per area. An item whose last check is older than its frequency is shown as **overdue** automatically. |
@@ -63,26 +63,26 @@ supabase/functions/send-notification/   email Edge Function
 
 ## Login, OTP and accounts
 
-Sign-in is two steps: **email + password**, then a **one-time code emailed to the user**. The session only exists after the code is verified.
+Students sign in with their **student ID (or saved email) and password**, then enter the emailed verification code. Administrators sign in with **email and password**, then enter their four-digit PIN. Admin student IDs remain account identifiers and are not used for sign-in. At first admin sign-in, choose and confirm a PIN; there is no shared default PIN.
 
 **Two account types**
 
 | | Administrator | Student |
 |---|---|---|
 | Dashboard, Emergency Contacts, Drill Scheduling, Evacuation Plans, Incident Logging, Safety Inspections, Parent Notifications, First Aid Supplies | yes | yes |
-| Risk Assessment, Safety Reports, Emergency Roles, **Accounts** (create/delete users) | yes | no |
+| Risk Assessment, Safety Reports, **Accounts** (create/delete users) | yes | no |
 
 Admin tabs sit under their own *Administrator* heading in the sidebar and are not shown (or reachable) for students. The stored role value stays `client` (Supabase `app_metadata.role` and `users.role`); the UI maps it to the label **Student** through `js/labels.js`. In the Student workspace the incident page is worded *Report Incident* / *Save Report*, and the two supply charts on the dashboard are administrators-only.
 
 **One-time setup**
 
-1. Run `supabase/lock_down.sql` in the SQL editor (removes the old no-login access), then make your first admin with the `UPDATE auth.users …` snippet at the bottom of that file.
+1. Apply missing files in `supabase/migrations/` in order. For a first administrator, use the trusted `app_metadata.role` setup in the Setup section. Do not rerun legacy blanket-access scripts on an upgraded database.
 2. Supabase → *Authentication → Email Templates → **Magic Link***: the OTP email uses this template. Make sure it shows the code, e.g. `Your SAAC OSAS verification code is {{ .Token }}`.
 3. Supabase → *Authentication → Providers → Email*: keep **Enable sign ups** off (accounts are created by admins) and set the **hosted project's** OTP length to 6 if six-digit codes are required. The frontend also accepts complete 6–10-digit email OTPs so an eight-digit code from an existing hosted setting is not silently truncated. **`supabase/config.toml` configures local development, not a hosted Supabase project automatically.**
 4. Supabase's built-in mailer is limited to a few emails per hour. For real use, set **custom SMTP** (*Authentication → SMTP Settings*), e.g. your Maileroo SMTP credentials.
 5. Deploy the account function: `supabase functions deploy manage-accounts` (uses the project's service-role key server-side; only a signed-in admin can call it).
 
-**Known limit:** the OTP step is enforced by the app. A person who already knows a password could still call Supabase's API directly and skip the code. Fully enforcing 2-step on the server needs Supabase MFA (AAL2) or a custom auth hook.
+**Known limit:** the app controls when its dashboard opens after OTP or PIN verification. PIN comparison and lockout are server-side, but these application steps do not establish Supabase MFA AAL2; direct Auth API access still follows the project’s password/session policy. Strict database enforcement of a second factor requires native Supabase MFA or a custom Auth hook.
 
 ## Security and privacy
 
@@ -113,7 +113,7 @@ First Aid Supplies shows item descriptions / pack sizes, category, quantity, sto
 
 Safety Inspections includes frequency, last inspection, next due date, risk, inspector and record actions. Filters cover status, area, frequency and a due-date range. The sidebar opens upcoming inspection details, a month calendar, CSV export and a printable report for saving as PDF. Checkboxes select inspections across pages. Exports use the selection when present, or the current search and filters. Recent Activity reads saved insert, update and delete events from the audit log. Due Soon means a check falls within the next seven days, including today. Failed checks retain their failed status. Frequency intervals preserve the existing day-based schedule. Editing a computed status retains the stored inspection result until the administrator changes it.
 
-Emergency Roles links staff responsibilities to existing building and floor evacuation plans, filters assignments by floor plan, opens the linked map, and rejects duplicate responsibilities for the same floor and zone. Internal identifiers stay available for database relations but do not appear in table columns or detail fields.
+Emergency Roles has been removed from navigation, routing, and rendering. Existing stored assignments remain intact. Old links to the removed tab return to Dashboard.
 
 Run `npm test` for status and date-boundary regression tests, and `npm run build` for JavaScript syntax checks and static output.
 
@@ -131,7 +131,7 @@ Student accounts are provided during enrollment. The sign-in page has no registr
 
 ### Automatically generated student IDs
 
-Every account, including administrators and legacy accounts, has a unique `student_id` in `public.users`, automatically generated when its Auth account is created. The format is `s` + two-digit issuance year + seven-digit sequence, for example **s260000001**. This is an OSAS login ID, not an official enrollment number. A database sequence and unique constraint prevent collisions and ID reuse; gaps are normal after rolled-back transactions. IDs are read-only and remain unchanged when names, emails, passwords, or roles change. Administrators and students can sign in with their ID or saved email address. The ID appears in Accounts, My Profile, and the signed-in sidebar.
+Every account, including administrators and legacy accounts, has a unique `student_id` in `public.users`, automatically generated when its Auth account is created. The format is `s` + two-digit issuance year + seven-digit sequence, for example **s260000001**. This is an OSAS login ID, not an official enrollment number. A database sequence and unique constraint prevent collisions and ID reuse; gaps are normal after rolled-back transactions. IDs are read-only and remain unchanged when names, emails, passwords, or roles change. Students can sign in with their ID or saved email address; administrators use email and their password/PIN flow. The ID appears in Accounts, My Profile, and the signed-in sidebar.
 
 Migration `20261029110000_student_login_ids.sql` introduced student IDs. The additive `20261029133532_all_account_student_ids.sql` migration repairs missing profiles and assigns IDs to every existing account, including administrators and accounts with legacy or unset roles, without changing Auth UUIDs, emails, passwords, roles, or record ownership. Previously issued IDs are preserved. Registration and administrator create forms do not accept a chosen ID or username. The generated ID is displayed in Accounts and returned after creation. Approved registration completion displays and emails the ID to the registered inbox; email-delivery failure does not undo the account or hide its on-screen ID. Legacy username columns/migrations are retained as historical data but usernames are no longer used for login.
 
@@ -162,7 +162,7 @@ Signed-out visitors now start on a public safety brochure with earthquake, fire,
 
 `tropanggala87@gmail.com` uses its existing account and password with Administrator access and email-code sign-in. The active school nurse contact already uses that address for stock alerts. Other admin accounts remain available. Public registration has been removed from the UI and auth module; administrators create student accounts through Accounts. Local Supabase config disables signup. The applied `20261028220637_managed_account_creation_guard.sql` blocks unprovisioned account inserts on the hosted project. Admin-created accounts include trusted app metadata and pass the guard.
 
-Parent Notifications is admin-only in navigation, its module, the send function, and the hosted read policy (`20261028212100_admin_notification_privacy.sql`). Emergency Roles keeps its existing assignments and maps with the shorter heading. Risk Assessment includes an editable ten-point earthquake prevention example, requires prevention measures on new assessments, and links to PHIVOLCS guidance. Existing risks are retained.
+Parent Notifications is admin-only in navigation, its module, the send function, and the hosted read policy (`20261028212100_admin_notification_privacy.sql`). Risk Assessment includes an editable ten-point earthquake prevention example, requires prevention measures on new assessments, and links to PHIVOLCS guidance. Existing risks are retained.
 
 The incident charts use every page of live incident rows, refresh on Realtime events, local writes and focus, and retain 15-second polling. Student dashboards do not fetch admin-only inspection/drill/stock tables. The yearly chart supports zero or one year of records. Demo data remains separate from live API data.
 
@@ -191,3 +191,9 @@ For rollout, deploy this frontend and configure Supabase Auth SMTP, the Reset Pa
 Supabase Authentication → Sign In / Providers → **Email** must be enabled for password and email-code sign-in, while **Allow new users to sign up** stays disabled. If the Email provider is off, both email and student-ID logins fail regardless of the password. The app now reports this configuration problem instead of saying the password is incorrect. Provider rate limits retain their retry message.
 
 IDs resolve privately to the saved verification email; there is no public ID-to-email directory. After OTP verification or session restore, each account loads only its own ID from the protected profile table. A profile-loading failure does not block a valid login. Accounts fetches IDs in batches so larger directories retain every account's ID.
+
+### Administrator PINs and incident reporting
+
+Deploy the additive administrator PIN and automatic incident timestamp migrations before the frontend, and deploy `supabase/functions/admin-pin` with JWT verification enabled. The endpoint validates a current admin role and password-authenticated session. Each admin chooses their own four-digit PIN on first use; PINs are bcrypt hashes in a private service-only table. Five failed attempts lock PIN verification for 15 minutes. PINs and hashes are never shipped in `js/config.js`, and students retain their email-code sign-in flow.
+
+Reports receive a server timestamp and Philippine date/time automatically when submitted. Clients cannot override that timestamp, and admin status changes preserve it. Historical incidents keep their original stored values. Incident Logging shows Date / Time, Reporter, Description, Status, Action; students see only their own reports and admins see all reports, including unassigned legacy records. The simplified report form contains only the account-filled reporter and description.
