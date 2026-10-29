@@ -10,6 +10,7 @@ window.OSAS = Object.assign({
   SMTP_FROM: getConfig('SMTP_FROM', ''),
   ADMIN_EMAIL: getConfig('ADMIN_EMAIL', 'tropanggala87@gmail.com'),
   PIN_ACCOUNTS: getConfig('PIN_ACCOUNTS', {}),
+  EMAIL_DOMAIN: getConfig('EMAIL_DOMAIN', 'saac.edu.ph'),
 }, window.OSAS || {});
 
 window.OSAS.toggleSidebar = () => {

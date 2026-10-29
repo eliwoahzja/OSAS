@@ -362,7 +362,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const notice = h('p', { class: 'lg-notice' + (noticeText ? '' : ' lg-hidden'), role: 'status' }, noticeText);
 
     const email = h('input', {
-      type: 'email', class: 'lg-input', placeholder: 'you@saac.edu.ph',
+      type: 'text', class: 'lg-input', placeholder: 'j.reyes or you@saac.edu.ph',
       autocomplete: 'username', required: true, value: prefillEmail,
     });
     const password = h('input', {
@@ -376,11 +376,20 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       onsubmit: async (e) => {
         e.preventDefault();
         err.clear();
+        let addr = '';
+        try {
+          // A bare username resolves to its school mailbox, so every emailed
+          // code still goes to the account's email address.
+          addr = auth.accountAddress(email.value);
+        } catch (bad) {
+          err.show(bad.message || 'Enter your username or school email.');
+          return;
+        }
         submit.disabled = true;
         submit.classList.add('is-loading');
         submit.textContent = 'Checking…';
         try {
-          const r = await auth.signIn(email.value, password.value);
+          const r = await auth.signIn(addr, password.value);
           if (r.step === 'pin') {
             stepTo(() => renderPin(r.email));
           } else if (r.step === 'signed-in') {
@@ -391,11 +400,11 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
           }
         } catch (ex) {
           if (ex.unconfirmed) {
-            const addr = email.value.trim().toLowerCase();
-            if (readCooldown('signup', addr).until <= Date.now()) {
-              try { await auth.resendSignup(addr); armCooldown('signup', addr); } catch {}
+            const contact = addr || email.value.trim().toLowerCase();
+            if (readCooldown('signup', contact).until <= Date.now()) {
+              try { await auth.resendSignup(contact); armCooldown('signup', contact); } catch {}
             }
-            openVerifyModal(addr);
+            openVerifyModal(contact);
           } else {
             err.show(ex.message || 'Sign-in failed.');
           }
@@ -408,10 +417,10 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('p', { class: 'lg-eyebrow' }, 'Secure entry'),
       h('h2', { class: 'lg-title' }, 'Welcome Back'),
       h('p', { class: 'lg-lead' }, 'Sign in to access the St. Agnes Academy OSAS Dashboard.'),
-      field({ label: 'Email', icon: 'user', input: email }),
+      field({ label: 'Username or email', icon: 'user', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderForgotPassword(email.value)) }, 'Forgot password?'),
-      h('p', { class: 'lg-hint' }, 'Student accounts are provided during enrollment. Sign in with your assigned account.'),
+      h('p', { class: 'lg-hint' }, 'Student accounts are provided during enrollment. Sign in with the username or email assigned to you.'),
       notice,
       err.el,
       submit,
@@ -427,8 +436,8 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const err = mkErr();
     if (errorText) err.show(errorText, { quiet: true });
     const email = h('input', {
-      type: 'email', class: 'lg-input', placeholder: 'you@saac.edu.ph',
-      autocomplete: 'email', required: true, value: prefillEmail,
+      type: 'text', class: 'lg-input', placeholder: 'j.reyes or you@saac.edu.ph',
+      autocomplete: 'username', required: true, value: prefillEmail,
     });
     const notice = h('p', { class: 'lg-notice lg-hidden', role: 'status' });
     const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Send Reset Link');
@@ -437,14 +446,16 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       onsubmit: async (e) => {
         e.preventDefault();
         err.clear();
-        const addr = email.value.trim().toLowerCase();
-        const wait = Math.ceil((readCooldown('recovery', addr).until - Date.now()) / 1000);
+        let contact = '';
+        try { contact = auth.accountAddress(email.value); }
+        catch (bad) { err.show(bad.message || 'Enter your username or school email.'); email.focus(); return; }
+        const wait = Math.ceil((readCooldown('recovery', contact).until - Date.now()) / 1000);
         if (wait > 0) { err.show(`Please wait ${fmt(wait)} before requesting another link.`); return; }
         submit.disabled = true;
         submit.textContent = 'Sending…';
         try {
-          await auth.requestPasswordReset(addr);
-          armCooldown('recovery', addr);
+          await auth.requestPasswordReset(contact);
+          armCooldown('recovery', contact);
           notice.textContent = 'If this email has an account, a password reset link has been sent. Check your inbox and spam folder.';
           notice.classList.remove('lg-hidden');
         } catch (error) {
@@ -457,8 +468,8 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     },
       h('p', { class: 'lg-eyebrow' }, 'Account recovery'),
       h('h2', { class: 'lg-title' }, 'Forgot Password'),
-      h('p', { class: 'lg-lead' }, 'Enter your account email. Follow the link in your inbox to choose a new password.'),
-      field({ label: 'Email', icon: 'envelope', input: email }),
+      h('p', { class: 'lg-lead' }, 'Enter your username or school email. The reset link goes to that account\u2019s mailbox, where you choose a new password.'),
+      field({ label: 'Username or email', icon: 'envelope', input: email }),
       notice,
       err.el,
       submit,

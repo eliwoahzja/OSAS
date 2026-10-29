@@ -662,8 +662,9 @@ export async function riskAssessment(el) {
       h('h3', { class: 'font-bold text-gray-900' }, 'Prevention / Security Controls'),
       h('ol', { class: 'list-decimal pl-5 space-y-2' }, EARTHQUAKE_PREVENTION.map((text) => h('li', {}, text))),
       h('p', {}, 'For a Critical risk, isolate the unsafe area, keep students out, notify school leadership, and obtain professional clearance before reopening.'),
-      h('a', { href: 'https://www.phivolcs.dost.gov.ph/earthquake-preparedness/', target: '_blank', rel: 'noopener noreferrer', class: 'text-pink-600 underline' }, 'PHIVOLCS earthquake preparedness resources'),
-      h('button', { type: 'button', class: 'btn-primary', onclick: () => riskForm(el, { hazard: EARTHQUAKE_HAZARD, mitigation: earthquakePreventionPlan() }) }, 'Use this prevention plan')));
+      h('div', { class: 'flex flex-col items-start gap-3' },
+        h('a', { href: 'https://www.phivolcs.dost.gov.ph/earthquake-preparedness/', target: '_blank', rel: 'noopener noreferrer', class: 'text-pink-600 underline' }, 'PHIVOLCS earthquake preparedness resources'),
+        h('button', { type: 'button', class: 'btn-primary', onclick: () => riskForm(el, { hazard: EARTHQUAKE_HAZARD, mitigation: earthquakePreventionPlan() }) }, 'Use this prevention plan'))));
   const wrap = el.firstElementChild;
   wrap?.insertBefore(guide, wrap.children[1] || null);
   return rows;

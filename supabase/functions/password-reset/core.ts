@@ -3,6 +3,7 @@ import { accountEmail } from './email-template.ts';
 export const REQUEST_MESSAGE = 'Your details have been submitted for administrator review. If the request is eligible and approved, you will receive an email with a link to set your password.';
 export const PUBLIC_APP_URL = 'https://osas.stagnesacademy-sms.com/';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const TOKEN = /^[a-f0-9]{64}$/;
 export const escapeHtml = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -19,9 +20,21 @@ type Dependencies = {
   store: any;
   sendMail: (to: string[], subject: string, html: string) => Promise<void>;
   appUrl?: string;
+  emailDomain?: string;
   now?: () => number;
 };
-export function createResetHandler({ store, sendMail, appUrl = PUBLIC_APP_URL, now = Date.now }: Dependencies) {
+export function createResetHandler({ store, sendMail, appUrl = PUBLIC_APP_URL, emailDomain = 'saac.edu.ph', now = Date.now }: Dependencies) {
+  const domain = String(emailDomain || 'saac.edu.ph').toLowerCase();
+  // A bare username resolves to its school mailbox (j.reyes -> j.reyes@<domain>);
+  // a full email address is used as-is. Returns null for invalid input.
+  const resolveAccount = (raw: string): { email: string; username: string | null } | null => {
+    const value = String(raw ?? '').trim().toLowerCase();
+    if (!value) return null;
+    if (value.includes('@')) {
+      return value.length <= 254 && EMAIL.test(value) ? { email: value, username: null } : null;
+    }
+    return USERNAME.test(value) ? { email: `${value}@${domain}`, username: value } : null;
+  };
   const root = new URL(appUrl);
   if (root.protocol !== 'https:' && root.hostname !== 'localhost' && root.hostname !== '127.0.0.1') throw new Error('APP_URL must use HTTPS.');
   const link = (fragment: string) => { const u = new URL(root); u.hash = fragment; return u.href; };
@@ -39,12 +52,18 @@ export function createResetHandler({ store, sendMail, appUrl = PUBLIC_APP_URL, n
     if (!body || typeof body !== 'object' || Array.isArray(body)) return response({ error: 'Invalid request.' }, 400);
     try {
       if (body.action === 'request') {
-        const email = String(body.email || '').trim().toLowerCase();
+        const account = resolveAccount(body.email);
+        if (!account) return response({ error: 'Enter a valid username or email address.' }, 400);
+        const email = account.email;
         const name = String(body.name || '').trim();
         const kind = body.kind || 'reset';
         if (!['reset', 'registration'].includes(kind)) return response({ error: 'Invalid request type.' }, 400);
         if (name.length < 2 || name.length > 120) return response({ error: 'Enter your full name (2 to 120 characters).' }, 400);
-        if (email.length > 254 || !EMAIL.test(email)) return response({ error: 'Enter a valid email address.' }, 400);
+        // Usernames map to the account email, so an already-registered username
+        // is reported directly instead of the uniform public response.
+        if (kind === 'registration' && account.username && await store.emailExists(email)) {
+          return response({ error: 'Username is already taken.' }, 400);
+        }
         const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
         const id = await store.submit(email, await digest(`osas-reset-ip:${ip}`), name, kind);
         if (id) {

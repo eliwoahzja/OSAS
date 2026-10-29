@@ -4,15 +4,16 @@ import { createResetHandler, digest, REQUEST_MESSAGE } from '../supabase/functio
 
 const id = '11111111-1111-4111-8111-111111111111';
 const timestamp = Date.parse('2026-10-28T10:00:00Z');
-function setup(appUrl = 'https://school.example/') {
+function setup(appUrl = 'https://school.example/', { emailDomain } = {}) {
   const row = { id, user_id: 'owner', name: '<Student>', email: 'student@example.test', role: 'client', status: 'pending', requested_at: new Date(timestamp).toISOString(), account_created_at: '2026-01-01T00:00:00Z' };
   const sent = []; const writes = []; let now = timestamp; let failMail = false; let failPassword = false;
   const store = {
-    async submit(email) { return email === row.email && !this.submitted ? (this.submitted = true, id) : null; },
-    async get() { return { ...row }; },
+    existing: false,
+    async submit(email) { if (this.submitted) return null; this.submitted = true; this.email = email; return id; },
+    async get() { return { ...row, email: this.email || row.email }; },
     async list() { const { token_hash, ...visible } = row; return [visible]; },
     async actor(jwt) { return jwt === 'admin' ? { id: 'admin', app_metadata: { role: 'admin' } } : jwt === 'student' ? { id: 'owner', app_metadata: { role: 'client' }, user_metadata: { role: 'admin' } } : null; },
-    async emailExists() { return false; },
+    async emailExists() { return this.existing; },
     async createAccount(record, password) { writes.push({ user: 'new-student', password }); return { id: 'new-student' }; },
     async account() { return { id: 'owner', email: row.email }; },
     async adminEmails() { return ['admin@example.test', 'other-admin@example.test']; },
@@ -23,14 +24,14 @@ function setup(appUrl = 'https://school.example/') {
     },
     async updatePassword(user, password) { if (failPassword) throw new Error('Password does not meet the account policy.'); writes.push({ user, password }); },
   };
-  const handler = createResetHandler({ store, appUrl: appUrl ?? undefined, now: () => now, sendMail: async (...args) => { if (failMail) throw new Error('Provider failed'); sent.push(args); } });
+  const handler = createResetHandler({ store, appUrl: appUrl ?? undefined, emailDomain, now: () => now, sendMail: async (...args) => { if (failMail) throw new Error('Provider failed'); sent.push(args); } });
   const call = async (body, jwt = '') => {
     if (body.action === 'request' && body.name === undefined) body = { ...body, name: 'Sample Requester' };
     const res = await handler(new Request('https://functions.example/password-reset', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: jwt ? `Bearer ${jwt}` : '' }, body: JSON.stringify(body) }));
     return { status: res.status, data: await res.json() };
   };
   const approvedToken = () => /token=([a-f0-9]{64})/.exec(sent.at(-1)[2])[1];
-  return { row, sent, writes, call, approvedToken, setNow(v) { now = v; }, failMail(v) { failMail = v; }, failPassword(v) { failPassword = v; } };
+  return { row, sent, writes, call, approvedToken, setNow(v) { now = v; }, failMail(v) { failMail = v; }, failPassword(v) { failPassword = v; }, storeExisting(v) { store.existing = v; } };
 }
 
 test('requests email administrators with escaped account details and uniform public responses', async () => {
@@ -43,6 +44,21 @@ test('requests email administrators with escaped account details and uniform pub
   assert.deepEqual(s.sent[0][0], ['admin@example.test', 'other-admin@example.test']);
   assert.match(s.sent[0][2], /&lt;Student&gt;/); assert.match(s.sent[0][2], /student@example.test/);
   assert.match(s.sent[0][2], /#\/accounts/); assert.equal(s.writes.length, 0);
+});
+test('username registration maps to the school mailbox and rejects taken usernames', async () => {
+  const s = setup('https://school.example/', { emailDomain: 'example.test' });
+  const created = await s.call({ action: 'request', email: 'j.reyes', name: 'Juan Reyes', kind: 'registration' });
+  assert.equal(created.status, 200);
+  assert.equal(created.data.message, REQUEST_MESSAGE);
+  assert.equal(s.sent.length, 1);
+  assert.match(s.sent[0][2], /j\.reyes@example\.test/);
+
+  const taken = setup('https://school.example/', { emailDomain: 'example.test' });
+  taken.storeExisting(true);
+  const reject = await taken.call({ action: 'request', email: 'j.reyes', name: 'Juan Reyes', kind: 'registration' });
+  assert.equal(reject.status, 400);
+  assert.equal(reject.data.error, 'Username is already taken.');
+  assert.equal(taken.sent.length, 0);
 });
 test('admin endpoints reject anonymous users and user-editable administrator metadata', async () => {
   const s = setup();

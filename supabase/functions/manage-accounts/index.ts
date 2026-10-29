@@ -15,6 +15,21 @@ const json = (data: unknown, status = 200) =>
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_DOMAIN = (Deno.env.get('EMAIL_DOMAIN') || 'saac.edu.ph').toLowerCase();
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
+
+// A bare username maps to its school mailbox (j.reyes -> j.reyes@saac.edu.ph);
+// a full email address is used as-is. Usernames are unique because the account
+// email — and therefore the username local part — is unique in Supabase Auth.
+const resolveEmail = (raw: string): { email: string; username: string | null } | null => {
+  const value = String(raw || '').trim().toLowerCase();
+  if (!value) return null;
+  if (value.includes('@')) {
+    if (value.length <= 254 && EMAIL_RE.test(value)) return { email: value, username: null };
+    return null;
+  }
+  return USERNAME_RE.test(value) ? { email: `${value}@${EMAIL_DOMAIN}`, username: value } : null;
+};
 
 const roleOf = (u: any) => (u?.app_metadata?.role === 'admin' ? 'admin' : 'client');
 
@@ -34,6 +49,17 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON.' }, 400); }
 
+  const existingEmails = async () => {
+    const emails = new Set<string>();
+    for (let page = 1; ; page++) {
+      const { data, error } = await svc.auth.admin.listUsers({ page, perPage: 200 });
+      if (error) break;
+      for (const u of data?.users || []) if (u.email) emails.add(String(u.email).toLowerCase());
+      if ((data?.users || []).length < 200) break;
+    }
+    return emails;
+  };
+
   if (body.action === 'list') {
     const { data, error } = await svc.auth.admin.listUsers({ page: 1, perPage: 200 });
     if (error) return json({ error: error.message }, 500);
@@ -49,14 +75,21 @@ Deno.serve(async (req) => {
   }
 
   if (body.action === 'create') {
-    const email = String(body.email || '').trim().toLowerCase();
+    const resolved = resolveEmail(body.email);
+    if (!resolved) return json({ error: 'Enter a valid username or email address.' }, 400);
+    const email = resolved.email;
     const name = String(body.name || '').trim();
     const password = String(body.password || '');
     const role = body.role === 'admin' ? 'admin' : body.role === 'client' ? 'client' : '';
-    if (!EMAIL_RE.test(email)) return json({ error: 'Enter a valid email address.' }, 400);
     if (name.length < 2 || name.length > 120) return json({ error: 'Enter the person’s full name.' }, 400);
     if (password.length < 8) return json({ error: 'Password must be at least 8 characters.' }, 400);
     if (!role) return json({ error: 'Role must be admin or client.' }, 400);
+
+    // One username per account. The username is the email local part, so a
+    // taken username means the mapped email is already registered.
+    if ((await existingEmails()).has(email)) {
+      return json({ error: resolved.username ? 'Username is already taken.' : 'An account with that email already exists.' }, 400);
+    }
 
     const { data, error } = await svc.auth.admin.createUser({
       email,
@@ -67,7 +100,9 @@ Deno.serve(async (req) => {
     });
     if (error || !data?.user) {
       const msg = error?.message || 'Could not create the account.';
-      return json({ error: /already|registered|exists/i.test(msg) ? 'An account with that email already exists.' : msg }, 400);
+      return json({ error: /already|registered|exists/i.test(msg)
+        ? (resolved.username ? 'Username is already taken.' : 'An account with that email already exists.')
+        : msg }, 400);
     }
     await svc.from('users').upsert({
       id: data.user.id, role: role === 'admin' ? 'admin' : 'staff', full_name: name, email,

@@ -114,9 +114,8 @@ try {
   const email = await scenario();
   await email.page.goto(`${origin}/#/sign-in`);
   await email.page.getByRole('heading', { name: 'Welcome Back', exact: true }).waitFor();
-  await email.page.getByText('Student accounts are provided during enrollment. Sign in with your assigned account.', { exact: true }).waitFor();
   assert.equal(await email.page.getByText(/Contact admin|Create an account|Sign up/i).count(), 0);
-  await email.page.locator('input[type="email"]').fill('Student@Example.Test');
+  await email.page.locator('input[autocomplete="username"]').fill('Student@Example.Test');
   await email.page.getByRole('button', { name: 'Forgot password?', exact: true }).click();
   await email.page.getByRole('heading', { name: 'Forgot Password', exact: true }).waitFor();
   await email.page.getByRole('button', { name: 'Send Reset Link', exact: true }).click();
@@ -126,7 +125,7 @@ try {
   assert.equal(reset.body.email, 'student@example.test');
   assert.equal(reset.body.options.redirectTo, `${origin}/?recovery=1`);
   assert.equal(dashboardRequests(email.requests).length, 0);
-  await email.page.locator('input[type="email"]').fill('other@example.test');
+  await email.page.locator('input[autocomplete="username"]').fill('other@example.test');
   email.behavior.recoverError = 'Email delivery is unavailable in this test.';
   await email.page.getByRole('button', { name: 'Send Reset Link', exact: true }).click();
   await email.page.getByRole('alert').filter({ hasText: email.behavior.recoverError }).waitFor();

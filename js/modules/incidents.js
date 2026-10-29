@@ -72,7 +72,7 @@ export async function emergencyContacts(el) {
     { key: 'role', label: 'Emergency type', render: (r) => contactEmergencyType(r.role) },
     { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
     { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'Inactive' : 'Active') },
-    { key: 'actions', label: 'Actions', render: (r) => h('div', { class: 'flex flex-wrap gap-1 items-center' },
+    { key: 'actions', label: 'Actions', cls: 'text-right', render: (r) => h('div', { class: 'flex flex-wrap gap-2 items-center justify-end' },
       // Students always receive a read-only View action.
       rowActions(() => show(r), admin ? () => edit(r) : null),
       admin ? h('button', {

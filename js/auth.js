@@ -5,6 +5,27 @@ const validEmailOtp = (token) => /^\d+$/.test(token)
   && token.length >= EMAIL_OTP_MIN_LENGTH
   && token.length <= EMAIL_OTP_MAX_LENGTH;
 const emailOtpHint = `Enter the complete ${EMAIL_OTP_MIN_LENGTH}–${EMAIL_OTP_MAX_LENGTH}-digit code from your email.`;
+// School accounts are known by a username (j.reyes) that resolves to the
+// mailbox j.reyes@<school domain>. Entering either form sign-ins up the same
+// account, and every emailed code goes to that resolved mailbox.
+const SCHOOL_EMAIL_DOMAIN = String((window.OSAS && window.OSAS.EMAIL_DOMAIN) || 'saac.edu.ph').toLowerCase();
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const USERNAME_RE = /^[a-z0-9](?:[a-z0-9._-]{0,62}[a-z0-9])?$/;
+
+// Accepts "j.reyes" or "j.reyes@saac.edu.ph" and returns the account email
+// the username maps to. Throws a user-facing error for invalid input.
+export function accountAddress(input) {
+  const raw = String(input || '').trim().toLowerCase();
+  if (!raw) throw new Error('Enter your username or school email.');
+  if (raw.includes('@')) {
+    if (raw.length <= 254 && EMAIL_RE.test(raw)) return raw;
+    throw new Error('Enter your username or a valid school email address.');
+  }
+  if (!USERNAME_RE.test(raw)) {
+    throw new Error('Usernames can only use letters, numbers, dots, dashes, or underscores.');
+  }
+  return `${raw}@${SCHOOL_EMAIL_DOMAIN}`;
+}
 let client = null;
 let recoveryClient = null;
 let createSupabaseClient = null;
@@ -132,7 +153,6 @@ function friendly(err, fallback) {
   if (/invalid login credentials/i.test(m)) return 'Incorrect email or password.';
   if (/token has expired|invalid/i.test(m) && /token|otp|code/i.test(m)) return 'That code is incorrect or has expired. Request a new one.';
   if (/rate limit|too many|security purposes/i.test(m)) return 'Too many attempts. Please wait a minute before trying again.';
-  if (/signups not allowed|user not found/i.test(m)) return 'Use the email registered with your account. Student accounts are provided during enrollment.';
   return m || fallback;
 }
 
@@ -172,7 +192,7 @@ export function currentUser() {
 
 export async function signIn(email, password) {
   const c = await requireClient();
-  const addr = String(email || '').trim().toLowerCase();
+  const addr = accountAddress(email);
   checkingPassword = true;
   try {
     const { data: signed, error } = await c.auth.signInWithPassword({ email: addr, password });
@@ -261,7 +281,7 @@ function layerEmailError(error, fallback) {
     return 'Sign-in by email code is not set up yet. Ask an administrator to configure Supabase Auth email (Authentication → Email, SMTP or a working custom provider) and redeploy the project.';
   }
   if (/rate limit|too many/i.test(m)) return 'Too many code requests. Wait a minute before trying again.';
-  if (/invalid login credentials|user not found|no account/i.test(m)) return 'Use the email registered with your account. Student accounts are provided during enrollment.';
+  if (/invalid login credentials|user not found|no account/i.test(m))
   return fallback;
 }
 
@@ -296,9 +316,10 @@ export function passwordRecovery() {
 
 export async function requestPasswordReset(email) {
   const c = await requireClient();
+  const addr = accountAddress(email);
   const redirect = new URL(window.location.pathname, window.location.origin);
   redirect.searchParams.set('recovery', '1');
-  const { error } = await c.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase(), {
+  const { error } = await c.auth.resetPasswordForEmail(addr, {
     redirectTo: redirect.href,
   });
   if (error) throw new Error(friendly(error, 'Could not send the password reset email.'));

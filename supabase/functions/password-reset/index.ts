@@ -68,7 +68,8 @@ const store = {
     if (error) throw error;
   },
 };
-const handler = createResetHandler({ store, sendMail });
+const EMAIL_DOMAIN = (Deno.env.get('EMAIL_DOMAIN') || 'saac.edu.ph').toLowerCase();
+const handler = createResetHandler({ store, sendMail, emailDomain: EMAIL_DOMAIN });
 Deno.serve(async (req: Request) => {
   const cors = {
     'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || '*',
