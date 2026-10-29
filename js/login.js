@@ -204,7 +204,7 @@ function eyeToggle(inputs) {
   return eye;
 }
 
-export function showLogin({ onSuccess, onBack }) {
+export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery() }) {
   document.getElementById('login-overlay')?.remove();
 
   const timers = new Set();
@@ -410,8 +410,8 @@ export function showLogin({ onSuccess, onBack }) {
       h('p', { class: 'lg-lead' }, 'Sign in to access the St. Agnes Academy OSAS Dashboard.'),
       field({ label: 'Email', icon: 'user', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
-      h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderResetRequest(email.value)) }, 'Forgot password?'),
-      h('p', { class: 'lg-hint lg-registration-prompt' }, h('span', {}, "Don't have an account yet?"), h('button', { type: 'button', class: 'lg-link lg-inline', onclick: () => stepTo(() => renderResetRequest('', 'registration')) }, 'Contact an admin to register.')),
+      h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderForgotPassword(email.value)) }, 'Forgot password?'),
+      h('p', { class: 'lg-hint' }, 'Student accounts are provided during enrollment. Sign in with your assigned account.'),
       notice,
       err.el,
       submit,
@@ -421,34 +421,104 @@ export function showLogin({ onSuccess, onBack }) {
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
   }
 
-  function renderResetRequest(prefillEmail = '', kind = 'reset') {
+  function renderForgotPassword(prefillEmail = '', errorText = '') {
     stopTimers();
-    card.replaceChildren();
+    card.innerHTML = '';
     const err = mkErr();
-    const fullName = h('input', { type: 'text', class: 'lg-input', autocomplete: 'name', 'aria-label': 'Full name', required: true, minlength: '2', maxlength: '120', placeholder: 'Your full name' });
-    const email = h('input', { type: 'email', class: 'lg-input', autocomplete: 'email', 'aria-label': 'Account email', required: true, maxlength: '254', value: prefillEmail, placeholder: 'Your account email' });
-    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Request admin approval');
-    const back = h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderCredentials(email.value)) }, '← Back to sign-in');
-    const form = h('form', { class: 'lg-form', onsubmit: async (event) => {
-      event.preventDefault(); err.clear(); submit.disabled = true;
-      submit.textContent = 'Sending request…';
-      try {
-        const data = await passwordResetCall({ action: 'request', name: fullName.value, email: email.value, kind });
-        form.replaceChildren(h('h2', { class: 'lg-title' }, 'Request submitted'), h('p', { class: 'lg-lead', role: 'status' }, data.message), back);
-      } catch (error) { err.show(error.message); submit.disabled = false; submit.textContent = 'Request admin approval'; }
-    } }, h('p', { class: 'lg-eyebrow' }, kind === 'registration' ? 'Account creation' : 'Account recovery'),
-    h('h2', { class: 'lg-title' }, kind === 'registration' ? 'Request a student account' : 'Reset your password'),
-    h('p', { class: 'lg-lead' }, 'Enter your full name and email. Every administrator will receive your request. After approval, we will email you a link to set your password.'),
-    field({ label: 'Full name', icon: 'user', input: fullName }),
-    field({ label: 'Account email', icon: 'envelope', input: email }), err.el, submit, back);
+    if (errorText) err.show(errorText, { quiet: true });
+    const email = h('input', {
+      type: 'email', class: 'lg-input', placeholder: 'you@saac.edu.ph',
+      autocomplete: 'email', required: true, value: prefillEmail,
+    });
+    const notice = h('p', { class: 'lg-notice lg-hidden', role: 'status' });
+    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Send Reset Link');
+    const form = h('form', {
+      class: 'lg-form',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        err.clear();
+        const addr = email.value.trim().toLowerCase();
+        const wait = Math.ceil((readCooldown('recovery', addr).until - Date.now()) / 1000);
+        if (wait > 0) { err.show(`Please wait ${fmt(wait)} before requesting another link.`); return; }
+        submit.disabled = true;
+        submit.textContent = 'Sending…';
+        try {
+          await auth.requestPasswordReset(addr);
+          armCooldown('recovery', addr);
+          notice.textContent = 'If this email has an account, a password reset link has been sent. Check your inbox and spam folder.';
+          notice.classList.remove('lg-hidden');
+        } catch (error) {
+          err.show(error.message || 'Could not send the reset email.');
+        } finally {
+          submit.disabled = false;
+          submit.textContent = 'Send Reset Link';
+        }
+      },
+    },
+      h('p', { class: 'lg-eyebrow' }, 'Account recovery'),
+      h('h2', { class: 'lg-title' }, 'Forgot Password'),
+      h('p', { class: 'lg-lead' }, 'Enter your account email. Follow the link in your inbox to choose a new password.'),
+      field({ label: 'Email', icon: 'envelope', input: email }),
+      notice,
+      err.el,
+      submit,
+      h('button', { type: 'button', class: 'lg-link', onclick: async () => {
+        try { await auth.cancelPasswordRecovery(); stepTo(() => renderCredentials(email.value)); }
+        catch (error) { err.show(error.message); }
+      } }, '← Back to sign in'),
+    );
     card.appendChild(form);
-    return () => fullName.focus({ preventScroll: true });
+    return () => email.focus({ preventScroll: true });
+  }
+
+  function renderResetPassword(addr) {
+    stopTimers();
+    card.innerHTML = '';
+    const err = mkErr();
+    const password = h('input', { type: 'password', class: 'lg-input', placeholder: 'New password', autocomplete: 'new-password', required: true, minlength: '8' });
+    const confirm = h('input', { type: 'password', class: 'lg-input', placeholder: 'Re-enter password', autocomplete: 'new-password', required: true, minlength: '8' });
+    const checklist = passwordChecklist(password);
+    const submit = h('button', { type: 'submit', class: 'lg-btn' }, 'Save New Password');
+    const form = h('form', {
+      class: 'lg-form',
+      onsubmit: async (e) => {
+        e.preventDefault();
+        err.clear();
+        const unmet = checklist.firstUnmet();
+        if (unmet) { err.show(unmet + '.'); password.focus(); return; }
+        if (password.value !== confirm.value) { err.show('The two passwords do not match.'); confirm.focus(); return; }
+        submit.disabled = true;
+        submit.textContent = 'Saving…';
+        try {
+          await auth.updateRecoveredPassword(password.value);
+          stepTo(() => renderCredentials(addr, 'Password updated. Sign in with your new password to continue.'));
+        } catch (error) {
+          err.show(error.message || 'Could not update your password.');
+          submit.disabled = false;
+          submit.textContent = 'Save New Password';
+        }
+      },
+    },
+      h('p', { class: 'lg-eyebrow' }, 'Account recovery'),
+      h('h2', { class: 'lg-title' }, 'Choose a New Password'),
+      h('p', { class: 'lg-lead' }, 'Set a new password for ', h('strong', {}, addr)),
+      field({ label: 'New password', icon: 'lock', input: password, trailing: eyeToggle([password, confirm]), extra: checklist.el }),
+      field({ label: 'Confirm password', icon: 'lock', input: confirm }),
+      err.el,
+      submit,
+      h('button', { type: 'button', class: 'lg-link', onclick: async () => {
+        try { await auth.cancelPasswordRecovery(); stepTo(() => renderCredentials(addr)); }
+        catch (error) { err.show(error.message); }
+      } }, '← Cancel and sign in'),
+    );
+    card.appendChild(form);
+    return () => password.focus({ preventScroll: true });
   }
 
   function renderNewPassword(reset) {
     stopTimers(); card.replaceChildren();
     const err = mkErr();
-    const back = h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderResetRequest()) }, 'Request a new reset link');
+    const back = h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderForgotPassword()) }, 'Request a new reset link');
     if (!/^[a-f0-9-]{36}$/i.test(reset.id) || !/^[a-f0-9]{64}$/.test(reset.token)) {
       card.append(h('div', { class: 'lg-form' }, h('h2', { class: 'lg-title' }, 'Reset link unavailable'), h('p', { class: 'lg-lead' }, 'Open the complete link from your approval email, or request a new one.'), back));
       return () => back.focus();
@@ -626,7 +696,9 @@ export function showLogin({ onSuccess, onBack }) {
   document.body.appendChild(overlay);
   const reset = readResetLink();
   if (reset) history.replaceState(null, '', location.pathname + location.search + '#/reset-password');
-  const focusFirst = reset ? renderNewPassword(reset) : renderCredentials();
+  const focusFirst = recovery.active ? renderResetPassword(recovery.email)
+    : recovery.error ? renderForgotPassword('', recovery.error)
+    : reset ? renderNewPassword(reset) : renderCredentials();
   if (!reduceMotion()) {
     anim(brand, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 900, easing: EASE_OUT });
     [...brandInner.children].forEach((el, i) => {

@@ -10,7 +10,7 @@ A web dashboard for logging campus incidents, scheduling drills, tracking safety
 
 | Module | What is implemented |
 |---|---|
-| **Incident logging** | Type, severity (`low` / `medium` / `high`), location, reporter (**auto-filled from the signed-in account**, read-only), optional student. Optional urgent email to that student's parent/guardian. Students see this module as *Report Incident*. |
+| **Incident logging** | Students submit a description with their account-filled, read-only reporter name and see only their own reports. Administrators review all reports, classify incidents, and update their status. |
 | **Drill scheduling** | Fire, earthquake, lockdown and evacuation drills. Optional event notice emailed to an audience (all parents, or a grade). |
 | **Evacuation plans** | Floor-plan upload to Supabase Storage with exits, routes, assembly point and version. |
 | **Safety inspections** | Checklist per area. An item whose last check is older than its frequency is shown as **overdue** automatically. |
@@ -39,20 +39,20 @@ js/api.js             REST client, data-mode switch, notification client
 js/auth.js            Supabase sign-in / sign-out, roles
 js/modules/*          one file per feature area
 supabase/schema.sql   fresh-database schema (DROPS TABLES — new projects only)
-supabase/live_fixes.sql   safe, re-runnable fixes for an existing database
+supabase/migrations/  ordered, additive upgrades for an existing database
 supabase/functions/send-notification/   email Edge Function
 ```
 
 ## Setup
 
-1. **Database.** New project: run `supabase/schema.sql` once, then `supabase/seed.sql` if you want sample rows. Existing project: run **`supabase/live_fixes.sql`** only (it never drops data). Never re-run `schema.sql` on live data.
+1. **Database.** New project: run `supabase/schema.sql` once, then apply `supabase/migrations/` in order and optionally `supabase/seed.sql`. Existing project: apply only missing migrations in order. Never re-run `schema.sql` or legacy blanket-access SQL scripts on live data.
 2. **Users and roles.** Create users in *Authentication → Users*. Roles are read from `app_metadata` (writable only with the service role), so an admin is created like this:
    ```sql
    UPDATE auth.users
    SET raw_app_meta_data = COALESCE(raw_app_meta_data,'{}'::jsonb) || '{"role":"admin"}'
    WHERE email = 'admin@yourschool.edu.ph';
    ```
-   Anyone without that role is `staff`.
+   Anyone without that role is a Student (`client`).
 3. **Email function.**
    ```bash
    supabase functions deploy send-notification
@@ -97,7 +97,7 @@ What is enforced:
 Known limitations (be upfront about these):
 
 * Guardian phone numbers and emails are readable by every signed-in staff account; there is no field-level masking or encryption yet.
-* Any signed-in account can read every module; there is no per-building or per-grade scoping.
+* Students can read only their own incident reports; administrators can review all reports. There is no per-building or per-grade scoping.
 * Storage buckets are public-read so floor plans and inspection photos can be displayed by URL.
 * Risk-score inputs are subjective 1–5 ratings; the formula is a prioritisation aid, not a measurement. Security controls are subtracted from the product, so they matter less as the product grows.
 
@@ -125,13 +125,13 @@ The inspection reference layout shows all columns at 1440px and 1536px, uses a c
 
 The demo and fresh-database seed include all ten supplied First Aid Supplies rows, including In Stock items. On an existing database with the inventory migrations applied, run `supabase/reference_supplies.sql` to add missing reference items and fill blank categories/pack descriptions. It preserves existing quantities, dates and restock history and can be re-run without duplicating items. The CPR mask quantity is blurry in the reference; the sample uses 5 pcs. Stock badges remain calculated from the actual quantity and expiry date, so they can differ from the illustrative screenshot.
 
-### Admin-approved password recovery
+### Self-service password recovery
 
-Sign-in → **Forgot password?** submits an approval request. Administrators receive an email containing the saved account name, email, role, creation date, last sign-in, and request time. **Accounts → Requests → Review request** provides approval, rejection, and link revocation. Approval sends a single-use link to the saved account email. The owner chooses a new password, then signs in normally. Approval itself leaves the old password unchanged.
+Student accounts are provided during enrollment. The sign-in page has no registration or Contact Admin link. **Forgot password?** sends a Supabase Auth reset email directly to the account's registered inbox; no administrator approval is required. A valid link opens the new-password form before normal app startup. Recovery credentials use a separate, tab-local session, so they never become a dashboard sign-in in another tab. Saving the password ends recovery and returns to the usual sign-in flow.
 
-Apply `supabase/migrations/20261028134104_admin_password_reset_requests.sql` and deploy `supabase/functions/password-reset` with JWT gateway verification disabled. Public request and token-completion routes use their own controls; list/approve/reject validate the session and `app_metadata.role` on the server. The tables and submit RPC are accessible only to the service role. Links contain 32 random bytes, expire after 30 minutes, and are stored only as SHA-256 hashes. Public responses do not reveal whether an email exists. Requests are limited to five per source IP per hour and one per account per hour, with pending requests deduplicated.
+Configure Auth SMTP and the Reset Password template in Supabase, and allow the exact same-origin `/?recovery=1` redirect for each deployed host. The supplied template is `supabase/templates/recovery.html`. See [EMAIL-WIRING.md](EMAIL-WIRING.md#self-service-password-recovery) for setup and a real-email delivery check. Changes to `supabase/config.toml` configure local Supabase only.
 
-The function reuses existing `MAILEROO_API_KEY` / `MAILEROO_FROM` or `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` secrets. `PUBLIC_APP_URL` in `supabase/functions/password-reset/core.ts` controls the production email destination (`https://osas.stagnesacademy-sms.com/`). Failed emails keep requests visible in Accounts for review/retry. Automated tests use fake delivery and do not email users or change live passwords.
+Previously issued admin-approved account setup links remain supported for compatibility with enrolled-account provisioning. Their protected request history and Accounts review tools remain available; normal password recovery no longer submits requests to that queue.
 
 The custom domain is `https://osas.stagnesacademy-sms.com/`, with Accounts at `/#/accounts`. The host deploys a selected Git commit independently of Vercel. Serve `index.html`, `js/`, `css/`, and `assets/` at the subdomain's document root, or use `npm run build` and serve `dist/`. The frontend is static; Supabase continues to host Auth, data, and Edge Functions. Hash routes need no server rewrite. HTTPS is required for authentication and PIN encryption. New account-request emails already use this domain for review links, password setup links, and the logo. Existing emailed links retain their original destination.
 
@@ -139,7 +139,7 @@ The applied `defer_managed_account_guard` migration checks managed account roles
 
 ### Latest stakeholder changes
 
-Signed-out visitors now start on a public safety brochure with earthquake, fire, typhoon, and flood guides; school drill preparation; and a local readiness checklist. Each guide links to its government source. The brochure uses static content and does not load school records. Sign-in opens from the header, with a return button to the brochure. Direct school workspace routes remain behind sign-in, password approval links still open their password form, and sign-out returns to the brochure. Deploy the selected commit as usual; the build includes `css/landing.css`, `js/landing.js`, and `assets/earthquake-cover.svg`.
+Signed-out visitors now start on a public safety brochure with earthquake, fire, typhoon, and flood guides; school drill preparation; and readiness reminders. Each guide links to its government source. The brochure uses static content and does not load school records. Sign-in opens from the header, with a return button to the brochure. Direct school workspace routes remain behind sign-in, password recovery and existing account setup links open their password form, and sign-out returns to the brochure. Deploy the selected commit as usual; the build includes `css/landing.css`, `js/landing.js`, and `assets/earthquake-cover.svg`.
 
 `tropanggala87@gmail.com` uses its existing account and password with Administrator access and email-code sign-in. The active school nurse contact already uses that address for stock alerts. Other admin accounts remain available. Public registration has been removed from the UI and auth module; administrators create student accounts through Accounts. Local Supabase config disables signup. The applied `20261028220637_managed_account_creation_guard.sql` blocks unprovisioned account inserts on the hosted project. Admin-created accounts include trusted app metadata and pass the guard.
 
@@ -147,11 +147,9 @@ Parent Notifications is admin-only in navigation, its module, the send function,
 
 The incident charts use every page of live incident rows, refresh on Realtime events, local writes and focus, and retain 15-second polling. Student dashboards do not fetch admin-only inspection/drill/stock tables. The yearly chart supports zero or one year of records. Demo data remains separate from live API data.
 
-### Approval requests for registration and recovery
+### Historical account approval requests
 
-Both sign-in request forms collect a full name and email before submitting. The registration link opens a request form, rather than an email client. Every administrator with an email address receives the request. The Accounts queue shows the submitted name separately from the saved account name and distinguishes registration from password recovery.
-
-`20261028215619_approved_account_requests.sql` adds registration requests to the protected queue. An approved registration link creates a Student account only when its owner submits a new password. Existing accounts are never reused or reset by a registration request. Password-reset requests retain their existing account and role. Approval links remain hashed, expire after 30 minutes, support revocation and work once. Server-side validation requires a full name; generic responses and shared rate limits prevent account enumeration and duplicate mail requests.
+The protected Accounts queue retains earlier registration and recovery requests and their review history. Existing approved setup links remain hashed, expire after 30 minutes, support revocation, and work once. New student accounts are provisioned during enrollment through the administrator's Accounts tools. The public sign-in page does not create approval requests.
 
 ### Incident review and student dashboard spacing
 
@@ -160,3 +158,11 @@ Administrators review incidents through a status action next to each row; the ad
 ### Request cleanup and email appearance
 
 Accounts uses one **Requests** section for registration and recovery. Admins can delete reviewed requests from the visible list after approval, rejection or completion. This archives the queue row and preserves active password links, review history and duplicate-request limits; pending requests cannot be removed before review. The applied `20261028221153_request_queue_cleanup.sql` adds the archive timestamp. Request and password-setup emails now share the existing sign-in template's cream background, gradient maroon header, school logo, rounded white card and typography.
+
+### Public scrolling and request verification
+
+The public brochure uses document scrolling, so mouse-wheel input, PageDown, and section links work on desktop while the signed-in dashboard keeps its own scroll layout. The no-JavaScript brochure also scrolls.
+
+`npm test` runs the existing regression suite plus account recovery and incident API privacy checks. With the local server running, use Playwright to run `tests/browser-public-scroll.mjs`, `tests/browser-recovery.mjs`, and `tests/browser-incidents.mjs`; set `PLAYWRIGHT_MODULE` to a separate installation's `index.mjs` if needed. `TEST_ORIGIN` defaults to `http://localhost:3000`. These browser checks intercept backend traffic and never email users or write live records. The existing database privacy check is `supabase/tests/incident_privacy.sql` after applying the stakeholder/incident migrations to a disposable database.
+
+For rollout, deploy this frontend and configure Supabase Auth SMTP, the Reset Password email template, and the allowed recovery redirect. No new database migration is required by this change; the existing `20261029030405_student_incident_privacy_and_minimal_reports.sql` migration must already be applied for server-enforced report privacy. Do not rerun the legacy blanket-access SQL scripts on an upgraded database.

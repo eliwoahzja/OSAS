@@ -22,7 +22,7 @@ function explain(res, j) {
     return 'Permission denied by the database (row-level security). Your account is not allowed to do this.';
   }
   if (j && (j.code === 'PGRST204' || /schema cache|column/i.test(msg))) {
-    return `${msg} — the database schema is out of date. Run supabase/live_fixes.sql in the Supabase SQL editor.`;
+    return `${msg} — the database schema is out of date. Apply the missing files in supabase/migrations/ in order.`;
   }
   return msg;
 }
@@ -81,6 +81,12 @@ loadMock();
 
 function snapshot(table) {
   return JSON.parse(JSON.stringify(MOCK[table] || []));
+}
+
+function visibleIncidents(rows) {
+  if (auth.isAdmin()) return rows;
+  const id = auth.currentUser()?.id;
+  return id ? rows.filter((row) => row.submitted_by === id) : [];
 }
 
 function recordMockActivity(table, action, oldValue, newValue) {
@@ -190,10 +196,17 @@ export async function listRows(table, filters = {}) {
     if (!token) throw new Error('Sign-in required — your session has expired. Please sign in again.');
   }
 
-  return withDerived(table, rows);
+  return withDerived(table, table === 'incidents' ? visibleIncidents(rows) : rows);
 }
 
 export async function insertRow(table, payload) {
+  if (table === 'incidents') {
+    const user = auth.currentUser();
+    if (!user?.id) throw new Error('Sign in to submit an incident report.');
+    const description = String(payload.description || '').trim();
+    if (!description || description.length > 10000) throw new Error('Enter an incident description of up to 10000 characters.');
+    payload = { ...payload, description, submitted_by: user.id, reporter: user.name || user.email };
+  }
   if (isDemoMode()) return insertMock(table, payload);
   const rows = await restFetch('POST', table, { body: payload, prefer: 'return=representation' });
   if (!rows || !rows[0]) throw new Error('The database accepted the request but returned no row.');
@@ -216,6 +229,7 @@ export async function listActivity(table, { recordId = null, limit = 5 } = {}) {
 }
 
 export async function updateRow(table, id, patch) {
+  if (table === 'incidents' && !auth.isAdmin()) throw new Error('Only administrators may review incident reports.');
   if (isDemoMode()) return updateMock(table, id, patch);
   const rows = await restFetch('PATCH', table, {
     query: { id: `eq.${id}` }, body: patch, prefer: 'return=representation',
@@ -226,6 +240,7 @@ export async function updateRow(table, id, patch) {
 }
 
 export async function deleteRow(table, id) {
+  if (table === 'incidents' && !auth.isAdmin()) throw new Error('Only administrators may delete incident reports.');
   if (isDemoMode()) {
     deleteMock(table, id);
     return { ok: true };
@@ -324,14 +339,14 @@ export async function getDashboardStats() {
     );
   }
   const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
-    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,type,status', order: 'id.asc', offset, limit, ...(!auth.isAdmin() ? { submitted_by: `eq.${auth.currentUser()?.id}` } : {}) } })),
+    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,type,status,submitted_by', order: 'id.asc', offset, limit, ...(!auth.isAdmin() ? { submitted_by: `eq.${auth.currentUser()?.id}` } : {}) } })),
     includeSupplies ? restFetch('GET', 'inspections', { query: { select: '*' } }) : [],
     includeSupplies ? restFetch('GET', 'drills', { query: { select: '*' } }) : [],
     includeSupplies ? restFetch('GET', 'supplies', { query: { select: '*' } }) : [],
     restFetch('GET', 'emergency_contacts', { query: { select: 'id,category', category: 'eq.school' } }),
   ]);
   return computeStats(
-    incidents || [], withDerived('inspections', inspections || []), drills || [],
+    visibleIncidents(incidents || []), withDerived('inspections', inspections || []), drills || [],
     supplies || [], contacts || [],
   );
 }

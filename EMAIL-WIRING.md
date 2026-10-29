@@ -4,7 +4,7 @@ This project now has two separate email paths. Both were failing/ambiguous and
 have been fixed, but they still need real secrets/config in your Supabase project
 to work live.
 
-## 1) Sign-in by email code / magic link (Supabase Auth)
+## 1) Sign-in codes and password reset emails (Supabase Auth)
 
 `js/auth.js` sends the one-time code through Supabase Auth (`signInWithOtp` /
 `verifyOtp`). For that to actually arrive, Supabase Auth must be able to send
@@ -19,12 +19,16 @@ Required setup in your Supabase project:
 2. Supabase → Authentication → Email Templates
    - Magic Link template: use `supabase/templates/magic_link.html`
    - Confirmation template: use `supabase/templates/confirmation.html`
-   - These templates already include `{{ .Token }}`, which is the OTP code the
-     app expects.
+   - Reset Password template: use `supabase/templates/recovery.html`. Keep
+     `{{ .ConfirmationURL }}` as the reset button's destination.
+   - The Magic Link and Confirmation templates include `{{ .Token }}`,
+     which is the OTP code the app expects.
 3. Supabase → Authentication → Providers → Email
    - Keep "Enable sign ups" OFF (accounts are created by admins).
    - OTP length = 6 (matches what the app validates).
 4. Create users in Authentication → Users.
+   - Student accounts are assigned during enrollment. The sign-in page does not
+     offer self-registration or an access-request link.
    - Admin role is set server-side only, e.g.:
      ```sql
      UPDATE auth.users
@@ -35,8 +39,36 @@ Required setup in your Supabase project:
 5. Make sure the database schema is current:
    - New project: run `supabase/schema.sql` once, then `supabase/seed.sql` if you
      want sample rows.
-   - Existing project: run `supabase/live_fixes.sql` only. Do **not** re-run
-     `schema.sql` on live data.
+   - Existing project: apply only missing files in `supabase/migrations/` in
+     order. Do **not** re-run `schema.sql` or the legacy blanket-access scripts
+     on live data. Report privacy uses the existing
+     `20261029030405_student_incident_privacy_and_minimal_reports.sql` migration.
+
+### Self-service password recovery
+
+In Authentication → URL Configuration, set the production Site URL to your app
+and allow its exact recovery URL, for example
+`https://osas.stagnesacademy-sms.com/?recovery=1`. For local testing, allow
+`http://localhost:3000/?recovery=1` (and the `127.0.0.1` equivalent if used).
+Preview deployments need their own allowed recovery URL. These hosted settings
+must be updated in Supabase; changes to `supabase/config.toml` configure the
+local project only.
+
+“Forgot password?” sends a reset link to the account's registered inbox through
+Supabase Auth. No admin approval or notification Edge Function is involved. The
+app consumes the recovery link before dashboard startup, removes its tokens from
+the address bar, and shows a new-password form. Saving ends the recovery session
+and returns to the usual password plus email-code/PIN sign-in flow. A page refresh
+keeps the recovery form; invalid or expired links offer a new reset email. The
+temporary recovery client stores its session in the current tab's sessionStorage,
+using a different key from normal sign-in, so other tabs cannot restore a recovery
+token as a dashboard session.
+
+To verify live delivery, use an existing test account: request a reset, follow the
+received link, change the password, then sign in and complete the usual second
+step. Confirm the old password no longer works. Also try the reset link again to
+check the expired-link message. This requires working Auth SMTP and the allowed
+redirect URL above.
 
 ## 2) Notification emails (Parent Notifications / stock alerts / event notices)
 
