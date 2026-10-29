@@ -216,7 +216,7 @@ export function createSafetyLanding({ onSignIn }) {
         ),
         h('div', { class: 'safety-hero-visual' },
           h('div', { class: 'safety-visual-top' }, h('span', {}, 'EARTHQUAKE ESSENTIALS'), icon('shield-halved')),
-          h('img', { src: '/assets/earthquake-cover.svg', alt: 'A person crouches under a sturdy table, protects their head, and holds a table leg.', width: '520', height: '320', fetchpriority: 'high' }),
+          h('img', { src: '/assets/earthquake-cover.jpg', alt: 'Illustration of a person crouching beneath a table and protecting their head and neck.', width: '1280', height: '853', fetchpriority: 'high' }),
           h('div', { class: 'safety-visual-copy' }, h('span', {}, 'WHEN THE GROUND SHAKES'), h('h2', {}, 'Drop. Cover. Hold On.'), h('p', {}, 'Protect your head and neck. Stay under cover until the shaking stops.')),
         ),
       ),

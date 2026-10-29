@@ -44,7 +44,7 @@ body:not([data-session="active"]) > #sidebar-backdrop { display:none; }
 .safety-hero-visual { align-self:stretch; display:flex; flex-direction:column; justify-content:center; position:relative; background:#F0EADC; border:1px solid #E2D9C7; border-radius:14px; overflow:hidden; }
 .safety-visual-top { display:flex; align-items:center; justify-content:space-between; margin:22px 26px 0; font-size:9px; color:#7E705A; font-weight:700; letter-spacing:.15em; }
 .safety-visual-top .fa-solid { font-size:18px; color:#7A1B38; }
-.safety-hero-visual > img { display:block; width:100%; height:auto; margin-block:-6px -10px; }
+.safety-hero-visual > img { display:block; width:100%; height:auto; object-fit:contain; margin-block:-6px -10px; }
 .safety-visual-copy { padding:0 30px 26px; }
 .safety-visual-copy > span { font-size:8px; letter-spacing:.13em; font-weight:700; color:#8A7254; }
 .safety-visual-copy h2 { margin-block:6px 8px; color:#552035; font-size:27px; font-weight:750; letter-spacing:-.04em; line-height:1.25; }

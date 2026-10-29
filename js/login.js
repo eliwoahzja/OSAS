@@ -362,7 +362,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const notice = h('p', { class: 'lg-notice' + (noticeText ? '' : ' lg-hidden'), role: 'status' }, noticeText);
 
     const email = h('input', {
-      type: 'text', class: 'lg-input', placeholder: 's26XXXXXXX or you@example.com',
+      type: 'text', class: 'lg-input', placeholder: 's26XXXXXXX',
       autocomplete: 'username', required: true, value: prefillEmail,
     });
     const password = h('input', {
@@ -434,7 +434,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const err = mkErr();
     if (errorText) err.show(errorText, { quiet: true });
     const email = h('input', {
-      type: 'text', class: 'lg-input', placeholder: 's260000001 or you@example.com',
+      type: 'text', class: 'lg-input', placeholder: 's260000001',
       autocomplete: 'username', required: true, value: prefillEmail,
     });
     const notice = h('p', { class: 'lg-notice lg-hidden', role: 'status' });
