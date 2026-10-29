@@ -6,11 +6,16 @@ const validEmailOtp = (token) => /^\d+$/.test(token)
   && token.length <= EMAIL_OTP_MAX_LENGTH;
 const emailOtpHint = `Enter the complete ${EMAIL_OTP_MIN_LENGTH}–${EMAIL_OTP_MAX_LENGTH}-digit code from your email.`;
 let client = null;
+let recoveryClient = null;
+let createSupabaseClient = null;
 let listeners = [];
 let checkingPassword = false;
 let session = null;
 let pendingPin = null;
 const PIN_OK_KEY = 'osas.pin.ok';
+const RECOVERY_KEY = 'osas.password.recovery';
+let recovery = { active: false, email: '', error: '' };
+let handlingRecovery = false;
 const DEVICE_TRUST_KEY = 'osas.device.trust';
 const DEVICE_TRUST_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -65,11 +70,12 @@ async function getClient(timeoutMs = 8000) {
     );
     const mod = await Promise.race([modPromise, timeoutPromise]);
     if (mod && typeof mod.createClient === 'function') {
+      createSupabaseClient = mod.createClient;
       client = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
       });
       client.auth.onAuthStateChange((_event, s) => {
-        if (checkingPassword || pendingPin) return;
+        if (checkingPassword || pendingPin || handlingRecovery || recovery.active) return;
         if (s) saveSession(toSession(s));
         else if (session && session.provider === 'supabase') saveSession(null);
       });
@@ -85,6 +91,22 @@ async function requireClient() {
   const c = await getClient();
   if (!c) throw new Error('Cannot reach the sign-in service. Check your internet connection and try again.');
   return c;
+}
+
+async function getRecoveryClient() {
+  if (recoveryClient) return recoveryClient;
+  if (!await getClient()) return null;
+  let storage = null;
+  try { storage = window.sessionStorage; } catch {}
+  recoveryClient = createSupabaseClient(window.OSAS.SUPABASE_URL, window.OSAS.SUPABASE_ANON_KEY, {
+    auth: {
+      persistSession: Boolean(storage), autoRefreshToken: true, detectSessionInUrl: false,
+      storage: storage || undefined, storageKey: 'osas.password.recovery.session',
+    },
+  });
+  // Recovery tokens never enter the sign-in client's shared localStorage. A
+  // different tab can therefore only restore a completed normal sign-in.
+  return recoveryClient;
 }
 
 function roleOf(user) {
@@ -110,7 +132,7 @@ function friendly(err, fallback) {
   if (/invalid login credentials/i.test(m)) return 'Incorrect email or password.';
   if (/token has expired|invalid/i.test(m) && /token|otp|code/i.test(m)) return 'That code is incorrect or has expired. Request a new one.';
   if (/rate limit|too many|security purposes/i.test(m)) return 'Too many attempts. Please wait a minute before trying again.';
-  if (/signups not allowed|user not found/i.test(m)) return 'No account exists for that email. Ask an administrator to create one.';
+  if (/signups not allowed|user not found/i.test(m)) return 'Use the email registered with your account. Student accounts are provided during enrollment.';
   return m || fallback;
 }
 
@@ -239,7 +261,7 @@ function layerEmailError(error, fallback) {
     return 'Sign-in by email code is not set up yet. Ask an administrator to configure Supabase Auth email (Authentication → Email, SMTP or a working custom provider) and redeploy the project.';
   }
   if (/rate limit|too many/i.test(m)) return 'Too many code requests. Wait a minute before trying again.';
-  if (/invalid login credentials|user not found|no account/i.test(m)) return 'No account exists for that email. Ask an administrator to create one.';
+  if (/invalid login credentials|user not found|no account/i.test(m)) return 'Use the email registered with your account. Student accounts are provided during enrollment.';
   return fallback;
 }
 
@@ -268,11 +290,97 @@ export async function signOut() {
   saveSession(null);
 }
 
+export function passwordRecovery() {
+  return { ...recovery };
+}
+
+export async function requestPasswordReset(email) {
+  const c = await requireClient();
+  const redirect = new URL(window.location.pathname, window.location.origin);
+  redirect.searchParams.set('recovery', '1');
+  const { error } = await c.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase(), {
+    redirectTo: redirect.href,
+  });
+  if (error) throw new Error(friendly(error, 'Could not send the password reset email.'));
+}
+
+function clearRecoveryLocation() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete('recovery');
+  url.hash = '';
+  window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+}
+
+export async function cancelPasswordRecovery() {
+  // Keep the recovery guard until the SDK has discarded its temporary session.
+  if (recoveryClient) {
+    const { error } = await recoveryClient.auth.signOut({ scope: 'local' });
+    if (error) throw new Error('Could not end the recovery session. Check your connection and try again.');
+  }
+  try { sessionStorage.removeItem(RECOVERY_KEY); } catch {}
+  recovery = { active: false, email: '', error: '' };
+  handlingRecovery = false;
+  saveSession(null);
+  clearRecoveryLocation();
+}
+
+export async function updateRecoveredPassword(password) {
+  if (!recovery.active) throw new Error('Open a valid password reset link from your email first.');
+  const c = await getRecoveryClient();
+  if (!c) throw new Error('Cannot reach the password reset service. Check your connection and try again.');
+  const { error } = await c.auth.updateUser({ password });
+  if (error) throw new Error(friendly(error, 'Could not update your password.'));
+  await cancelPasswordRecovery();
+}
+
+async function restoreRecovery(c, url, fragment) {
+  saveSession(null);
+  const clean = new URL(url.pathname, url.origin);
+  clean.searchParams.set('recovery', '1');
+  // Remove access/refresh tokens from the address bar before rendering anything.
+  window.history.replaceState(null, '', `${clean.pathname}${clean.search}`);
+  try {
+    if (!c) throw new Error('Cannot reach the password reset service. Check your connection and reopen the link from your email.');
+    if (fragment.get('error') || fragment.get('error_code') || url.searchParams.get('error')) {
+      throw new Error('That password reset link is invalid or has expired. Request a new one.');
+    }
+    let restored;
+    if (fragment.get('type') === 'recovery' && fragment.get('access_token') && fragment.get('refresh_token')) {
+      const { data, error } = await c.auth.setSession({
+        access_token: fragment.get('access_token'), refresh_token: fragment.get('refresh_token'),
+      });
+      if (error || !data?.session) throw new Error('That password reset link is invalid or has expired. Request a new one.');
+      restored = data.session;
+      try { sessionStorage.setItem(RECOVERY_KEY, restored.user.id); } catch {}
+    } else {
+      const { data, error } = await c.auth.getSession();
+      let recoveryUser = null;
+      try { recoveryUser = sessionStorage.getItem(RECOVERY_KEY); } catch {}
+      if (error || !data?.session || recoveryUser !== data.session.user.id) {
+        throw new Error('Open the password reset link from your email, or request a new one if it has expired.');
+      }
+      restored = data.session;
+    }
+    recovery = { active: true, email: restored.user.email || '', error: '' };
+  } catch (error) {
+    recovery = { active: false, email: '', error: error.message };
+  }
+  return null;
+}
+
 export async function restore() {
+  const url = new URL(window.location.href);
+  const fragment = new URLSearchParams(url.hash.slice(1));
+  let hasRecoveryMarker = false;
+  try { hasRecoveryMarker = Boolean(sessionStorage.getItem(RECOVERY_KEY)); } catch {}
+  handlingRecovery = url.searchParams.get('recovery') === '1' || fragment.get('type') === 'recovery' || hasRecoveryMarker;
+
   if (!supabaseConfigured()) {
     session = null;
+    if (handlingRecovery) return restoreRecovery(null, url, fragment);
     return null;
   }
+  if (handlingRecovery) return restoreRecovery(await getRecoveryClient(), url, fragment);
   const c = await getClient();
   if (!c) return null;
   const { data } = await c.auth.getSession();

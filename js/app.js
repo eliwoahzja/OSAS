@@ -656,7 +656,8 @@ async function boot() {
   }
 
   try {
-    if (location.hash.startsWith('#/reset-password')) { if (!document.getElementById('login-overlay')) openSignIn(); }
+    if (auth.passwordRecovery().active || auth.passwordRecovery().error) openSignIn();
+    else if (location.hash.startsWith('#/reset-password')) { if (!document.getElementById('login-overlay')) openSignIn(); }
     else if (auth.isSignedIn()) enterApp();
     else showPublicPage();
   } catch (err) {

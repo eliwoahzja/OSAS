@@ -1,7 +1,9 @@
 /* Brochure appearance restored from 7994451; updated safety content and account flows preserved. */
 @font-face { font-family:'Inter'; src:url('../assets/fonts/landing/inter.woff2') format('woff2'); font-style:normal; font-weight:100 900; font-display:swap; }
 html,body { overflow-x:clip; }
-body[data-session='public'],body:has(> noscript .safety-landing) { display:block; height:auto; min-height:100dvh; overflow-y:auto; }
+/* Let the document own public-page scrolling. An auto-height body with overflow:auto
+   traps desktop wheel input because the app disables scroll chaining. */
+body[data-session='public'],body:has(> noscript .safety-landing) { display:block; height:auto; min-height:100dvh; overflow:visible; }
 body:not([data-session="active"]) > #sidebar,
 body:not([data-session="active"]) > #dashboard-shell,
 body:not([data-session="active"]) > #sidebar-backdrop { display:none; }
