@@ -9,7 +9,7 @@ const recovered = {
   access_token: 'recovery-access', refresh_token: 'recovery-refresh',
 };
 
-async function loadAuth({ url = 'https://school.example/', stored = null, marker = null, failure = null, shared = { session: stored } } = {}) {
+async function loadAuth({ url = 'https://school.example/', stored = null, marker = null, failure = null, profileId = 's260000001', shared = { session: stored } } = {}) {
   const records = [];
   const storage = new Map(marker ? [['osas.password.recovery', marker]] : []);
   const location = new URL(url);
@@ -45,6 +45,7 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
     },
     async signInWithPassword(credentials) {
       records.push(['signInWithPassword', credentials]);
+      if (failure === 'provider-disabled') return { error: { code: 'email_provider_disabled', status: 422, message: 'Email logins are disabled' } };
       session = recovered;
       if (!recoveryClient) shared.session = session;
       onChange('SIGNED_IN', session);
@@ -52,7 +53,7 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
     },
     async signInWithOtp(options) {
       records.push(['signInWithOtp', options]);
-      return { error: null };
+      return { error: failure === 'otp-send' ? new Error('Unable to send email for this account') : null };
     },
     async verifyOtp(options) {
       records.push(['verifyOtp', options]);
@@ -71,12 +72,21 @@ async function loadAuth({ url = 'https://school.example/', stored = null, marker
   const context = createContext({
     URL, URLSearchParams, TextEncoder,
     fetch: async (url, options) => {
+      if (new URL(url).pathname === '/rest/v1/users') {
+        records.push(['profile', url, options]);
+        return { ok: failure !== 'profile', json: async () => [{ student_id: profileId }] };
+      }
       assert.equal(url, 'https://project.example/functions/v1/student-auth');
       const payload = JSON.parse(options.body);
       records.push(['studentAuth', payload]);
       return {
-        ok: failure !== 'student-id',
+        ok: !['student-id', 'student-endpoint', 'student-service', 'provider-disabled', 'student-rate'].includes(failure),
+        status: ['student-service', 'provider-disabled'].includes(failure) ? 503 : failure === 'student-rate' ? 429 : failure === 'student-endpoint' ? 404 : failure === 'student-id' ? 400 : 200,
         json: async () => failure === 'student-id' ? { error: 'Incorrect student ID or password.' }
+          : failure === 'provider-disabled' ? { error: 'Provider setup needed', code: 'email_provider_disabled' }
+          : failure === 'student-rate' ? { error: 'Too many requests. Please wait before trying again.', code: 'rate_limited' }
+          : failure === 'student-endpoint' ? { message: 'Function not found' }
+          : failure === 'malformed' ? {}
           : payload.action === 'sign-in' ? { session: recovered } : { message: 'Request sent.' },
       };
     },
@@ -197,8 +207,68 @@ test('student ID sends the OTP to the actual account email and still requires ve
   assert.equal(lookup[1].action, 'sign-in');
   assert.equal(records.find(([method]) => method === 'signInWithOtp')[1].email, 'student@saac.ph');
   assert.equal(auth.isSignedIn(), false);
+  assert.equal(records.some(([method]) => method === 'profile'), false);
   await auth.verifyCode(next.email, '123456');
   assert.equal(auth.isSignedIn(), true);
+});
+
+test('authenticated sessions load only their own private student ID', async () => {
+  const { auth, records } = await loadAuth();
+  await auth.signIn('s260000001', 'Password12');
+  await auth.verifyCode('student@saac.ph', '123456');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(auth.currentUser().student_id, 's260000001');
+  const [, address, options] = records.find(([method]) => method === 'profile');
+  const url = new URL(address);
+  assert.equal(url.searchParams.get('id'), 'eq.student-1');
+  assert.equal(url.searchParams.get('select'), 'student_id');
+  assert.equal(options.headers.Authorization, 'Bearer recovery-access');
+});
+
+test('restoring a session loads its student ID, while profile failures do not block sign-in', async () => {
+  const restored = await loadAuth({ stored: recovered });
+  await restored.auth.restore();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(restored.auth.currentUser().student_id, 's260000001');
+  const missing = await loadAuth({ stored: recovered, failure: 'profile' });
+  await missing.auth.restore();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(missing.auth.isSignedIn(), true);
+  assert.equal(missing.auth.currentUser().student_id, null);
+});
+
+test('unavailable or malformed student services offer email sign-in without exposing internals', async () => {
+  for (const failure of ['student-endpoint', 'student-service', 'malformed']) {
+    const { auth } = await loadAuth({ failure });
+    await assert.rejects(auth.signIn('s260000001', 'Password12'), /temporarily unavailable.*account email/);
+    assert.equal(auth.isSignedIn(), false);
+  }
+});
+
+test('email delivery errors retain the provider message instead of becoming undefined', async () => {
+  const { auth } = await loadAuth({ failure: 'otp-send' });
+  await assert.rejects(auth.signIn('student@saac.ph', 'Password12'), /Unable to send email for this account/);
+  assert.equal(auth.isSignedIn(), false);
+});
+
+test('disabled email sign-in shows the same actionable setup error for ID and email login', async () => {
+  for (const identifier of ['s260000001', 'student@saac.ph']) {
+    const { auth, records } = await loadAuth({ failure: 'provider-disabled' });
+    await assert.rejects(auth.signIn(identifier, 'Password12'), (error) => {
+      assert.match(error.message, /administrator must enable email sign-in/);
+      assert.doesNotMatch(error.message, /Incorrect|account email instead/);
+      return true;
+    });
+    assert.equal(auth.isSignedIn(), false);
+    assert.equal(records.some(([method]) => ['setSession', 'signInWithOtp'].includes(method)), false);
+  }
+});
+
+test('student ID throttling keeps the retry instruction and never starts an OTP session', async () => {
+  const { auth, records } = await loadAuth({ failure: 'student-rate' });
+  await assert.rejects(auth.signIn('s260000001', 'Password12'), /Please wait before trying again/);
+  assert.equal(auth.isSignedIn(), false);
+  assert.equal(records.some(([method]) => ['setSession', 'signInWithOtp'].includes(method)), false);
 });
 
 test('bad student ID credentials cannot set a session or send OTPs', async () => {

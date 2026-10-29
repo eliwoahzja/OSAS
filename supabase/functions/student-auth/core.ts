@@ -1,6 +1,22 @@
 const STUDENT_ID = /^s\d{9}$/;
 const INVALID_LOGIN = 'Incorrect student ID or password.';
 const UNKNOWN_EMAIL = 'no-account@osas.invalid';
+const EMAIL_DISABLED = 'Account sign-in is temporarily unavailable. A school administrator must enable email sign-in.';
+
+function authServiceFailure(error: any) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  if (code === 'email_provider_disabled' || /email (?:logins?|sign[ -]?ins?) (?:are|is) disabled/i.test(message)) {
+    return { status: 503, body: { error: EMAIL_DISABLED, code: 'email_provider_disabled' } };
+  }
+  if (Number(error?.status) === 429 || /rate_limit|too_many_requests/.test(code)) {
+    return { status: 429, body: { error: 'Too many requests. Please wait before trying again.', code: 'rate_limited' } };
+  }
+  if (Number(error?.status) >= 500 || code === 'unexpected_failure') {
+    return { status: 503, body: { error: 'Account sign-in is temporarily unavailable. Please try again shortly.', code: 'auth_service_unavailable' } };
+  }
+  return null;
+}
 
 type Dependencies = {
   lookup: (studentId: string) => Promise<{ id: string; email: string } | null>;
@@ -35,10 +51,14 @@ export function createStudentAuthHandler({ lookup, signIn, recover }: Dependenci
       const email = account?.email || UNKNOWN_EMAIL;
       if (body.action === 'recover') {
         const { error } = await recover(email, redirectTo);
+        const failure = authServiceFailure(error);
+        if (failure) return json(failure.body, failure.status);
         if (error) return json({ error: 'Could not send the password reset email. Please try again shortly.' }, 502);
         return json({ message: 'If this account exists, a password reset link has been sent.' });
       }
       const { data, error } = await signIn(email, body.password);
+      const failure = authServiceFailure(error);
+      if (failure) return json(failure.body, failure.status);
       if (!account || error || !data?.session || data.session.user?.id !== account.id) return json({ error: INVALID_LOGIN }, 400);
       // The browser retains the existing email OTP step before dashboard entry.
       return json({ session: data.session });

@@ -26,6 +26,10 @@ export function accountAddress(input) {
 
 async function studentAuth(payload) {
   const cfg = window.OSAS || {};
+  const unavailable = payload.action === 'recover'
+    ? 'Student ID recovery is temporarily unavailable. Use your account email instead.'
+    : 'Student ID sign-in is temporarily unavailable. Sign in with your account email instead.';
+  if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY) throw new Error(unavailable);
   let response;
   try {
     response = await fetch(`${cfg.SUPABASE_URL}/functions/v1/student-auth`, {
@@ -35,7 +39,19 @@ async function studentAuth(payload) {
     });
   } catch { throw new Error('Could not reach the sign-in service. Check your connection and try again.'); }
   const data = await response.json().catch(() => null);
-  if (!response.ok) throw new Error(data?.error || 'Sign-in failed. Please try again.');
+  if (!response.ok) {
+    if (data?.code === 'email_provider_disabled') {
+      throw new Error('Account sign-in is temporarily unavailable. A school administrator must enable email sign-in.');
+    }
+    if (data?.code === 'auth_service_unavailable') {
+      throw new Error('Account sign-in is temporarily unavailable. Please try again shortly.');
+    }
+    if ([401, 403, 404].includes(response.status) || response.status >= 500) throw new Error(unavailable);
+    throw new Error(typeof data?.error === 'string' ? data.error : unavailable);
+  }
+  if (payload.action === 'sign-in' && (!data?.session?.access_token || !data?.session?.refresh_token)) {
+    throw new Error(unavailable);
+  }
   return data;
 }
 let client = null;
@@ -85,6 +101,25 @@ function saveSession(s) {
   listeners.forEach((fn) => {
     try { fn(s); } catch {}
   });
+  if (s?.provider === 'supabase') void loadStudentId(s);
+}
+
+// IDs are private profile data, not user-editable Auth metadata. Loading the
+// signed-in user's own row must never prevent a valid account from signing in.
+async function loadStudentId(s) {
+  const cfg = window.OSAS || {};
+  try {
+    const query = new URLSearchParams({ select: 'student_id', id: `eq.${s.user.id}`, limit: '1' });
+    const response = await fetch(`${cfg.SUPABASE_URL}/rest/v1/users?${query}`, {
+      headers: { apikey: cfg.SUPABASE_ANON_KEY, Authorization: `Bearer ${s.access_token}` },
+    });
+    if (!response.ok) return;
+    const rows = await response.json();
+    const id = rows?.[0]?.student_id;
+    if (session !== s || !STUDENT_ID_RE.test(String(id || ''))) return;
+    s.user.student_id = id;
+    listeners.forEach((fn) => { try { fn(s); } catch {} });
+  } catch {}
 }
 
 export function supabaseConfigured() {
@@ -154,6 +189,7 @@ function toSession(s) {
       id: user.id,
       email: user.email,
       role: roleOf(user),
+      student_id: null,
       name: (user.user_metadata && user.user_metadata.name) || user.email,
     },
     access_token: s.access_token,
@@ -162,6 +198,9 @@ function toSession(s) {
 
 function friendly(err, fallback) {
   const m = String((err && err.message) || '');
+  if (err?.code === 'email_provider_disabled' || /email (?:logins?|sign[ -]?ins?) (?:are|is) disabled/i.test(m)) {
+    return 'Account sign-in is temporarily unavailable. A school administrator must enable email sign-in.';
+  }
   if (/invalid login credentials/i.test(m)) return 'Incorrect student ID, email, or password.';
   if (/token has expired|invalid/i.test(m) && /token|otp|code/i.test(m)) return 'That code is incorrect or has expired. Request a new one.';
   if (/rate limit|too many|security purposes/i.test(m)) return 'Too many attempts. Please wait a minute before trying again.';
@@ -303,7 +342,6 @@ function layerEmailError(error, fallback) {
     return 'Sign-in by email code is not set up yet. Ask an administrator to configure Supabase Auth email (Authentication → Email, SMTP or a working custom provider) and redeploy the project.';
   }
   if (/rate limit|too many/i.test(m)) return 'Too many code requests. Wait a minute before trying again.';
-  if (/invalid login credentials|user not found|no account/i.test(m))
   return fallback;
 }
 

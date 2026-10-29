@@ -49,9 +49,16 @@ Deno.serve(async (req) => {
   try {
   if (body.action === 'list') {
     const accounts = await allUsers();
-    const { data: profiles, error } = await svc.from('users').select('id,student_id');
-    if (error) return json({ error: error.message }, 500);
-    const studentIds = new Map((profiles || []).map((u: any) => [u.id, u.student_id]));
+    // The Data API has a row limit independent of Auth pagination. Read the
+    // matching profiles in bounded batches so IDs remain available after the
+    // directory grows beyond that limit.
+    const studentIds = new Map<string, string>();
+    for (let offset = 0; offset < accounts.length; offset += 200) {
+      const ids = accounts.slice(offset, offset + 200).map((u: any) => u.id);
+      const { data: profiles, error } = await svc.from('users').select('id,student_id').in('id', ids);
+      if (error) return json({ error: 'Account IDs could not be loaded. Refresh Accounts and try again.' }, 503);
+      for (const profile of profiles || []) studentIds.set(profile.id, profile.student_id);
+    }
     const users = accounts.map((u: any) => ({
       id: u.id,
       email: u.email,

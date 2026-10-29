@@ -14,7 +14,7 @@ function setup() {
     { id: studentId, email: 'student@gmail.com', app_metadata: { role: 'client' }, user_metadata: { name: 'Student One' } },
   ];
   const profiles = [
-    { id: adminId, email: users[0].email, student_id: null },
+    { id: adminId, email: users[0].email, student_id: 's260000002' },
     { id: studentId, email: users[1].email, student_id: 's260000001' },
   ];
   const writes = [];
@@ -28,7 +28,7 @@ function setup() {
           writes.push(attributes);
           const user = { id: '11000000-0000-4000-8000-000000000003', ...attributes };
           users.push(user);
-          profiles.push({ id: user.id, email: user.email, student_id: user.app_metadata.role === 'client' ? 's260000002' : null });
+          profiles.push({ id: user.id, email: user.email, student_id: 's260000003' });
           return { data: { user } };
         },
         async updateUserById(id, attributes) {
@@ -42,10 +42,12 @@ function setup() {
     from(table) {
       assert.equal(table, 'users');
       const filters = [];
-      const result = () => profiles.filter((p) => filters.every(([key, value]) => p[key] === value));
+      const membership = [];
+      const result = () => profiles.filter((p) => filters.every(([key, value]) => p[key] === value) && membership.every(([key, values]) => values.includes(p[key])));
       const query = {
         select: () => query,
         eq(key, value) { filters.push([key, value]); return query; },
+        in(key, values) { membership.push([key, values]); return query; },
         async maybeSingle() { return { data: result()[0] || null }; },
         async single() { return { data: result()[0] || null }; },
         then(resolve) { resolve({ data: result() }); },
@@ -72,6 +74,7 @@ test('account list returns saved student IDs and no username login fields', asyn
   const s = setup();
   const response = await s.call({ action: 'list' });
   assert.equal(response.status, 200);
+  assert.equal(response.data.users[0].student_id, 's260000002');
   assert.equal(response.data.users[1].student_id, 's260000001');
   assert.equal(response.data.users[1].username, undefined);
   assert.equal(response.data.users[1].email, 'student@gmail.com');
@@ -82,7 +85,7 @@ test('account create returns an auto-generated ID, separate from the verificatio
   const s = setup();
   const response = await s.call({ action: 'create', email: 'personal@gmail.com', name: 'Juan Reyes', password: 'Password12', role: 'client' });
   assert.equal(response.status, 201);
-  assert.equal(response.data.user.student_id, 's260000002');
+  assert.equal(response.data.user.student_id, 's260000003');
   assert.equal(s.writes[0].email, 'personal@gmail.com');
   assert.equal(s.writes[0].app_metadata.username, undefined);
   assert.equal(s.writes[0].app_metadata.student_id, undefined);
@@ -111,9 +114,9 @@ test('changing the name or email retains the generated student ID', async () => 
   assert.equal(s.profiles[1].email, 'another@gmail.com');
 });
 
-test('administrator creation does not assign a student ID', async () => {
+test('administrator creation also returns an assigned student ID', async () => {
   const s = setup();
   const result = await s.call({ action: 'create', email: 'new@gmail.com', name: 'Juan Reyes', password: 'Password12', role: 'admin' });
   assert.equal(result.status, 201);
-  assert.equal(result.data.user.student_id, null);
+  assert.equal(result.data.user.student_id, 's260000003');
 });

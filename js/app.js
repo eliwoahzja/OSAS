@@ -242,6 +242,7 @@ function syncAvatarUI() {
 }
 
 function openProfilePhotoModal() {
+  const user = auth.currentUser() || {};
   let current = '/assets/logo.png';
   try {
     current = localStorage.getItem('osas.user.avatar') || '/assets/logo.png';
@@ -273,14 +274,19 @@ function openProfilePhotoModal() {
   const content = h('div', { class: 'p-6 sm:p-8 space-y-6' },
     h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-4' },
       h('div', {},
-        h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Profile Picture / School ID'),
-        h('p', { class: 'text-xs text-gray-500 mt-0.5' }, 'Choose the official school seal or upload your school ID photo.'),
+        h('h3', { class: 'text-lg font-bold text-gray-900' }, 'My Profile'),
+        h('p', { class: 'text-xs text-gray-500 mt-0.5' }, 'Your account details and profile photo.'),
       ),
       h('button', {
         class: 'w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors',
         onclick: () => modal.close(),
       }, icon('dangerous', 'text-base')),
     ),
+    h('dl', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-4' },
+      h('div', {}, h('dt', { class: 'text-xs text-gray-500' }, 'Student ID'),
+        h('dd', { class: 'text-sm font-semibold text-gray-900', 'data-current-student-id': '' }, user.student_id || 'Not available')),
+      h('div', {}, h('dt', { class: 'text-xs text-gray-500' }, 'Email'),
+        h('dd', { class: 'text-sm font-semibold text-gray-900 break-words' }, user.email || ''))),
     h('div', { class: 'flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-gray-50/80 border border-gray-100' },
       previewImg,
       h('div', { class: 'flex-1 space-y-3 text-center sm:text-left' },
@@ -336,6 +342,16 @@ function resetPageScroll() {
   [document.scrollingElement, document.documentElement, document.body].forEach((el) => { if (el) el.scrollTop = 0; });
 }
 
+function syncAccountIdentityUI() {
+  const user = auth.currentUser();
+  if (!user) return;
+  const handle = document.getElementById('user-handle');
+  if (handle) handle.textContent = user.student_id ? `ID: ${user.student_id}` : user.email || '';
+  document.querySelectorAll('[data-current-student-id]').forEach((el) => {
+    el.textContent = user.student_id || 'Not available';
+  });
+}
+
 function enterApp() {
   closeLogin?.();
   closeLogin = null;
@@ -352,7 +368,7 @@ function enterApp() {
   const label = roleLabel(isAdmin ? 'admin' : 'client');
   document.getElementById('workspace-label').textContent = label;
   document.getElementById('workspace-kicker').textContent = `${label} Workspace`;
-  document.getElementById('user-handle').textContent = user.email || '';
+  syncAccountIdentityUI();
   document.querySelectorAll('[data-user-initials]').forEach((el) => { el.textContent = initials; });
   document.querySelectorAll('[data-user-name]').forEach((el) => { el.textContent = user.name || 'User'; });
   document.querySelectorAll('[data-user-role]').forEach((el) => { el.textContent = label; });
@@ -370,6 +386,7 @@ async function logout() {
 }
 
 function wireShell() {
+  auth.onAuthChange(syncAccountIdentityUI);
   document.getElementById('hamburger').addEventListener('click', () => {
     document.getElementById('sidebar').classList.toggle('-translate-x-full');
     document.getElementById('sidebar-backdrop').classList.toggle('hidden');

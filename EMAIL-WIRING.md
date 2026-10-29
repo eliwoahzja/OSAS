@@ -23,10 +23,15 @@ Required setup in your Supabase project:
      `{{ .ConfirmationURL }}` as the reset button's destination.
    - The Magic Link and Confirmation templates include `{{ .Token }}`,
      which is the OTP code the app expects.
-3. Supabase → Authentication → Providers → Email
+3. Supabase → Authentication → Sign In / Providers → Email
+   - Enable the **Email provider**. Disabling the provider blocks both email
+     and student-ID password logins with `email_provider_disabled`.
    - Keep "Enable sign ups" OFF (accounts are created by admins).
    - OTP length = 6 (matches what the app validates).
-4. Create users in Authentication → Users.
+4. Create users through administrator Accounts or Authentication → Users.
+   - Every account, including administrators, receives an immutable generated
+     student login ID. Existing IDs and passwords are preserved. Apply the
+     `20261029133532_all_account_student_ids.sql` migration for older accounts.
    - Student accounts are assigned during enrollment. The sign-in page does not
      offer self-registration or an access-request link.
    - Admin role is set server-side only, e.g.:

@@ -36,7 +36,7 @@ async function call(payload) {
 
 function openEditModal(user, isSelf, onSaved) {
   const name = h('input', { type: 'text', class: inputCls, value: user.name || '', required: true, autocomplete: 'off' });
-  const studentId = h('input', { id: 'account-edit-student-id', type: 'text', class: inputCls, value: user.student_id || 'Administrator — uses email', readonly: true });
+  const studentId = h('input', { id: 'account-edit-student-id', type: 'text', class: inputCls, value: user.student_id || 'Not available', readonly: true });
   const email = h('input', { id: 'account-edit-email', type: 'email', class: inputCls, value: user.email || '', required: true, autocomplete: 'off' });
   const password = h('input', { type: 'password', class: inputCls, placeholder: 'Leave blank to keep the current password', autocomplete: 'new-password' });
   const role = h('select', { class: inputCls },
@@ -151,7 +151,7 @@ function openCreateModal(onCreated) {
       save.disabled = true;
       try {
         const { user } = await call({ action: 'create', name: name.value, email: email.value, password: password.value, role: role.value });
-        toast(user.student_id ? `Account created. Student ID: ${user.student_id}. Share this ID and the temporary password securely.` : `Administrator account created for ${email.value.trim()}.`);
+        toast(user.student_id ? `Account created. Student ID: ${user.student_id}. Share this ID and the temporary password securely.` : 'Account created. Refresh Accounts to retrieve its student ID.');
         modal.close();
         onCreated();
       } catch (ex) {
@@ -163,7 +163,7 @@ function openCreateModal(onCreated) {
   },
     h('div', { class: 'border-b border-gray-100 pb-4' },
       h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Create account'),
-      h('p', { class: 'text-xs text-gray-500 mt-0.5' }, 'A unique student ID is generated automatically for student accounts. They sign in with their ID and password, then enter a code emailed to them.'),
+      h('p', { class: 'text-xs text-gray-500 mt-0.5' }, 'Every account receives a unique student ID, including administrators. Sign in with the ID or email and password, then enter the code emailed to the account.'),
     ),
     h('div', {}, h('label', { class: labelCls }, 'Full name'), name),
     h('div', {}, h('label', { class: labelCls, for: email.id }, 'Email'), email,
@@ -271,7 +271,7 @@ export async function accounts(el) {
       users.sort((a, b) => (a.role === b.role ? a.email.localeCompare(b.email) : a.role === 'admin' ? -1 : 1));
       holder.appendChild(dataTable([
         { label: 'Name', render: (u) => h('span', { class: 'font-semibold text-gray-900' }, u.name) },
-        { label: 'Student ID', render: (u) => h('span', { class: 'font-medium text-gray-700' }, u.student_id || '—') },
+        { label: 'Student ID', render: (u) => h('span', { class: 'font-medium text-gray-700' }, u.student_id || 'Not available') },
         { label: 'Email', key: 'email' },
         { label: 'Type', render: (u) => pill(roleLabel(u.role), u.role === 'admin' ? 'pink' : 'blue') },
         { label: 'Last sign-in', render: (u) => (u.last_sign_in_at ? formatDateTime(u.last_sign_in_at) : 'Never') },

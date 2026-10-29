@@ -37,14 +37,15 @@ BEGIN
   END;
   INSERT INTO auth.users (id, email, raw_app_meta_data)
     VALUES (admin_id, 'osas-id-admin@example.invalid', '{"role":"admin"}');
-  IF (SELECT student_id FROM public.users WHERE id = admin_id) IS NOT NULL THEN RAISE EXCEPTION 'Administrator received student ID'; END IF;
+  IF (SELECT student_id FROM public.users WHERE id = admin_id) IS NULL THEN RAISE EXCEPTION 'Administrator did not receive a login ID'; END IF;
 
   -- Mirrors GoTrue creating the Auth row before applying admin app_metadata.
   INSERT INTO auth.users (id, email, raw_app_meta_data)
     VALUES (delayed_id, 'osas-id-delayed@example.invalid', '{}');
-  IF (SELECT student_id FROM public.users WHERE id = delayed_id) IS NOT NULL THEN RAISE EXCEPTION 'ID issued before student role was assigned'; END IF;
+  SELECT student_id INTO saved_id FROM public.users WHERE id = delayed_id;
+  IF saved_id IS NULL THEN RAISE EXCEPTION 'Account did not receive an ID before role metadata was assigned'; END IF;
   UPDATE auth.users SET raw_app_meta_data = '{"role":"client"}' WHERE id = delayed_id;
-  IF (SELECT student_id FROM public.users WHERE id = delayed_id) IS NULL THEN RAISE EXCEPTION 'Final student role did not generate ID'; END IF;
+  IF (SELECT student_id FROM public.users WHERE id = delayed_id) <> saved_id THEN RAISE EXCEPTION 'Role metadata changed the account ID'; END IF;
 END;
 $$;
 ROLLBACK;
