@@ -127,7 +127,7 @@ The demo and fresh-database seed include all ten supplied First Aid Supplies row
 
 ### Self-service password recovery
 
-Student accounts are provided during enrollment. The sign-in page has no registration or Contact Admin link. **Forgot password?** sends a Supabase Auth reset email directly to the account's registered inbox; no administrator approval is required. A valid link opens the new-password form before normal app startup. Recovery credentials use a separate, tab-local session, so they never become a dashboard sign-in in another tab. Saving the password ends recovery and returns to the usual sign-in flow.
+Student accounts are provided during enrollment. The sign-in page has no registration or Contact Admin link. **Forgot password?** sends a Supabase Auth reset email directly to the account's registered inbox; no administrator approval is required. A valid link opens the new-password form before normal app startup. Recovery credentials use a separate, tab-local session, so they never become a dashboard sign-in in another tab. Saving the password ends recovery and returns to the usual sign-in flow. Sign-in codes and recovery links expire after 10 minutes.
 
 ### Automatically generated student IDs
 

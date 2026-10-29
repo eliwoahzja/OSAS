@@ -1,6 +1,7 @@
 // The hosted Supabase project may issue a different OTP length than the local config.
 export const EMAIL_OTP_MIN_LENGTH = 6;
 export const EMAIL_OTP_MAX_LENGTH = 10;
+export const EMAIL_OTP_EXPIRY_MINUTES = 10;
 const validEmailOtp = (token) => /^\d+$/.test(token)
   && token.length >= EMAIL_OTP_MIN_LENGTH
   && token.length <= EMAIL_OTP_MAX_LENGTH;

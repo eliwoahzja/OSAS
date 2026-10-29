@@ -280,7 +280,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         e.preventDefault();
         err.clear();
         if (code.value.length < OTP_MIN || code.value.length > OTP_MAX || !/^\d+$/.test(code.value)) {
-          err.show(`Enter the complete ${OTP_MIN}–${OTP_MAX}-digit code from your email.`);
+           err.show(`Enter the complete ${OTP_MIN}–${OTP_MAX}-digit code from your email. It expires in 10 minutes.`);
           return;
         }
         submit.disabled = true;
@@ -303,7 +303,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('h2', { class: 'lg-title' }, title),
       h('p', { class: 'lg-lead' }, lead, ' ', h('strong', {}, email)),
       field({ label: 'Verification code', icon: 'shield-halved', input: code }),
-      h('p', { class: 'lg-hint' }, 'Type the 6 digit OTP sent to your email.'),
+      h('p', { class: 'lg-hint' }, 'Type the 6-digit code sent to your email. It expires in 10 minutes.'),
       err.el,
       rememberDevice,
       submit,
@@ -362,7 +362,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const notice = h('p', { class: 'lg-notice' + (noticeText ? '' : ' lg-hidden'), role: 'status' }, noticeText);
 
     const email = h('input', {
-      type: 'text', class: 'lg-input', placeholder: 's260000001 or you@example.com',
+      type: 'text', class: 'lg-input', placeholder: 's26XXXXXXX or you@example.com',
       autocomplete: 'username', required: true, value: prefillEmail,
     });
     const password = h('input', {
@@ -416,7 +416,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('p', { class: 'lg-eyebrow' }, 'LOGIN'),
       h('h2', { class: 'lg-title' }, 'Welcome Back'),
       h('p', { class: 'lg-lead' }, 'Sign in to access the St. Agnes Academy OSAS Dashboard.'),
-      field({ label: 'Student ID or email', icon: 'id-card', input: email }),
+      field({ label: 'Student ID', icon: 'id-card', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderForgotPassword(email.value)) }, 'Forgot password?'),
       notice,
@@ -467,7 +467,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('p', { class: 'lg-eyebrow' }, 'Account recovery'),
       h('h2', { class: 'lg-title' }, 'Forgot Password'),
       h('p', { class: 'lg-lead' }, 'Enter your student ID or email. The reset link goes to that account\u2019s saved email address.'),
-      field({ label: 'Student ID or email', icon: 'envelope', input: email }),
+      field({ label: 'Student ID', icon: 'envelope', input: email }),
       notice,
       err.el,
       submit,
