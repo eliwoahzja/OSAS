@@ -40,8 +40,11 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only.' }, 405);
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY) return json({ error: 'The assistant service is not configured.' }, 503);
   if (!AGENT_GATEWAY_KEY) return json({ error: 'The assistant gateway key is not configured.' }, 503);
-  if (!N8N_AGENT_WEBHOOK_URL || !N8N_WEBHOOK_SECRET) {
-    return json({ error: 'The assistant is not connected to n8n yet. Add the n8n webhook secrets in Supabase.' }, 503);
+  if (!N8N_AGENT_WEBHOOK_URL) {
+    return json({ error: 'The assistant is not connected yet. Its n8n Production URL has not been configured.' }, 503);
+  }
+  if (!N8N_WEBHOOK_SECRET) {
+    return json({ error: 'The assistant webhook secret is not configured. Ask an administrator to finish setup.' }, 503);
   }
 
   const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');

@@ -231,10 +231,10 @@ function build() {
     'aria-hidden': 'true',
   },
     h('header', { class: 'agent-header' },
-      h('div', { class: 'agent-header-mark', 'aria-hidden': 'true' }, 'O'),
+      h('img', { class: 'agent-header-logo', src: '/assets/logo.png', alt: '' }),
       h('div', { class: 'agent-header-text' },
         h('strong', {}, 'OSAS desk'),
-        h('span', {}, 'Administrative records')),
+      ),
       h('button', {
         type: 'button', class: 'agent-icon-btn', 'aria-label': 'Clear conversation', title: 'New conversation',
         onclick: clearConversation,
