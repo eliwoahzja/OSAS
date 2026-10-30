@@ -63,11 +63,11 @@ function bubble(role, content, options = {}) {
 
 function welcome() {
   return h('div', { class: 'agent-welcome' },
-    h('div', { class: 'agent-welcome-icon' }, icon('support_agent', 'text-xl')),
-    h('h3', {}, 'OSAS Assistant'),
-    h('p', {}, 'I can look up students, incidents, contacts, supplies, drills, inspections, and accounts — and perform authorized administrative actions.'),
+    h('p', { class: 'agent-welcome-kicker' }, 'OSAS · ADMIN TOOLS'),
+    h('h3', {}, 'What do you need to check?'),
+    h('p', {}, 'Search records or make an update. I’ll ask before sending an email, changing an account, or deleting a record.'),
     h('div', { class: 'agent-suggestions' },
-      ['Summarize open incidents this month.', 'Find a student and their guardian contact.', 'Which first-aid supplies are low?', 'Schedule a fire drill next Friday.']
+      ['Show open incidents', 'Find a student', 'Check low supplies']
         .map((label) => h('button', {
           type: 'button', class: 'agent-chip',
           onclick: () => { inputEl.value = label; inputEl.focus(); },
@@ -202,11 +202,11 @@ function build() {
   fab = h('button', {
     type: 'button', class: 'agent-fab', 'aria-label': 'Open OSAS Assistant', 'aria-expanded': 'false',
     onclick: togglePanel,
-  }, icon('support_agent', 'text-lg'), h('span', { class: 'agent-fab-label' }, 'Assistant'));
+  }, icon('comment-dots', 'text-sm'), h('span', { class: 'agent-fab-label' }, 'OSAS desk'));
 
   inputEl = h('textarea', {
     class: 'agent-input', rows: '1', maxlength: '4000',
-    placeholder: 'Ask about a student, incident, supply, drill, or account…',
+    placeholder: 'Search or update OSAS records…',
     'aria-label': 'Message the OSAS assistant',
   });
   inputEl.addEventListener('input', () => {
@@ -231,10 +231,10 @@ function build() {
     'aria-hidden': 'true',
   },
     h('header', { class: 'agent-header' },
-      h('div', { class: 'agent-header-mark' }, icon('support_agent', 'text-base')),
+      h('div', { class: 'agent-header-mark', 'aria-hidden': 'true' }, 'O'),
       h('div', { class: 'agent-header-text' },
-        h('strong', {}, 'OSAS Assistant'),
-        h('span', {}, 'Administrator workspace')),
+        h('strong', {}, 'OSAS desk'),
+        h('span', {}, 'Administrative records')),
       h('button', {
         type: 'button', class: 'agent-icon-btn', 'aria-label': 'Clear conversation', title: 'New conversation',
         onclick: clearConversation,
@@ -247,7 +247,7 @@ function build() {
     h('div', { class: 'agent-composer' },
       inputEl,
       sendBtn),
-    h('p', { class: 'agent-footnote' }, 'Actions are checked against your administrator account and recorded in the audit log.'));
+    h('p', { class: 'agent-footnote' }, 'Emails, account changes, and deletions need your approval.'));
 
   wrapper = h('div', { class: 'agent-root' }, panel, fab);
   document.body.appendChild(wrapper);
