@@ -416,7 +416,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('p', { class: 'lg-eyebrow' }, 'LOGIN'),
       h('h2', { class: 'lg-title' }, 'Welcome Back'),
       h('p', { class: 'lg-lead' }, 'Sign in to access the St. Agnes Academy OSAS Dashboard.'),
-      field({ label: 'Student ID or admin email', icon: 'id-card', input: email }),
+      field({ label: 'Student ID', icon: 'id-card', input: email }),
       field({ label: 'Password', icon: 'lock', input: password, trailing: eyeToggle([password]) }),
       h('button', { type: 'button', class: 'lg-link', onclick: () => stepTo(() => renderForgotPassword(email.value)) }, 'Forgot password?'),
       notice,
