@@ -11,11 +11,13 @@ import { roleLabel, incidentLabels } from './labels.js';
 import { showLogin } from './login.js';
 import { startDashboardUpdates } from './live-dashboard.js';
 import { createSafetyLanding, startLandingAnimations } from './landing.js';
+import { mountAgentChat, unmountAgentChat } from './agent.js';
 
 let closeLogin = null;
 let stopLandingAnimations = null;
 function showPublicPage() {
   stopDashboardUpdates();
+  unmountAgentChat();
   document.body.dataset.session = 'public';
   document.title = 'Campus Safety | St. Agnes Academy';
   if (!document.getElementById('public-safety')) {
@@ -375,11 +377,13 @@ function enterApp() {
   document.querySelectorAll('[data-user-role]').forEach((el) => { el.textContent = label; });
   syncAvatarUI();
   renderSidebar();
+  mountAgentChat();
   route();
 }
 
 async function logout() {
   stopDashboardUpdates();
+  unmountAgentChat();
   await auth.signOut();
   history.replaceState(null, '', '#/');
   document.getElementById('view').innerHTML = '';

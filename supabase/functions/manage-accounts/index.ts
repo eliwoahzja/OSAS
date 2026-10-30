@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const AGENT_GATEWAY_KEY = Deno.env.get('AGENT_GATEWAY_KEY') || '';
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 
 const CORS = {
@@ -18,18 +19,40 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const roleOf = (u: any) => (u?.app_metadata?.role === 'admin' ? 'admin' : 'client');
 
+function safeEqual(left: string, right: string): boolean {
+  if (!left || !right || left.length !== right.length) return false;
+  let out = 0;
+  for (let i = 0; i < left.length; i++) out |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  return out === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
   if (!SERVICE_ROLE_KEY) return json({ error: 'Service role key is not available to this function.' }, 500);
 
-  const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  if (!jwt) return json({ error: 'Sign-in required.' }, 401);
-
   const svc = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
-  const { data: who, error: whoErr } = await svc.auth.getUser(jwt);
-  if (whoErr || !who?.user) return json({ error: 'Your session is invalid or expired.' }, 401);
-  if (roleOf(who.user) !== 'admin') return json({ error: 'Administrators only.' }, 403);
+
+  let actor: any = null;
+  const agentKey = req.headers.get('x-agent-key') || '';
+  if (AGENT_GATEWAY_KEY && safeEqual(agentKey, AGENT_GATEWAY_KEY)) {
+    // Trusted server-to-server call from the OSAS agent gateway. The gateway
+    // verified the administrator and passed the actor id; re-check the role so
+    // a leaked header pair cannot promote an ordinary account.
+    const actorId = req.headers.get('x-agent-actor') || '';
+    if (!UUID_RE.test(actorId)) return json({ error: 'Sign-in required.' }, 401);
+    const { data: found, error } = await svc.auth.admin.getUserById(actorId);
+    if (error || !found?.user) return json({ error: 'Your session is invalid or expired.' }, 401);
+    if (roleOf(found.user) !== 'admin') return json({ error: 'Administrators only.' }, 403);
+    actor = found.user;
+  } else {
+    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (!jwt) return json({ error: 'Sign-in required.' }, 401);
+    const { data: who, error: whoErr } = await svc.auth.getUser(jwt);
+    if (whoErr || !who?.user) return json({ error: 'Your session is invalid or expired.' }, 401);
+    if (roleOf(who.user) !== 'admin') return json({ error: 'Administrators only.' }, 403);
+    actor = who.user;
+  }
 
   let body: any;
   try { body = await req.json(); } catch { return json({ error: 'Invalid JSON.' }, 400); }
@@ -68,7 +91,7 @@ Deno.serve(async (req) => {
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at,
     }));
-    return json({ users, me: who.user.id });
+    return json({ users, me: actor.id });
   }
 
   if (body.action === 'create') {
@@ -120,7 +143,7 @@ Deno.serve(async (req) => {
     if (!role) return json({ error: 'Role must be admin or client.' }, 400);
     if (password && password.length < 8) return json({ error: 'New password must be at least 8 characters.' }, 400);
     if (roleOf(target) === 'admin' && role !== 'admin') {
-      if (id === who.user.id) return json({ error: 'You cannot remove your own administrator access.' }, 400);
+      if (id === actor.id) return json({ error: 'You cannot remove your own administrator access.' }, 400);
       if (!(await otherAdminExists(id))) return json({ error: 'At least one administrator must remain.' }, 400);
     }
 
@@ -144,7 +167,7 @@ Deno.serve(async (req) => {
   if (body.action === 'delete') {
     const id = String(body.id || '');
     if (!UUID_RE.test(id)) return json({ error: 'Invalid user id.' }, 400);
-    if (id === who.user.id) return json({ error: 'You cannot delete your own account.' }, 400);
+    if (id === actor.id) return json({ error: 'You cannot delete your own account.' }, 400);
     const { data: found } = await svc.auth.admin.getUserById(id);
     if (found?.user && roleOf(found.user) === 'admin' && !(await otherAdminExists(id))) {
       return json({ error: 'At least one administrator must remain.' }, 400);

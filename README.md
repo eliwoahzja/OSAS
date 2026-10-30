@@ -19,6 +19,7 @@ A web dashboard for logging campus incidents, scheduling drills, tracking safety
 | **Parent notifications** | *Urgent incident alert* (that student's guardian only, or an admin-only campus-wide alert that does **not** name the student) and *event notice*. |
 | **Safety reports** (admin) | Compliance metrics, **CSV export** (incidents, inspections, drills, supplies) and print / save as PDF. |
 | **Accounts** (admin) | Create / list / delete Administrator and Student accounts. |
+| **AI Assistant** (admin) | In-dashboard chat that looks up records and performs authorized OSAS actions through an n8n workflow and a validated Supabase tool gateway. See [docs/n8n/README.md](docs/n8n/README.md). |
 | **Emergency roles / contacts** | Directory of guardians (per student) and school responders. |
 
 The dashboard refreshes on incident Realtime events, local writes and window focus, with a 15-second polling fallback.
@@ -26,7 +27,7 @@ The dashboard refreshes on incident Realtime events, local writes and window foc
 ## Architecture
 
 * **Frontend:** vanilla JavaScript ES modules, precompiled Tailwind CSS v3, a small DOM builder (`js/ui.js`), custom SVG charts (`js/charts.js`). Hash router in `js/app.js`.
-* **Backend:** Supabase — PostgreSQL with Row Level Security, Supabase Auth, Storage, and one Edge Function (`send-notification`) that sends email through Maileroo.
+* **Backend:** Supabase — PostgreSQL with Row Level Security, Supabase Auth, Storage, and Edge Functions for notifications, accounts, authentication, and the AI assistant gateway.
 * **Server:** `server.js` is only a static file server (Express).
 * **Two data modes, never mixed:**
   * **Signed in** → live Supabase data only. A failed save shows the real error; nothing is silently stored in the browser.
@@ -41,6 +42,10 @@ js/modules/*          one file per feature area
 supabase/schema.sql   fresh-database schema (DROPS TABLES — new projects only)
 supabase/migrations/  ordered, additive upgrades for an existing database
 supabase/functions/send-notification/   email Edge Function
+supabase/functions/agent-chat/          authenticated dashboard → n8n relay
+supabase/functions/agent-tools/         validated, audited tool gateway
+js/agent.js                             administrator assistant panel
+docs/n8n/                               importable n8n workflow and setup guide
 ```
 
 ## Setup
@@ -151,6 +156,12 @@ Regression checks: `npm test`, `tests/browser-accounts.mjs`, `tests/browser-stud
 Configure Auth SMTP and the Reset Password template in Supabase, and allow the exact same-origin `/?recovery=1` redirect for each deployed host. The supplied template is `supabase/templates/recovery.html`. See [EMAIL-WIRING.md](EMAIL-WIRING.md#self-service-password-recovery) for setup and a real-email delivery check. Changes to `supabase/config.toml` configure local Supabase only.
 
 Previously issued admin-approved account setup links remain supported for compatibility with enrolled-account provisioning. Their protected request history and Accounts review tools remain available; normal password recovery no longer submits requests to that queue.
+
+### AI administrative assistant
+
+Administrators get an **Assistant** button in the dashboard. The browser calls the `agent-chat` Edge Function with the administrator's Supabase session. `agent-chat` verifies the JWT and administrator role, mints a 15-minute HMAC token, and relays the conversation to the n8n workflow. The workflow uses Gemini to choose a read or write action and calls the `agent-tools` gateway. The gateway re-verifies the token and role, validates every field, enforces confirmation on deletions/account changes/emails, and writes to `agent_audit_log`. n8n never holds the Supabase service-role key.
+
+Setup and the importable workflow are in [docs/n8n/README.md](docs/n8n/README.md). Required Supabase secrets are `AGENT_GATEWAY_KEY`, `N8N_WEBHOOK_SECRET`, and `N8N_AGENT_WEBHOOK_URL`. Apply migration `20261030120000_agent_gateway.sql` before deploying `agent-tools` and `agent-chat`.
 
 The custom domain is `https://osas.stagnesacademy-sms.com/`, with Accounts at `/#/accounts`. The host deploys a selected Git commit independently of Vercel. Serve `index.html`, `js/`, `css/`, and `assets/` at the subdomain's document root, or use `npm run build` and serve `dist/`. The frontend is static; Supabase continues to host Auth, data, and Edge Functions. Hash routes need no server rewrite. HTTPS is required for authentication and PIN encryption. New account-request emails already use this domain for review links, password setup links, and the logo. Existing emailed links retain their original destination.
 

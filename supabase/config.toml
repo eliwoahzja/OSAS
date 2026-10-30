@@ -406,3 +406,12 @@ verify_jwt = false
 
 [functions.admin-pin]
 verify_jwt = true
+
+# n8n calls the tool gateway with a short-lived HMAC token minted by agent-chat.
+# The gateway verifies that token and the administrator role itself.
+[functions.agent-tools]
+verify_jwt = false
+
+# The dashboard calls agent-chat with the administrator's Supabase session.
+[functions.agent-chat]
+verify_jwt = true

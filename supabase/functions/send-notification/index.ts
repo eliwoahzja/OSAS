@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const AGENT_GATEWAY_KEY = Deno.env.get('AGENT_GATEWAY_KEY') || '';
 const MAILEROO_API_KEY = Deno.env.get('MAILEROO_API_KEY') || '';
 const MAILEROO_FROM = Deno.env.get('MAILEROO_FROM') || 'Saint Agnes Academy OSAS <osas@stagnesacdmy.maileroo.app>';
 const SMTP_HOST = Deno.env.get('SMTP_HOST') || '';
@@ -37,6 +38,13 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-
 const CLINIC_RE = /nurse|clinic|health/i;
 const BATCH_SIZE = 10;
 const BATCH_DELAY_MS = 250;
+
+function safeEqual(left: string, right: string): boolean {
+  if (!left || !right || left.length !== right.length) return false;
+  let out = 0;
+  for (let i = 0; i < left.length; i++) out |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  return out === 0;
+}
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -383,18 +391,31 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
 
-  const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+  const authClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   let user: { id: string } | null = null;
   let role: 'admin' | 'authenticated' = 'authenticated';
-  if (jwt) {
-    try {
-      const { data } = await createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false, autoRefreshToken: false } }).auth.getUser(jwt);
-      if (data?.user) {
+  const agentKey = req.headers.get('x-agent-key') || '';
+  if (AGENT_GATEWAY_KEY && safeEqual(agentKey, AGENT_GATEWAY_KEY)) {
+    const actorId = req.headers.get('x-agent-actor') || '';
+    if (UUID_RE.test(actorId)) {
+      const { data } = await authClient.auth.admin.getUserById(actorId);
+      if (data?.user && data.user.app_metadata?.role === 'admin') {
         user = { id: data.user.id };
-        role = data.user.app_metadata?.role === 'admin' ? 'admin' : 'authenticated';
+        role = 'admin';
       }
-    } catch {
-      user = null;
+    }
+  } else {
+    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    if (jwt) {
+      try {
+        const { data } = await authClient.auth.getUser(jwt);
+        if (data?.user) {
+          user = { id: data.user.id };
+          role = data.user.app_metadata?.role === 'admin' ? 'admin' : 'authenticated';
+        }
+      } catch {
+        user = null;
+      }
     }
   }
 
