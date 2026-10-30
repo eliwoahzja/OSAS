@@ -342,12 +342,13 @@
 
   .agent-panel {
     position: fixed;
-    inset: 10px 10px 10px;
-    width: calc(100vw - 20px);
-    height: calc(100dvh - 20px);
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     max-height: none;
     min-height: 0;
-    border-radius: 12px;
+    border-radius: 0;
     transform: translateY(10px) scale(.99);
     z-index: 75;
   }
