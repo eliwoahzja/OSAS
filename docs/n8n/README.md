@@ -17,8 +17,7 @@ n8n webhook secret (to accept calls from `agent-chat`) and the Gemini API key.
 3. Import [`osas-admin-agent.workflow.json`](./osas-admin-agent.workflow.json).
 4. Open the **Google Gemini** node and create a **Google Gemini(PaLM) API**
    credential with a key from [Google AI Studio](https://aistudio.google.com/apikey).
-   Select the credential. The workflow uses `models/gemini-2.5-flash`; change it
-   if your account uses a different model.
+   Select the credential and choose `models/gemini-3.8-flash` in the Model field.
 5. Open the **Check Secret** node and replace
    `REPLACE_WITH_N8N_WEBHOOK_SECRET` with the webhook secret you will store in
    Supabase. This is the secret that proves a request came from `agent-chat`.
