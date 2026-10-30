@@ -107,14 +107,15 @@
         "method": "POST",
         "url": "https://rwqaeabxusivkyjgskko.supabase.co/functions/v1/agent-tools",
         "sendBody": true,
+        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ action: $fromAI('action', 'Read action name. See the tool description for the allowed actions.', 'string'), filters: $fromAI('filters', 'Filters as a JSON object string. Use {} for none.', 'string') || '{}', token: $('OSAS Webhook').first().json.body.agentToken, request_id: $('OSAS Webhook').first().json.body.requestId }) }}",
         "options": {}
       },
       "id": "6a682bef-74d5-4fd4-95d7-d736e0bbb41b",
-      "name": "OSAS Read",
-      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
-      "typeVersion": 1.1,
+      "name": "OSAS Read HTTP",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
       "position": [
         300,
         220
@@ -126,14 +127,15 @@
         "method": "POST",
         "url": "https://rwqaeabxusivkyjgskko.supabase.co/functions/v1/agent-tools",
         "sendBody": true,
+        "contentType": "json",
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ action: $fromAI('action', 'Write action name. See the tool description for the allowed actions.', 'string'), data: $fromAI('data', 'Action data as a JSON object string.', 'string') || '{}', token: $('OSAS Webhook').first().json.body.agentToken, request_id: $('OSAS Webhook').first().json.body.requestId }) }}",
         "options": {}
       },
       "id": "c938afae-3cec-438a-9b8d-e70e5b503a9a",
-      "name": "OSAS Write",
-      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
-      "typeVersion": 1.1,
+      "name": "OSAS Write HTTP",
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.5,
       "position": [
         460,
         220
@@ -196,7 +198,7 @@
         ]
       ]
     },
-    "OSAS Read": {
+    "OSAS Read HTTP": {
       "ai_tool": [
         [
           {
@@ -207,7 +209,7 @@
         ]
       ]
     },
-    "OSAS Write": {
+    "OSAS Write HTTP": {
       "ai_tool": [
         [
           {
