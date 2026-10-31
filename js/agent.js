@@ -33,7 +33,7 @@ function newId() {
 function storageKey(key) { return `${key}:${userScope}`; }
 
 function loadState() {
-  userScope = currentUser()?.id || 'unknown';
+  userScope = `${isAdmin() ? 'admin' : 'student'}:${currentUser()?.id || currentUser()?.email || 'demo'}`;
   try {
     const saved = JSON.parse(sessionStorage.getItem(storageKey(HISTORY_KEY)) || '[]');
     messages = Array.isArray(saved)
@@ -184,6 +184,10 @@ function selectSlashCommand(command) {
 }
 
 function localAction(parsed, rawMessage) {
+  if (isAdmin() && /^(who are you|what(?:'s| is) your name|what are you)[?!. ]*$/i.test(rawMessage)) {
+    addAssistantReply(assistantIdentity(true));
+    return true;
+  }
   if (parsed?.kind === 'clear') {
     clearConversation();
     return true;
