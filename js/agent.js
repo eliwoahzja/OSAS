@@ -3,6 +3,7 @@
 // mints a short-lived tool token, and relays the conversation to n8n.
 
 import { h, icon } from './ui.js';
+import { renderMarkdownMessage } from './agent-markdown.js';
 import { currentAccessToken, currentUser, isAdmin, isSignedIn } from './auth.js';
 import { availableCommands, parseCommand, commandHelp, assistantIdentity, studentNavigationAnswer, studentRouteAllowed } from './agent-commands.js';
 
@@ -63,7 +64,7 @@ function scrollToEnd() {
 
 function bubble(role, content, options = {}) {
   const isUser = role === 'user';
-  const body = h('div', { class: 'agent-bubble-text' }, content);
+  const body = h('div', { class: 'agent-bubble-text' }, isUser || options.error ? content : renderMarkdownMessage(content));
   if (!isUser) body.setAttribute('data-agent-reply', '');
   const children = [body];
   if (!isUser && studentRouteAllowed(options.route)) {
