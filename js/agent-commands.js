@@ -65,16 +65,16 @@ export function studentNavigationAnswer(message) {
   if (/\b(report|incident|accident|injur\w*|complaint|file a report|submit a report)\b/i.test(input)) {
     return { reply: 'Open Incident Reporting to submit an incident report or review reports available to your account.', route: 'incident-logging' };
   }
-  if (/\b(emergency|guardian|contact|phone number|telephone)\b/i.test(input)) {
-    return { reply: 'Open Emergency Contacts to find the contact information available to students. I do not look up private guardian records.', route: 'emergency-contacts' };
-  }
   if (/\b(evacuat\w*|map|exit|escape route|safety plan)\b/i.test(input)) {
     return { reply: 'Open Evacuation Map & Plans for school evacuation information.', route: 'evacuation-plans' };
+  }
+  if (/\b(emergency|guardian|contact|phone number|telephone)\b/i.test(input)) {
+    return { reply: 'Open Emergency Contacts to find the contact information available to students. I do not look up private guardian records.', route: 'emergency-contacts' };
   }
   if (/\b(dashboard|home|overview)\b/i.test(input)) {
     return { reply: 'Open Dashboard to see your available OSAS overview.', route: 'dashboard' };
   }
-  if (/\b(admin|account|supply|inventory|inspection|drill|risk assessment|notification|safety report)\b/i.test(input)) {
+  if (/\b(admin|accounts?|suppl\w*|inventor\w*|inspection\w*|drill\w*|risk assessments?|notification\w*|safety reports?)\b/i.test(input)) {
     return { reply: 'Those management pages are restricted to administrators. I can guide you to Dashboard, Emergency Contacts, Evacuation Map & Plans, or Incident Reporting. Type /help to see navigation commands.' };
   }
   return { reply: 'I help students navigate OSAS, not access or edit records. Ask where to find a page, such as incident reporting or evacuation maps, or type /help.' };
