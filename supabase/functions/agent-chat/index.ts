@@ -66,6 +66,22 @@ Deno.serve(async (req) => {
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid request.' }, 400);
 
+  const image = body.image;
+  let imageInput: { mimeType: string; fileName: string; data: string } | null = null;
+  if (image !== undefined && image !== null) {
+    if (!image || typeof image !== 'object' || Array.isArray(image)) return json({ error: 'Invalid image attachment.' }, 400);
+    const mimeType = String(image.mimeType || '');
+    const data = String(image.data || '');
+    const fileName = String(image.fileName || 'attached-image').replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) return json({ error: 'Only JPEG, PNG, and WebP images are supported.' }, 400);
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data) || data.length > 2_800_000 || data.length < 16) {
+      return json({ error: 'Invalid or oversized image. Select an image smaller than 2 MB.' }, 400);
+    }
+    const estimatedBytes = Math.floor(data.length * 3 / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
+    if (estimatedBytes > 2 * 1024 * 1024) return json({ error: 'The image must be smaller than 2 MB.' }, 400);
+    imageInput = { mimeType, fileName, data };
+  }
+
   const message = text(body.message);
   if (message.length < 1) return json({ error: 'Type a message for the assistant.' }, 400);
   if (message.length > 4000) return json({ error: 'Keep each message under 4,000 characters.' }, 400);
@@ -112,6 +128,7 @@ Deno.serve(async (req) => {
         actorId: user.id,
         actorName,
         agentToken,
+        ...(imageInput ? { image: imageInput } : {}),
       }),
       signal: AbortSignal.timeout(75000),
     });
@@ -162,5 +179,8 @@ Deno.serve(async (req) => {
     return json({ error: 'n8n did not return an assistant reply. Check the Respond to Webhook node.' }, 502);
   }
 
-  return json({ reply, requestId });
+  if (imageInput && payload?.imageProcessed !== true) {
+    return json({ error: 'Image analysis is not enabled in the n8n workflow. Configure its image input and republish it.' }, 502);
+  }
+  return json({ reply, requestId, ...(imageInput ? { imageProcessed: true } : {}) });
 });
