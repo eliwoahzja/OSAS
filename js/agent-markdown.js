@@ -5,6 +5,27 @@ const LIST = /^ {0,3}([-+*]|\d+[.)])\s+(.+)$/;
 const QUOTE = /^ {0,3}>\s?(.*)$/;
 const RULE = /^ {0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/;
 
+// Recognize OSAS record details without depending on model-written Markdown.
+const SECTION_LINE = /^ {0,3}(?:\*\*([^*\n]{2,70})\*\*|__([^_\n]{2,70})__)\s*:?[ \t]*$/;
+const PLAIN_SECTION = /^ {0,3}([A-Za-z][A-Za-z0-9 &/().-]{2,64}):\s*$/;
+const KEY_VALUE = /^ {0,3}([A-Za-z][A-Za-z0-9 _()/.-]{1,35}):[ \t]+(.+)$/;
+const RECORD_KEYS = new Set([
+  'name', 'student', 'student name', 'student id', 'id', 'record id',
+  'account', 'email', 'phone', 'contact', 'guardian', 'guardian name',
+  'role', 'status', 'severity', 'type', 'grade', 'section', 'date', 'time',
+  'location', 'reporter', 'description', 'message', 'title', 'recipient',
+  'audience', 'event', 'event date', 'start', 'end', 'start date', 'end date',
+  'delivery', 'delivery status', 'priority', 'category', 'quantity',
+  'result', 'action', 'reference', 'created at', 'updated at',
+]);
+
+function recordField(line) {
+  const found = KEY_VALUE.exec(line);
+  if (!found || found[2].length > 280) return null;
+  if (!RECORD_KEYS.has(found[1].trim().toLowerCase())) return null;
+  return { label: found[1].trim(), value: found[2].trim() };
+}
+
 export function parseInlineMarkdown(value) {
   const text = String(value ?? '');
   const tokens = [];
@@ -55,6 +76,19 @@ export function parseMarkdownBlocks(value) {
       i++; continue;
     }
     if (RULE.test(line)) { blocks.push({ type: 'rule' }); i++; continue; }
+    const section = SECTION_LINE.exec(line);
+    const plainSection = PLAIN_SECTION.exec(line);
+    if (section || plainSection) {
+      blocks.push({ type: 'section', text: (section?.[1] || section?.[2] || plainSection?.[1] || '').trim() });
+      i++;
+      continue;
+    }
+    if (recordField(line)) {
+      const items = [];
+      while (i < lines.length && recordField(lines[i])) items.push(recordField(lines[i++]));
+      blocks.push({ type: 'fields', items });
+      continue;
+    }
     const list = LIST.exec(line);
     if (list) {
       const ordered = /\d/.test(list[1][0]);
@@ -88,7 +122,8 @@ export function parseMarkdownBlocks(value) {
     const parts = [line.trim()];
     i++;
     while (i < lines.length && lines[i].trim() && !FENCE.test(lines[i]) && !HEADING.test(lines[i]) &&
-      !RULE.test(lines[i]) && !LIST.test(lines[i]) && !QUOTE.test(lines[i])) {
+      !RULE.test(lines[i]) && !LIST.test(lines[i]) && !QUOTE.test(lines[i]) &&
+      !SECTION_LINE.test(lines[i]) && !PLAIN_SECTION.test(lines[i]) && !recordField(lines[i])) {
       if (i + 1 < lines.length && lines[i].includes('|') && isSeparator(lines[i + 1])) break;
       parts.push(lines[i++].trim());
     }
@@ -125,9 +160,24 @@ export function renderMarkdownMessage(content) {
   root.className = 'agent-rich-text';
   for (const block of parseMarkdownBlocks(content)) {
     let element;
-    if (block.type === 'heading') {
-      element = document.createElement('h' + block.level);
+    if (block.type === 'heading' || block.type === 'section') {
+      element = document.createElement(block.type === 'section' ? 'h3' : 'h' + block.level);
+      if (block.type === 'section') element.className = 'agent-section-heading';
       appendInline(element, block.text);
+    } else if (block.type === 'fields') {
+      element = document.createElement('dl');
+      element.className = 'agent-record-fields';
+      for (const field of block.items) {
+        const item = document.createElement('div');
+        item.className = 'agent-record-field';
+        const dt = document.createElement('dt');
+        dt.textContent = field.label;
+        const dd = document.createElement('dd');
+        appendInline(dd, field.value);
+        item.appendChild(dt);
+        item.appendChild(dd);
+        element.appendChild(item);
+      }
     } else if (block.type === 'paragraph') {
       element = document.createElement('p');
       appendInline(element, block.text);
