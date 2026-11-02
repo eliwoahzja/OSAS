@@ -219,11 +219,13 @@
 }
 
 .agent-bubble.is-assistant {
-  border: 1px solid #e2dcd4;
-  border-bottom-left-radius: 3px;
+  border: 1px solid #e6dde1;
+  border-bottom-left-radius: 5px;
+  border-radius: 15px 15px 15px 5px;
   background: #fff;
   color: #332B2F;
-  box-shadow: none;
+  box-shadow: 0 2px 9px rgba(58, 16, 36, .055);
+  padding: 14px 15px 15px;
 }
 
 .agent-bubble.is-user {
@@ -241,13 +243,67 @@
 }
 
 .agent-bubble-text { white-space: pre-wrap; }
-.agent-bubble.is-assistant { max-width: 100%; }
+.agent-bubble.is-assistant { max-width: 100%; min-width: 0; }
+.agent-reply-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid #f2ebee;
+  color: #775064;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.agent-reply-heading i { color: #995372; }
+.agent-record-fields {
+  margin: 12px 0;
+  border: 1px solid #eee4e8;
+  border-radius: 11px;
+  overflow: hidden;
+  background: #fcfafb;
+}
+.agent-record-field {
+  display: grid;
+  grid-template-columns: minmax(76px, 108px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 9px 11px;
+}
+.agent-record-field + .agent-record-field { border-top: 1px solid #eee8eb; }
+.agent-record-field dt {
+  color: #775e6a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+.agent-record-field dd {
+  min-width: 0;
+  margin: 0;
+  color: #30262c;
+  font-size: 12.5px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.agent-rich-text .agent-section-heading {
+  margin: 14px 0 7px;
+  padding-left: 9px;
+  border-left: 2px solid #b87892;
+  color: #552b3d;
+  font-size: 13px;
+  font-weight: 760;
+}
+.agent-rich-text > :first-child.agent-section-heading { margin-top: 0; }
 .agent-rich-text {
   white-space: normal;
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 13px;
-  line-height: 1.65;
+  line-height: 1.7;
+  letter-spacing: .002em;
 }
 .agent-rich-text > * { margin: 0 0 10px; }
 .agent-rich-text > :last-child { margin-bottom: 0; }
@@ -531,6 +587,8 @@
   .agent-panel.is-open { transform: none; }
   .agent-messages { padding: 14px 12px 18px; }
   .agent-bubble { max-width: 90%; font-size: 13px; }
+  .agent-bubble.is-assistant { max-width: 96%; padding: 13px 13px 14px; }
+  .agent-record-field { grid-template-columns: minmax(70px, 90px) minmax(0, 1fr); gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
