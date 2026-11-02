@@ -68,7 +68,12 @@ function bubble(role, content, options = {}) {
   const isUser = role === 'user';
   const body = h('div', { class: 'agent-bubble-text' }, isUser || options.error ? content : renderMarkdownMessage(content));
   if (!isUser) body.setAttribute('data-agent-reply', '');
-  const children = [body];
+  const children = isUser
+    ? [body]
+    : [h('div', { class: 'agent-reply-heading', 'aria-hidden': 'true' },
+        icon('auto_awesome', 'text-[13px]'),
+        h('span', {}, isAdmin() ? 'OSAS AI Assistant' : 'OSAS Chatbot')),
+      body];
   if (!isUser && studentRouteAllowed(options.route)) {
     children.push(h('a', {
       class: 'agent-page-link',
