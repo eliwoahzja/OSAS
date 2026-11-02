@@ -666,3 +666,13 @@
 @media (prefers-reduced-motion: reduce) {
   .agent-panel.is-open, .agent-loader, .agent-skeleton-line { animation: none; }
 }
+
+/* Session choice and history show before the message composer. */
+.agent-panel[data-chat-screen="startup"] .agent-composer,
+.agent-panel[data-chat-screen="startup"] .agent-footnote,
+.agent-panel[data-chat-screen="resume"] .agent-composer,
+.agent-panel[data-chat-screen="resume"] .agent-footnote,
+.agent-panel[data-chat-screen="history"] .agent-composer,
+.agent-panel[data-chat-screen="history"] .agent-footnote,
+.agent-panel[data-chat-screen="loading"] .agent-composer,
+.agent-panel[data-chat-screen="loading"] .agent-footnote { display: none; }
