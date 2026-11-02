@@ -606,3 +606,63 @@
 @media print {
   .agent-root { display: none !important; }
 }
+
+/* Conversation overlay, saved-session history, media composer */
+.agent-panel.is-open {
+  animation: agent-enter .26s cubic-bezier(.2,.8,.2,1) both;
+}
+@keyframes agent-enter {
+  0% { opacity: 0; transform: translateY(18px) scale(.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.agent-startup,
+.agent-resume,
+.agent-history { padding: 22px 8px; }
+.agent-startup { min-height: 230px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 14px; color: #755c68; font-size: 13px; }
+.agent-loader { width: 27px; height: 27px; display: inline-block; border: 3px solid #eddde4; border-top-color: #683048; border-radius: 50%; animation: agent-spin .55s linear infinite; }
+@keyframes agent-spin { to { transform: rotate(360deg); } }
+.agent-resume { display: flex; flex-direction: column; align-items: flex-start; gap: 13px; }
+.agent-resume-mark { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid #ecdde4; border-radius: 13px; background: #fff; color: #783d57; }
+.agent-resume h3, .agent-history h3 { font-size: 17px; font-weight: 750; color: #33202a; margin: 0; }
+.agent-resume p { font-size: 12px; color: #7d6a73; line-height: 1.5; margin: 0; }
+.agent-last-conversation { width: 100%; display: flex; flex-direction: column; gap: 6px; border: 1px solid #e8dce1; border-radius: 11px; background: #fff; padding: 13px 14px; overflow-wrap: anywhere; }
+.agent-last-conversation strong { font-size: 13px; color: #3b2831; }
+.agent-last-conversation span { font-size: 11px; color: #877783; }
+.agent-session-actions { display: flex; flex-wrap: wrap; width: 100%; gap: 8px; }
+.agent-primary-action, .agent-secondary-action { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border-radius: 8px; padding: 10px 12px; border: 1px solid #542136; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.agent-primary-action { background: #542136; color: #fff; flex: 1 1 100%; }
+.agent-secondary-action { background: #fff; color: #542136; flex: 1 1 auto; }
+.agent-history { padding-top: 8px; }
+.agent-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.agent-history-heading .agent-secondary-action { flex: none; padding: 7px 9px; }
+.agent-history-list { display: grid; gap: 8px; }
+.agent-history-item { display: flex; align-items: center; border: 1px solid #e8dce1; border-radius: 11px; background: #fff; overflow: hidden; }
+.agent-history-open { display: grid; flex: 1; gap: 4px; min-width: 0; padding: 12px 13px; text-align: left; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.agent-history-open strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-history-open small, .agent-history-open span { font-size: 11px; color: #8b7781; }
+.agent-history-delete { flex: none; width: 40px; height: 42px; border: 0; background: none; color: #987281; cursor: pointer; }
+.agent-empty-history { font-size: 12px; line-height: 1.6; color: #7d6a73; }
+.agent-history-skeletons { display: grid; gap: 15px; padding: 16px 5px; }
+.agent-skeleton-bubble { width: 85%; display: grid; gap: 10px; padding: 15px 12px; background: white; border: 1px solid #f1e9ec; border-radius: 12px; }
+.agent-skeleton-bubble.right { width: 62%; justify-self: end; }
+.agent-skeleton-line { height: 11px; width: 65%; border-radius: 6px; background: linear-gradient(110deg, #ede7e8 12%, #f9f6f6 38%, #ede7e8 70%); background-size: 220% 100%; animation: agent-shimmer 1.2s ease-in-out infinite; }
+.agent-skeleton-line.wide { width: 95%; }
+.agent-skeleton-line.short { width: 40%; }
+@keyframes agent-shimmer { to { background-position-x: -220%; } }
+.agent-attachment-status[hidden] { display: none !important; }
+.agent-attachment-status { display: flex; align-items: center; gap: 9px; flex: none; margin: 0 11px; padding: 8px 10px; border: 1px solid #ede0e5; border-radius: 8px; background: #fff; font-size: 11px; color: #5f4551; }
+.agent-attachment-thumb { width: 38px; height: 38px; border-radius: 6px; object-fit: cover; }
+.agent-attachment-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-remove-attachment { color: #542136; }
+.agent-image-btn { flex: none; display: grid; place-items: center; height: 40px; width: 35px; border: 0; background: transparent; color: #71435a; cursor: pointer; }
+.agent-sent-image { display: block; margin: 8px 0 0; max-width: 100%; max-height: 160px; border-radius: 9px; object-fit: contain; }
+.agent-saved-image-note { display: block; font-size: 10px; opacity: .8; margin-top: 7px; }
+.agent-history-delete:hover, .agent-image-btn:hover { color: #391522; background: #f9eef3; }
+@media (max-width: 640px) {
+  .agent-panel.is-open { animation: agent-mobile-enter .22s ease-out both; }
+  @keyframes agent-mobile-enter { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .agent-startup, .agent-resume, .agent-history { padding-left: 7px; padding-right: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-panel.is-open, .agent-loader, .agent-skeleton-line { animation: none; }
+}
