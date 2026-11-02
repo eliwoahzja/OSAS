@@ -5,6 +5,7 @@
 import { h, icon } from './ui.js';
 import { renderMarkdownMessage } from './agent-markdown.js';
 import { animateFormattedReply } from './agent-reveal.js';
+import { createSessionStore, createConversation } from './agent-sessions.js';
 import { currentAccessToken, currentUser, isAdmin, isSignedIn } from './auth.js';
 import { availableCommands, parseCommand, commandHelp, assistantIdentity, studentNavigationAnswer, studentRouteAllowed } from './agent-commands.js';
 
@@ -12,6 +13,8 @@ const { SUPABASE_URL } = window.OSAS;
 const HISTORY_KEY = 'osas.agent.history.v1';
 const SESSION_KEY = 'osas.agent.session.v1';
 const MAX_HISTORY = 14;
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 let wrapper = null;
 let panel = null;
@@ -28,36 +31,91 @@ let visibleCommands = [];
 let selectedCommand = 0;
 let userScope = '';
 let stopReplyReveal = null;
+let chatStore = null;
+let screen = 'startup';
+let firstOpen = true;
+let screenGeneration = 0;
+let imagePicker = null;
+let attachment = null;
+let attachmentPreview = null;
+let imagePreviewUrls = [];
+let statusEl = null;
+let headerHistoryBtn = null;
 
 function newId() {
   try { return crypto.randomUUID(); } catch { return `agent-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
 }
 
-function storageKey(key) { return `${key}:${userScope}`; }
-
 function loadState() {
   userScope = `${isAdmin() ? 'admin' : 'student'}:${currentUser()?.id || currentUser()?.email || 'demo'}`;
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(storageKey(HISTORY_KEY)) || '[]');
-    messages = Array.isArray(saved)
-      ? saved.filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-        .slice(-MAX_HISTORY).map((m) => ({ role: m.role, content: m.content.slice(0, 6000), route: studentRouteAllowed(m.route) ? m.route : '' }))
-      : [];
-  } catch { messages = []; }
-  try {
-    sessionId = sessionStorage.getItem(storageKey(SESSION_KEY)) || '';
-  } catch { sessionId = ''; }
-  if (!sessionId) {
-    sessionId = newId();
-    try { sessionStorage.setItem(storageKey(SESSION_KEY), sessionId); } catch {}
-  }
+  const fallback = {
+    getItem: () => null,
+    setItem: () => {},
+    removeItem: () => {},
+  };
+  let storage = fallback;
+  let legacy = null;
+  try { storage = localStorage; } catch {}
+  try { legacy = sessionStorage; } catch {}
+  chatStore = createSessionStore(storage, userScope, legacy);
+  chatStore.migrate();
+  messages = [];
+  sessionId = '';
+  screen = 'startup';
+  firstOpen = true;
 }
 
 function saveState() {
-  try {
-    sessionStorage.setItem(storageKey(HISTORY_KEY), JSON.stringify(messages.slice(-MAX_HISTORY)));
-    sessionStorage.setItem(storageKey(SESSION_KEY), sessionId);
-  } catch {}
+  if (!sessionId || !chatStore) return;
+  chatStore.save({ id: sessionId, messages });
+}
+
+function clearAttachment() {
+  if (attachmentPreview?.url) {
+    URL.revokeObjectURL(attachmentPreview.url);
+  }
+  attachment = null;
+  attachmentPreview = null;
+  if (imagePicker) imagePicker.value = '';
+  renderAttachment();
+}
+
+function renderAttachment() {
+  if (!statusEl) return;
+  statusEl.replaceChildren();
+  if (!attachmentPreview) { statusEl.hidden = true; return; }
+  statusEl.hidden = false;
+  statusEl.appendChild(
+    h('img', { class: 'agent-attachment-thumb', src: attachmentPreview.url, alt: 'Image to attach' }),
+    h('span', { class: 'agent-attachment-name' }, attachmentPreview.name),
+    h('button', { type: 'button', class: 'agent-icon-btn agent-remove-attachment',
+      'aria-label': 'Remove attachment', onclick: clearAttachment }, icon('close', 'text-sm')));
+}
+
+async function attachImage(file) {
+  if (!file) return;
+  if (!isAdmin()) return addAssistantReply('Image analysis is only available to administrators.');
+  if (!IMAGE_TYPES.has(file.type)) return addAssistantReply('Select a JPG, PNG, or WebP image.');
+  if (file.size > MAX_IMAGE_BYTES) return addAssistantReply('Choose an image smaller than 2 MB.');
+  clearAttachment();
+  const url = URL.createObjectURL(file);
+  attachment = file;
+  attachmentPreview = { url, name: file.name || 'image' };
+  renderAttachment();
+}
+
+function fileData(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Unable to read your image.'));
+    reader.onload = () => {
+      const value = String(reader.result || '');
+      const data = value.split(',')[1] || '';
+      if (!data) reject(new Error('The selected image could not be read.'));
+      else resolve({ mimeType: file.type, fileName: file.name.slice(0, 100), data });
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function scrollToEnd() {
@@ -67,6 +125,8 @@ function scrollToEnd() {
 function bubble(role, content, options = {}) {
   const isUser = role === 'user';
   const body = h('div', { class: 'agent-bubble-text' }, isUser || options.error ? content : renderMarkdownMessage(content));
+  if (isUser && options.imageUrl) body.appendChild(h('img', { class: 'agent-sent-image', src: options.imageUrl, alt: 'Attached image' }));
+  else if (isUser && options.imageName) body.appendChild(h('span', { class: 'agent-saved-image-note' }, icon('image', 'text-sm'), ' Image attached: ' + options.imageName));
   if (!isUser) body.setAttribute('data-agent-reply', '');
   const children = isUser
     ? [body]
@@ -110,12 +170,100 @@ function renderMessages() {
   stopReplyReveal = null;
   if (!listEl) return;
   listEl.innerHTML = '';
+  if (screen !== 'chat') return;
   if (!messages.length) {
     listEl.appendChild(welcome());
     return;
   }
-  for (const message of messages) listEl.appendChild(bubble(message.role, message.content, { route: message.route }));
+  for (const message of messages) listEl.appendChild(bubble(message.role, message.content, { route: message.route, imageName: message.imageName }));
   scrollToEnd();
+}
+
+function showStartup() {
+  screen = 'startup';
+  listEl.replaceChildren(h('div', { class: 'agent-startup' },
+    h('span', { class: 'agent-loader', role: 'status', 'aria-label': 'Loading chat' }),
+    h('p', {}, 'Opening conversation…')));
+}
+
+function showResumeChoice() {
+  screen = 'resume';
+  const last = chatStore.list()[0];
+  if (!last) return startNewConversation();
+  listEl.replaceChildren(h('div', { class: 'agent-resume' },
+    h('div', { class: 'agent-resume-mark' }, icon('history', 'text-xl')),
+    h('h3', {}, 'Continue your last conversation?'),
+    h('p', {}, 'Your recent chats are saved on this device for this account.'),
+    h('div', { class: 'agent-last-conversation' },
+      h('strong', {}, last.title),
+      h('span', {}, new Date(last.updatedAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' }))),
+    h('div', { class: 'agent-session-actions' },
+      h('button', { type: 'button', class: 'agent-primary-action', onclick: () => openSavedConversation(last.id) }, 'Continue conversation'),
+      h('button', { type: 'button', class: 'agent-secondary-action', onclick: startNewConversation }, 'New conversation'),
+      h('button', { type: 'button', class: 'agent-secondary-action', onclick: showHistory }, 'View history'))));
+}
+
+function showHistory() {
+  if (busy) return;
+  screen = 'history';
+  const saved = chatStore.list();
+  listEl.replaceChildren(h('div', { class: 'agent-history' },
+    h('div', { class: 'agent-history-heading' },
+      h('h3', {}, 'Chat history'),
+      h('button', { type: 'button', class: 'agent-secondary-action', onclick: startNewConversation }, icon('plus', 'text-sm'), ' New chat')),
+    saved.length
+      ? h('div', { class: 'agent-history-list' }, saved.map((conversation) =>
+          h('div', { class: 'agent-history-item' },
+            h('button', { type: 'button', class: 'agent-history-open', onclick: () => openSavedConversation(conversation.id) },
+              h('strong', {}, conversation.title),
+              h('small', {}, new Date(conversation.updatedAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })),
+              h('span', {}, conversation.messages.length + ' messages')),
+            h('button', { type: 'button', class: 'agent-history-delete', 'aria-label': 'Delete conversation: ' + conversation.title,
+              onclick: () => { chatStore.remove(conversation.id); if (sessionId === conversation.id) { sessionId = ''; messages = []; } showHistory(); } },
+              icon('trash', 'text-sm')))))
+      : h('p', { class: 'agent-empty-history' }, 'No saved conversations yet. Start a new chat to see it here.')));
+}
+
+function showSkeletons() {
+  screen = 'loading';
+  listEl.replaceChildren(h('div', { class: 'agent-history-skeletons', role: 'status', 'aria-label': 'Loading saved conversation' },
+    h('div', { class: 'agent-skeleton-line short' }),
+    h('div', { class: 'agent-skeleton-bubble' },
+      h('div', { class: 'agent-skeleton-line' }), h('div', { class: 'agent-skeleton-line wide' }),
+      h('div', { class: 'agent-skeleton-line short' })),
+    h('div', { class: 'agent-skeleton-bubble right' },
+      h('div', { class: 'agent-skeleton-line' }), h('div', { class: 'agent-skeleton-line short' })),
+    h('div', { class: 'agent-skeleton-bubble' }, h('div', { class: 'agent-skeleton-line wide' }),
+      h('div', { class: 'agent-skeleton-line' }))));
+}
+
+function openSavedConversation(id) {
+  if (busy) return;
+  const generation = ++screenGeneration;
+  showSkeletons();
+  setTimeout(() => {
+    if (generation !== screenGeneration || !wrapper) return;
+    const saved = chatStore.get(id);
+    if (!saved) { showHistory(); return; }
+    sessionId = saved.id;
+    messages = saved.messages;
+    screen = 'chat';
+    renderMessages();
+    inputEl?.focus();
+  }, 230);
+}
+
+function startNewConversation() {
+  if (busy) return;
+  ++screenGeneration;
+  screen = 'chat';
+  const next = createConversation();
+  sessionId = next.id;
+  messages = [];
+  clearAttachment();
+  renderMessages();
+  if (inputEl) inputEl.value = '';
+  inputEl?.focus();
 }
 
 function showTyping() {
@@ -206,7 +354,7 @@ function localAction(parsed, rawMessage) {
     return true;
   }
   if (parsed?.kind === 'clear') {
-    clearConversation();
+    startNewConversation();
     return true;
   }
   if (parsed?.kind === 'help') {
@@ -235,24 +383,35 @@ function localAction(parsed, rawMessage) {
 
 async function sendMessage() {
   const message = (inputEl?.value || '').trim();
-  if (!message || busy) return;
+  if ((!message && !attachment) || busy || screen !== 'chat') return;
+  const chosenFile = attachment;
+  if (chosenFile && !isAdmin()) return;
 
-  const parsed = parseCommand(message, isAdmin());
-  const history = messages.slice(-MAX_HISTORY).map((m) => ({ role: m.role, content: m.content }));
-  messages.push({ role: 'user', content: message });
+  const actualMessage = message || 'Please describe this image and extract any relevant readable text.';
+  const parsed = chosenFile ? null : parseCommand(actualMessage, isAdmin());
+  const history = messages.slice(-MAX_HISTORY).map(m => ({ role: m.role, content: m.content }));
+  messages.push({ role: 'user', content: actualMessage, ...(chosenFile ? { imageName: chosenFile.name } : {}) });
   saveState();
   inputEl.value = '';
   inputEl.style.height = 'auto';
   hideCommandMenu();
-  if (listEl.querySelector('.agent-welcome')) listEl.innerHTML = '';
-  listEl.appendChild(bubble('user', message));
+  if (listEl.querySelector('.agent-welcome')) listEl.replaceChildren();
+  const imageUrl = attachmentPreview?.url || '';
+  if (imageUrl) {
+    imagePreviewUrls.push(imageUrl);
+    attachment = null;
+    attachmentPreview = null;
+    renderAttachment();
+  }
+  listEl.appendChild(bubble('user', actualMessage, { imageUrl }));
   scrollToEnd();
 
-  if (localAction(parsed, message)) return;
-  const outgoing = parsed?.kind === 'agent' ? parsed.message : message;
+  if (!chosenFile && localAction(parsed, actualMessage)) return;
+  const outgoing = parsed?.kind === 'agent' ? parsed.message : actualMessage;
   setBusy(true);
   showTyping();
   try {
+    const image = chosenFile ? await fileData(chosenFile) : undefined;
     const token = await currentAccessToken();
     if (!token) throw Object.assign(new Error('Sign-in required.'), { status: 401 });
     const response = await fetch(`${SUPABASE_URL}/functions/v1/agent-chat`, {
@@ -262,24 +421,24 @@ async function sendMessage() {
         apikey: window.OSAS.SUPABASE_ANON_KEY,
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ message: outgoing, history, sessionId }),
+      body: JSON.stringify({ message: outgoing, history, sessionId, ...(image ? { image } : {}) }),
     });
-    let payload = null;
-    try { payload = await response.json(); } catch {}
+    const payload = await response.json().catch(() => null);
     if (!response.ok) {
       const error = new Error(errorText(response.status, payload));
       error.status = response.status;
       throw error;
     }
-    const reply = String(payload?.reply || '').trim();
     hideTyping();
+    if (image && payload?.imageProcessed !== true) {
+      throw new Error('Image reading is not enabled in the n8n AI workflow yet. Configure its vision input before using attachments.');
+    }
+    const reply = String(payload?.reply || '').trim();
     if (!reply) throw new Error('The assistant returned an empty response.');
     addAssistantReply(reply);
   } catch (error) {
     hideTyping();
-    const text = error?.message || 'The assistant could not answer right now. Try again.';
-    listEl.appendChild(bubble('assistant', text, { error: true }));
-    scrollToEnd();
+    addAssistantReply(error?.message || 'The assistant could not answer right now.', { error: true });
   } finally {
     setBusy(false);
     inputEl?.focus();
@@ -291,7 +450,18 @@ function openPanel() {
   panel.classList.add('is-open');
   panel.setAttribute('aria-hidden', 'false');
   fab?.setAttribute('aria-expanded', 'true');
-  setTimeout(() => inputEl?.focus(), 180);
+  if (firstOpen) {
+    firstOpen = false;
+    showStartup();
+    const generation = ++screenGeneration;
+    setTimeout(() => {
+      if (generation === screenGeneration && wrapper) {
+        if (chatStore.list().length) showResumeChoice();
+        else startNewConversation();
+      }
+    }, 190);
+  }
+  setTimeout(() => inputEl?.focus(), 240);
   scrollToEnd();
 }
 
@@ -299,6 +469,7 @@ function closePanel() {
   if (!panel) return;
   stopReplyReveal?.();
   stopReplyReveal = null;
+  hideCommandMenu();
   panel.classList.remove('is-open');
   panel.setAttribute('aria-hidden', 'true');
   fab?.setAttribute('aria-expanded', 'false');
@@ -311,15 +482,7 @@ function togglePanel() {
 }
 
 function clearConversation() {
-  if (busy) return;
-  messages = [];
-  sessionId = newId();
-  saveState();
-  hideTyping();
-  if (inputEl) inputEl.value = '';
-  hideCommandMenu();
-  renderMessages();
-  inputEl?.focus();
+  startNewConversation();
 }
 
 function build() {
@@ -369,6 +532,18 @@ function build() {
     }
   });
 
+  imagePicker = h('input', {
+    type: 'file',
+    accept: 'image/png,image/jpeg,image/webp',
+    hidden: true,
+    'aria-label': 'Choose image to analyze',
+    onchange: (event) => attachImage(event.target.files?.[0]),
+  });
+  const imageBtn = isAdmin()
+    ? h('button', { type: 'button', class: 'agent-image-btn', title: 'Attach image', 'aria-label': 'Attach image',
+        onclick: () => imagePicker.click() }, icon('image', 'text-base'))
+    : null;
+
   sendBtn = h('button', {
     type: 'button', class: 'agent-send', 'aria-label': 'Send message', onclick: sendMessage,
   }, icon('send', 'text-sm'));
@@ -376,6 +551,7 @@ function build() {
   listEl = h('div', { class: 'agent-messages', role: 'log', 'aria-live': 'polite', 'aria-label': 'Assistant conversation' });
   commandMenu = h('div', { class: 'agent-command-menu', role: 'listbox', 'aria-label': 'Available slash commands' });
 
+  statusEl = h('div', { class: 'agent-attachment-status', hidden: true });
   panel = h('section', {
     class: 'agent-panel', role: 'dialog', 'aria-modal': 'false', 'aria-label': title,
     'aria-hidden': 'true',
@@ -386,16 +562,23 @@ function build() {
         h('strong', {}, title),
       ),
       h('button', {
-        type: 'button', class: 'agent-icon-btn', 'aria-label': 'Clear conversation', title: 'New conversation',
-        onclick: clearConversation,
-      }, icon('trash', 'text-sm')),
+        type: 'button', class: 'agent-icon-btn', 'aria-label': 'Chat history', title: 'Chat history',
+        onclick: showHistory,
+      }, icon('history', 'text-sm')),
+      h('button', {
+        type: 'button', class: 'agent-icon-btn', 'aria-label': 'New conversation', title: 'New conversation',
+        onclick: startNewConversation,
+      }, icon('plus', 'text-sm')),
       h('button', {
         type: 'button', class: 'agent-icon-btn', 'aria-label': 'Close assistant', title: 'Close',
         onclick: closePanel,
       }, icon('close', 'text-base'))),
     listEl,
+    statusEl,
     h('div', { class: 'agent-composer' },
       commandMenu,
+      imagePicker,
+      imageBtn,
       inputEl,
       sendBtn),
     h('p', { class: 'agent-footnote' }, admin
@@ -404,7 +587,7 @@ function build() {
 
   wrapper = h('div', { class: 'agent-root', 'data-chat-role': admin ? 'admin' : 'student', 'data-chat-user': userScope }, panel, fab);
   document.body.appendChild(wrapper);
-  renderMessages();
+  showStartup();
 
   const onKey = (event) => {
     if (event.key === 'Escape' && panel.classList.contains('is-open')) {
@@ -433,6 +616,10 @@ export function unmountAgentChat() {
   stopReplyReveal = null;
   if (!wrapper) return;
   if (wrapper.__agentKeyHandler) document.removeEventListener('keydown', wrapper.__agentKeyHandler);
+  ++screenGeneration;
+  clearAttachment();
+  for (const url of imagePreviewUrls) URL.revokeObjectURL(url);
+  imagePreviewUrls = [];
   wrapper.remove();
   wrapper = null;
   panel = null;
@@ -445,6 +632,11 @@ export function unmountAgentChat() {
   visibleCommands = [];
   selectedCommand = 0;
   userScope = '';
+  chatStore = null;
+  imagePicker = null;
+  statusEl = null;
+  screen = 'startup';
+  firstOpen = true;
   busy = false;
   messages = [];
 }
