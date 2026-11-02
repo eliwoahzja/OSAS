@@ -61,7 +61,7 @@ function loadState() {
   chatStore.migrate();
   messages = [];
   sessionId = '';
-  screen = 'startup';
+  setScreen('startup');
   firstOpen = true;
 }
 
@@ -179,6 +179,11 @@ function renderMessages() {
   scrollToEnd();
 }
 
+function setScreen(next) {
+  screen = next;
+  if (panel) panel.setAttribute('data-chat-screen', next);
+}
+
 function showStartup() {
   screen = 'startup';
   listEl.replaceChildren(h('div', { class: 'agent-startup' },
@@ -187,7 +192,7 @@ function showStartup() {
 }
 
 function showResumeChoice() {
-  screen = 'resume';
+  setScreen('resume');
   const last = chatStore.list()[0];
   if (!last) return startNewConversation();
   listEl.replaceChildren(h('div', { class: 'agent-resume' },
@@ -205,7 +210,7 @@ function showResumeChoice() {
 
 function showHistory() {
   if (busy) return;
-  screen = 'history';
+  setScreen('history');
   const saved = chatStore.list();
   listEl.replaceChildren(h('div', { class: 'agent-history' },
     h('div', { class: 'agent-history-heading' },
@@ -225,7 +230,7 @@ function showHistory() {
 }
 
 function showSkeletons() {
-  screen = 'loading';
+  setScreen('loading');
   listEl.replaceChildren(h('div', { class: 'agent-history-skeletons', role: 'status', 'aria-label': 'Loading saved conversation' },
     h('div', { class: 'agent-skeleton-line short' }),
     h('div', { class: 'agent-skeleton-bubble' },
@@ -247,7 +252,7 @@ function openSavedConversation(id) {
     if (!saved) { showHistory(); return; }
     sessionId = saved.id;
     messages = saved.messages;
-    screen = 'chat';
+    setScreen('chat');
     renderMessages();
     inputEl?.focus();
   }, 230);
@@ -256,7 +261,7 @@ function openSavedConversation(id) {
 function startNewConversation() {
   if (busy) return;
   ++screenGeneration;
-  screen = 'chat';
+  setScreen('chat');
   const next = createConversation();
   sessionId = next.id;
   messages = [];
