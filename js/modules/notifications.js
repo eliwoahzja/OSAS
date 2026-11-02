@@ -115,9 +115,10 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
         const rawMsg = String(r.message || '');
         const rawAudience = String(r.audience_group || '');
         const isStock = r.notif_type === 'alert' ||
-          /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
-          /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
-          /clinic|custodian/i.test(rawAudience);
+          (r.notif_type !== 'event_notice' && (
+            /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+            /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
+            /clinic|custodian/i.test(rawAudience)));
         return !isStock;
       })
       .filter((r) => {
@@ -191,9 +192,10 @@ function notifBadge(r) {
   const rawMsg = String(r.message || '');
   const rawAudience = String(r.audience_group || '');
   const isStock = r.notif_type === 'alert' ||
-    /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
-    /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
-    /clinic|custodian/i.test(rawAudience);
+    (r.notif_type !== 'event_notice' && (
+      /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+      /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
+      /clinic|custodian/i.test(rawAudience)));
   const isParentAlert = !isStock && (r.notif_type === 'incident_alert' || Boolean(r.student_name) || Boolean(r.student_id && r.student_id !== '11111111-1111-4111-8111-111111111111') || Boolean(r.related_incident_id));
 
   if (isStock) {
