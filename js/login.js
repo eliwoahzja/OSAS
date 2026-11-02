@@ -422,7 +422,6 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'Students enter an emailed code. Administrators enter their PIN.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
