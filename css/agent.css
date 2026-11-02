@@ -14,10 +14,12 @@
   bottom: 88px;
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  padding: 11px 15px;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
   border: 1px solid #542136;
-  border-radius: 9px;
+  border-radius: 50%;
   background: #542136;
   color: #fff;
   font-family: inherit;
@@ -41,7 +43,7 @@
   outline-offset: 3px;
 }
 
-.agent-fab i { color: #F8D98B; }
+.agent-fab i { color: #F8D98B; font-size: 20px; line-height: 1; }
 
 .agent-panel {
   position: absolute;
@@ -512,8 +514,6 @@
     padding: 12px;
     border-radius: 8px;
   }
-
-  .agent-fab-label { display: none; }
 
   .agent-panel {
     position: fixed;
