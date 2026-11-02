@@ -4,6 +4,7 @@
 
 import { h, icon } from './ui.js';
 import { renderMarkdownMessage } from './agent-markdown.js';
+import { animateFormattedReply } from './agent-reveal.js';
 import { currentAccessToken, currentUser, isAdmin, isSignedIn } from './auth.js';
 import { availableCommands, parseCommand, commandHelp, assistantIdentity, studentNavigationAnswer, studentRouteAllowed } from './agent-commands.js';
 
@@ -26,6 +27,7 @@ let commandMenu = null;
 let visibleCommands = [];
 let selectedCommand = 0;
 let userScope = '';
+let stopReplyReveal = null;
 
 function newId() {
   try { return crypto.randomUUID(); } catch { return `agent-${Date.now()}-${Math.random().toString(16).slice(2)}`; }
@@ -99,6 +101,8 @@ function welcome() {
 }
 
 function renderMessages() {
+  stopReplyReveal?.(false);
+  stopReplyReveal = null;
   if (!listEl) return;
   listEl.innerHTML = '';
   if (!messages.length) {
@@ -142,7 +146,14 @@ function addAssistantReply(content, options = {}) {
   const route = studentRouteAllowed(options.route) ? options.route : '';
   messages.push({ role: 'assistant', content, route });
   saveState();
-  listEl.appendChild(bubble('assistant', content, { route, error: options.error }));
+  stopReplyReveal?.();
+  stopReplyReveal = null;
+  const reply = bubble('assistant', content, { route, error: options.error });
+  const richText = reply.querySelector('.agent-rich-text');
+  if (richText && !options.error) {
+    stopReplyReveal = animateFormattedReply(richText, { onProgress: scrollToEnd });
+  }
+  listEl.appendChild(reply);
   scrollToEnd();
 }
 
@@ -281,6 +292,8 @@ function openPanel() {
 
 function closePanel() {
   if (!panel) return;
+  stopReplyReveal?.();
+  stopReplyReveal = null;
   panel.classList.remove('is-open');
   panel.setAttribute('aria-hidden', 'true');
   fab?.setAttribute('aria-expanded', 'false');
@@ -310,9 +323,9 @@ function build() {
   const admin = isAdmin();
   const title = admin ? 'OSAS desk' : 'Chatbot';
   fab = h('button', {
-    type: 'button', class: 'agent-fab', 'aria-label': `Open ${title}`, 'aria-expanded': 'false',
+    type: 'button', class: 'agent-fab', 'aria-label': `Open ${title}`, title: `Open ${title}`, 'aria-expanded': 'false',
     onclick: togglePanel,
-  }, icon('comment-dots', 'text-sm'), h('span', { class: 'agent-fab-label' }, title));
+  }, icon('comment-dots', 'text-xl'));
 
   inputEl = h('textarea', {
     class: 'agent-input', rows: '1', maxlength: '4000',
@@ -384,7 +397,7 @@ function build() {
       ? 'Type / for shortcuts. Emails, account changes, and deletions need approval.'
       : 'Navigation help only. Administrative tools are not available to students.'));
 
-  wrapper = h('div', { class: 'agent-root' }, panel, fab);
+  wrapper = h('div', { class: 'agent-root', 'data-chat-role': admin ? 'admin' : 'student', 'data-chat-user': userScope }, panel, fab);
   document.body.appendChild(wrapper);
   renderMessages();
 
@@ -403,13 +416,16 @@ export function mountAgentChat() {
     unmountAgentChat();
     return;
   }
-  if (wrapper) {
-    return;
-  }
+  const role = isAdmin() ? 'admin' : 'student';
+  const scope = `${role}:${currentUser()?.id || currentUser()?.email || 'demo'}`;
+  if (wrapper && wrapper.getAttribute('data-chat-role') === role && wrapper.getAttribute('data-chat-user') === scope) return;
+  if (wrapper) unmountAgentChat();
   build();
 }
 
 export function unmountAgentChat() {
+  stopReplyReveal?.(false);
+  stopReplyReveal = null;
   if (!wrapper) return;
   if (wrapper.__agentKeyHandler) document.removeEventListener('keydown', wrapper.__agentKeyHandler);
   wrapper.remove();
