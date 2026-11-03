@@ -54,6 +54,18 @@ try {
         };
       }),
     }));
+    if (viewport.width < 1024) {
+      assert.equal(await page.locator('#sidebar').evaluate(el=>el.inert),true);
+      const trigger=page.getByRole('button',{name:'Open menu',exact:true});
+      await trigger.click();
+      assert.equal(await trigger.getAttribute('aria-expanded'),'true');
+      await page.locator('#logout-btn').focus();
+      await page.keyboard.press('Tab');
+      assert.equal(await page.locator('#sidebar-nav a').first().evaluate(el=>el===document.activeElement),true);
+      await page.keyboard.press('Escape');
+      assert.equal(await page.locator('#sidebar').evaluate(el=>el.inert),true);
+      assert.equal(await trigger.evaluate(el=>el===document.activeElement),true);
+    }
     const baseline = await measure();
     assert.equal(baseline.width, 288);
     for (const route of ['first-aid-supplies', 'safety-inspections', 'emergency-contacts', 'safety-inspections']) {

@@ -1,0 +1,52 @@
+/* Calm, immediate feedback: quick press, short entrance, faster dismissal. */
+:root { --motion-enter: 260ms; --motion-exit: 160ms; --motion-content: 220ms; --motion-ease: cubic-bezier(.16,1,.3,1); }
+.route-content { min-width: 0; }
+.module-heading { padding: 4px 0 14px; border-bottom: 1px solid #e3d4cb; }
+.module-heading > div > p { max-width: 65ch; line-height: 1.65; }
+#page-title:focus { outline: none; }
+#sidebar-nav a:focus-visible { outline: 2px solid #f4cc90; outline-offset: 2px; }
+#sidebar-nav a[aria-current="page"] .nav-bg { background: #ffffff12; }
+#view .text-gray-400 { color: #84727b; }
+#view :is(.osas-sub, .text-gray-500) { color: #74656c; }
+#view .animate-row { animation: none; }
+#view .animate-pulse { animation: loading-breathe 1.6s ease-in-out infinite; }
+#view .animate-pulse .animate-pulse { animation: none; }
+@keyframes loading-breathe { 0%,100% { opacity: 1; } 50% { opacity: .65; } }
+.route-progress { position: fixed; top: 0; inset-inline: 0; z-index: 75; height: 3px; background: #7a1b3812; overflow: hidden; pointer-events: none; }
+.route-progress[hidden] { display: none; }
+.route-progress::after { content: ''; display: block; width: 34%; height: 100%; background: #7a1b38; animation: route-travel 1.1s ease-in-out infinite; }
+@keyframes route-travel { from { transform: translateX(-110%); } to { transform: translateX(310%); } }
+.table-scroll-hint { display: none; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #dfcfc9; background: #f6eee3; color: #765863; font-size: 11px; }
+.data-table-scroll:focus-visible { outline: 2px solid #7a1b38; outline-offset: -3px; }
+.data-table-scroll { overscroll-behavior-x: contain; }
+.connection-notice { position: relative; display: flex; align-items: center; gap: 10px; margin: 0 40px 16px; padding: 12px 16px; border: 1px solid #b49563; border-radius: 10px; background: #fbf0d9; color: #674919; font-size: 13px; line-height: 1.5; }
+.connection-notice[hidden] { display: none; }
+.osas-modal-overlay { transition: opacity var(--motion-exit) ease; }
+.osas-modal-overlay .osas-modal-card, .osas-modal-overlay.active .osas-modal-card { transform: none; transition: none; opacity: 1; }
+.osas-modal-dismiss { position: absolute; top: 16px; right: 16px; display: grid; place-items: center; width: 36px; height: 36px; z-index: 2; border: 1px solid #ba9ba2; border-radius: 9px; background: #fffdf8; color: #70515d; cursor: pointer; box-shadow: 2px 2px 0 #dac8c0; touch-action: manipulation; }
+.osas-modal-dismiss:hover { background: #f1e3df; }
+.osas-modal-dismiss:active { transform: translate(1px,1px); box-shadow: none; }
+.osas-modal-card:has(> .osas-modal-dismiss) .osas-modal-content > :is(h2,h3),
+.osas-modal-card:has(> .osas-modal-dismiss) .osas-modal-content > div:has(> h3) { padding-right: 44px; }
+.osas-modal-overlay .osas-modal-card:has(> .incident-evidence-dialog) { scrollbar-gutter: auto; overflow: hidden; }
+.osas-modal-content[aria-busy="true"] { cursor: progress; }
+#toast-root > div { animation: feedback-arrive 180ms var(--motion-ease); }
+@keyframes feedback-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+#login-overlay .lg-brand::before, #login-overlay .lg-brand::after, #login-overlay .lg-logo, #login-overlay .lg-pin-ring { animation: none; }
+@media (max-width: 760px) { .table-scroll-hint { display: flex; } .module-heading { gap: 14px; } .connection-notice { margin-inline: 16px; } }
+@media (pointer: coarse) {
+  .osas-modal-dismiss { width: 44px; height: 44px; top: 12px; right: 12px; }
+  .osas-modal-card :is(.btn-primary,.btn-ghost), .table-pager :is(.btn-primary,.btn-ghost) { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view .animate-pulse, #toast-root > div, .route-progress::after { animation: none; }
+  .route-progress::after { width: 100%; opacity: .65; }
+  .osas-modal-overlay { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce) { .osas-modal-overlay { background: #392a32e6; backdrop-filter: none; } }
+@media (prefers-contrast: more) {
+  #view :is(.neo-surface,.card-lift,.announcement-board,.student-info-card), .osas-modal-overlay .osas-modal-card { border-color: #472d37; }
+  #view :is(.text-gray-400,.text-gray-500,.osas-sub), .table-scroll-hint { color: #472d37; }
+  .osas-modal-overlay { background: #271c28d9; backdrop-filter: none; }
+}
+@media print { .table-scroll-hint, .connection-notice, .route-progress { display: none !important; } }

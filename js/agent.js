@@ -458,15 +458,12 @@ function openPanel() {
   if (firstOpen) {
     firstOpen = false;
     showStartup();
-    const generation = ++screenGeneration;
-    setTimeout(() => {
-      if (generation === screenGeneration && wrapper) {
-        if (chatStore.list().length) showResumeChoice();
-        else startNewConversation();
-      }
-    }, 190);
+    ++screenGeneration;
+    if (chatStore.list().length) showResumeChoice();
+    else startNewConversation();
   }
-  setTimeout(() => inputEl?.focus(), 240);
+  if (screen === 'chat') inputEl?.focus();
+  else panel.querySelector('button')?.focus();
   scrollToEnd();
 }
 

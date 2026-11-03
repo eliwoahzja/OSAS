@@ -4,6 +4,7 @@ import { isAdmin } from '../auth.js';
 import { recordForm, confirmDelete } from './record-actions.js';
 
 const PAGE_SIZE = 2;
+const POSTER_SIZE = { 'long-spookend.jpg': [1024,1280], 'teachers-day.jpg': [1280,1073], 'dance-troupe-auditions.jpg': [983,1280] };
 const fields = [
   { key: 'title', label: 'Title', required: true, maxLength: 120, wide: true, placeholder: 'What should students know?' },
   { key: 'body', label: 'Message', type: 'textarea', required: true, maxLength: 5000, wide: true, placeholder: 'Write your announcement…' },
@@ -39,13 +40,14 @@ export function createAnnouncementBoard() {
 
   function card(row) {
     const imagePath = /^assets\/announcements\/[a-z0-9-]+\.jpg$/.test(row.image_path || '') ? '/' + row.image_path : null;
+    const size = POSTER_SIZE[String(row.image_path || '').split('/').pop()] || [];
     const date = new Date(row.created_at);
     const dateLabel = Number.isNaN(date.getTime()) ? 'Recently posted'
       : new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'long', day: '2-digit', year: 'numeric' }).format(date)
         + ' ' + new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(date);
     return h('article', { class: 'announcement-card', 'aria-label': row.title },
       imagePath ? h('a', { class: 'announcement-poster', href: imagePath, target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Open full poster: ' + row.title },
-        h('img', { src: imagePath, alt: row.title + '. ' + row.body, loading: 'lazy', decoding: 'async' }),
+        h('img', { src: imagePath, alt: row.title + '. ' + row.body, width: size[0], height: size[1], loading: 'lazy', decoding: 'async' }),
       ) : h('div', { class: 'announcement-text' },
         h('h4', { class: 'announcement-title' }, row.title),
         h('p', { class: 'announcement-body' }, row.body),
@@ -69,6 +71,8 @@ export function createAnnouncementBoard() {
   async function refresh() {
     const current = ++request;
     loading = true;
+    list.setAttribute('aria-busy', 'true');
+    navigation.setAttribute('aria-busy', 'true');
     try {
       const rows = await api.listAnnouncements({ offset: page * PAGE_SIZE, limit: PAGE_SIZE + 1 });
       if (current !== request) return;
@@ -96,7 +100,7 @@ export function createAnnouncementBoard() {
       error.replaceChildren(h('p', {}, e.message || 'Could not load announcements.'), h('button', { type: 'button', class: 'btn-ghost', onclick: refresh }, 'Retry announcements'));
       if (!signature) list.replaceChildren();
     } finally {
-      if (current === request) loading = false;
+      if (current === request) { loading = false; list.setAttribute('aria-busy', 'false'); navigation.setAttribute('aria-busy', 'false'); }
     }
   }
 

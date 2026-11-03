@@ -14,10 +14,13 @@ import { createSafetyLanding, startLandingAnimations } from './landing.js';
 import { mountAgentChat, unmountAgentChat } from './agent.js';
 import { createAnnouncementBoard } from './modules/announcements.js';
 import { studentOverview } from './modules/student-dashboard.js';
+import { revealContent } from './motion.js';
 
 let closeLogin = null;
 let stopLandingAnimations = null;
 function showPublicPage() {
+  ++routeGeneration;
+  stopProgress('Safety guide');
   stopDashboardUpdates();
   unmountAgentChat();
   document.body.dataset.session = 'public';
@@ -107,6 +110,8 @@ function renderSidebar() {
 function highlightSidebar(route) {
   document.querySelectorAll('#sidebar-nav a').forEach((a) => {
     const active = a.getAttribute('href') === `#/${route}`;
+    if (active) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
     const indicator = a.querySelector('.nav-indicator');
     const bg = a.querySelector('.nav-bg');
     const iconEl = a.querySelector('.material-symbols-outlined');
@@ -137,45 +142,19 @@ function highlightSidebar(route) {
   });
 }
 
-let nprogress = null;
-let pTimer1 = null;
-let pTimer2 = null;
-let pTimer3 = null;
-function startProgress() {
-  if (!nprogress) {
-    nprogress = document.createElement('div');
-    nprogress.className = 'fixed top-0 left-0 h-[3px] bg-pink-500 z-50 transition-all duration-300 ease-out shadow-[0_0_10px_rgba(236,72,153,0.7)]';
-    document.body.appendChild(nprogress);
-  }
-  clearTimeout(pTimer1);
-  clearTimeout(pTimer2);
-  clearTimeout(pTimer3);
-
-  nprogress.style.transition = 'none';
-  nprogress.style.width = '0%';
-  nprogress.style.opacity = '1';
-
-  void nprogress.offsetWidth;
-
-  nprogress.style.transition = 'width 400ms ease-out, opacity 300ms ease-out';
-  nprogress.style.width = '30%';
-  pTimer1 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '60%'; }, 700);
-  pTimer2 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '85%'; }, 1800);
-  pTimer3 = setTimeout(() => { if (nprogress.style.opacity === '1') nprogress.style.width = '94%'; }, 2600);
+let routeGeneration = 0;
+let routeProgress;
+let routeStatus;
+function startProgress(title) {
+  routeProgress ||= h('div', { class: 'route-progress', role: 'progressbar', 'aria-label': 'Loading page' });
+  routeStatus ||= h('p', { class: 'sr-only', role: 'status', 'aria-live': 'polite' });
+  if (!routeProgress.isConnected) document.body.append(routeProgress, routeStatus);
+  routeProgress.hidden = false;
+  routeStatus.textContent = 'Loading ' + title + '…';
 }
-
-function stopProgress() {
-  if (!nprogress) return;
-  clearTimeout(pTimer1);
-  clearTimeout(pTimer2);
-  clearTimeout(pTimer3);
-
-  nprogress.style.transition = 'width 250ms ease-out, opacity 300ms ease-out';
-  nprogress.style.width = '100%';
-  setTimeout(() => {
-    nprogress.style.opacity = '0';
-    setTimeout(() => { nprogress.style.width = '0%'; }, 300);
-  }, 250);
+function stopProgress(title) {
+  if (routeProgress) routeProgress.hidden = true;
+  if (routeStatus) routeStatus.textContent = title + ' ready.';
 }
 
 async function route() {
@@ -184,6 +163,8 @@ async function route() {
     return;
   }
   if (!auth.isSignedIn()) {
+    ++routeGeneration;
+    stopProgress('Sign-in');
     if (location.hash === '#/sign-in') openSignIn();
     else { closeLogin?.(); closeLogin = null; showPublicPage(); }
     return;
@@ -199,8 +180,7 @@ async function route() {
     r = 'dashboard';
     if (location.hash !== '#/dashboard') history.replaceState(null, '', '#/dashboard');
   }
-  document.getElementById('sidebar').classList.add('-translate-x-full');
-  document.getElementById('sidebar-backdrop').classList.add('hidden');
+  setSidebarOpen(false);
   if (r !== 'dashboard') stopDashboardUpdates();
   const view = VIEWS[r];
   const title = navLabel(NAV.find((n) => n.route === r)) || 'Dashboard';
@@ -211,21 +191,29 @@ async function route() {
 
   const el = viewEl();
 
+  const generation = ++routeGeneration;
   resetPageScroll();
-  startProgress();
-  el.innerHTML = '';
+  startProgress(title);
+  const page = h('div', { class: 'route-content', 'aria-busy': 'true' });
+  el.replaceChildren(page);
   el.scrollTop = 0;
-  el.style.opacity = '1';
 
   try {
-    const res = view(el);
+    const res = view(page);
     if (res && typeof res.then === 'function') await res;
   } catch (e) {
     console.error(e);
-    el.appendChild(errorBanner(e.message, () => route()));
+    if (generation === routeGeneration) page.appendChild(errorBanner(e.message, () => route()));
   }
 
-  stopProgress();
+  if (generation !== routeGeneration || !page.isConnected) return;
+  page.setAttribute('aria-busy', 'false');
+  revealContent(page.firstElementChild || page);
+  stopProgress(title);
+  if (!document.querySelector('.osas-modal-overlay') && !page.contains(document.activeElement)) {
+    titleEl().setAttribute('tabindex', '-1');
+    titleEl().focus({ preventScroll: true });
+  }
 }
 
 function syncAvatarUI() {
@@ -392,20 +380,57 @@ async function logout() {
   showPublicPage();
 }
 
+let sidebarOpen = false;
+function setSidebarOpen(open, restoreFocus = false) {
+  const desktop = window.matchMedia('(min-width: 1024px)').matches;
+  const sidebar = document.getElementById('sidebar');
+  const trigger = document.getElementById('hamburger');
+  sidebarOpen = !desktop && open;
+  sidebar.classList.toggle('-translate-x-full', !sidebarOpen);
+  sidebar.inert = !desktop && !sidebarOpen;
+  sidebar.setAttribute('aria-hidden', String(!desktop && !sidebarOpen));
+  trigger.setAttribute('aria-expanded', String(sidebarOpen));
+  trigger.setAttribute('aria-controls', 'sidebar');
+  document.getElementById('sidebar-backdrop').classList.toggle('hidden', !sidebarOpen);
+  if (sidebarOpen) sidebar.querySelector('a,button')?.focus({ preventScroll: true });
+  else if (restoreFocus && !desktop) trigger.focus({ preventScroll: true });
+}
+
 function wireShell() {
   auth.onAuthChange(syncAccountIdentityUI);
-  document.getElementById('hamburger').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('-translate-x-full');
-    document.getElementById('sidebar-backdrop').classList.toggle('hidden');
+  document.getElementById('hamburger').addEventListener('click', () => setSidebarOpen(!sidebarOpen));
+  document.getElementById('sidebar-backdrop').addEventListener('click', () => setSidebarOpen(false, true));
+  window.matchMedia('(min-width: 1024px)').addEventListener('change', () => setSidebarOpen(false));
+  setSidebarOpen(false);
+  document.addEventListener('keydown', event => {
+    if (!sidebarOpen || document.querySelector('.osas-modal-overlay')) return;
+    if (event.key === 'Escape') { event.preventDefault(); setSidebarOpen(false, true); }
+    if (event.key === 'Tab') {
+      const items = [...document.querySelectorAll('#sidebar a, #sidebar button, #sidebar [tabindex="0"]')]
+        .filter(element => !element.disabled && element.getClientRects().length);
+      const first = items[0], last = items.at(-1);
+      if (event.shiftKey && (document.activeElement === first || !items.includes(document.activeElement))) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && (document.activeElement === last || !items.includes(document.activeElement))) { event.preventDefault(); first?.focus(); }
+    }
   });
-  document.getElementById('sidebar-backdrop').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.add('-translate-x-full');
-    document.getElementById('sidebar-backdrop').classList.add('hidden');
-  });
-  document.getElementById('profile-card')?.addEventListener('click', openProfilePhotoModal);
-  document.getElementById('topbar-profile')?.addEventListener('click', openProfilePhotoModal);
+  for (const id of ['profile-card', 'topbar-profile']) {
+    const profile = document.getElementById(id);
+    profile?.setAttribute('role', 'button');
+    profile?.setAttribute('tabindex', '0');
+    profile?.setAttribute('aria-label', 'Open your profile');
+    profile?.addEventListener('click', () => { setSidebarOpen(false); openProfilePhotoModal(); });
+    profile?.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); profile.click(); }
+    });
+  }
   document.getElementById('logout-btn')?.addEventListener('click', logout);
   window.addEventListener('hashchange', route);
+  const connection = h('div', { class: 'connection-notice', role: 'status', hidden: navigator.onLine !== false },
+    icon('wifi'), 'You’re offline. Reconnect before saving or sending anything.');
+  document.getElementById('view').before(connection);
+  const syncConnection = () => { connection.hidden = navigator.onLine !== false; };
+  window.addEventListener('online', syncConnection);
+  window.addEventListener('offline', syncConnection);
   const d = new Date();
   document.getElementById('topbar-date').textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -618,7 +643,7 @@ async function renderDashboard(el) {
     const announcementsLoaded = announcementBoard.refresh();
     try {
       const s = admin ? await api.getDashboardStats() : await api.getStudentGrade();
-      if (!el.contains(wrap)) return;
+      if (!el.isConnected || !el.contains(wrap)) return;
 
       if (admin && isInitial) {
         heroWrap.innerHTML = '';
@@ -667,7 +692,7 @@ async function renderDashboard(el) {
   };
 
   await refresh(true);
-  if (!el.contains(wrap)) return;
+  if (!el.isConnected || !el.contains(wrap)) return;
   stopDashboardUpdates();
   stopDashboardUpdates = startDashboardUpdates(refresh, auth.subscribeIncidentChanges);
 }

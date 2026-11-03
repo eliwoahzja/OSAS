@@ -198,3 +198,15 @@ test('administrators assign or clear grades 7 through 12 and reject invalid grad
   await demo.api.saveStudentGrade(user.id, 12);
   assert.equal(await demo.api.getStudentGrade(user.id), 12);
 });
+
+test('record lists and exports include every API page in stable order', async () => {
+  const records = Array.from({ length: 2005 }, (_, index) => ({ id: String(index), description: 'Report ' + index }));
+  const { api, calls } = await fixture({ admin: true, respond: ({ url }) => {
+    const offset=Number(url.searchParams.get('offset'));const limit=Number(url.searchParams.get('limit'));
+    return records.slice(offset, offset+limit);
+  } });
+  const result = await api.listRows('incidents');
+  assert.equal(result.length,2005);
+  assert.deepEqual(calls.map(call=>Number(call.url.searchParams.get('offset'))),[0,1000,2000]);
+  assert.ok(calls.every(call=>call.url.searchParams.get('order')==='created_at.desc,id.desc'));
+});

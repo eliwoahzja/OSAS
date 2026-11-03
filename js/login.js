@@ -1,4 +1,5 @@
 import { h } from './ui.js';
+import { revealContent, movePresence } from './motion.js';
 import * as auth from './auth.js';
 import { passwordResetCall, readResetLink } from './password-reset.js';
 
@@ -26,9 +27,11 @@ const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-redu
 const anim = (el, frames, opts) => (el && el.animate ? el.animate(frames, { fill: 'both', ...opts }) : null);
 const done = (a) => (a ? a.finished.catch(() => { }) : Promise.resolve());
 
+let fieldSequence = 0;
 function field({ label, icon, input, trailing, hint, extra }) {
+  input.id ||= 'login-field-' + (++fieldSequence);
   return h('div', { class: 'lg-field' },
-    h('label', { class: 'lg-label' }, label),
+    h('label', { class: 'lg-label', for: input.id }, label),
     h('div', { class: 'lg-input-wrap' },
       h('span', { class: 'lg-input-icon' }, fa(icon)),
       input,
@@ -47,14 +50,7 @@ function mkErr() {
       el.textContent = m;
       el.classList.remove('lg-hidden');
       if (quiet || reduceMotion()) return;
-      anim(el, [
-        { opacity: 0, transform: 'translateY(-6px)' },
-        { opacity: 1, transform: 'translateX(-7px)', offset: 0.25 },
-        { transform: 'translateX(6px)', offset: 0.45 },
-        { transform: 'translateX(-4px)', offset: 0.65 },
-        { transform: 'translateX(2px)', offset: 0.85 },
-        { opacity: 1, transform: 'none' },
-      ], { duration: 480, easing: 'ease-out' });
+      anim(el, [{ opacity: 0 }, { opacity: 1 }], { duration: 160, easing: 'ease-out' });
     },
     clear: () => el.classList.add('lg-hidden'),
   };
@@ -616,7 +612,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         scan.classList.add('is-ok');
         scan.replaceChildren(fa('check'));
         keys.forEach((k) => { k.disabled = true; });
-        setTimeout(finish, reduceMotion() ? 0 : 650);
+        void finish();
       } catch (ex) {
         value = '';
         dotRow.classList.add('is-bad');
@@ -707,38 +703,20 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
   }
 
   async function finish() {
-    if (!reduceMotion()) {
-      anim(card, [{ transform: 'none', opacity: 1 }, { transform: 'translateY(-14px) scale(.97)', opacity: 0 }], { duration: 380, easing: 'ease-in' });
-      await done(anim(overlay, [{ opacity: 1 }, { opacity: 0 }], { duration: 480, easing: 'ease-in', delay: 120 }));
-    }
+    await movePresence(card, false, { distance: 8 });
     overlay.remove();
     document.documentElement.classList.remove('lg-open');
     onSuccess();
   }
 
-  async function stepTo(renderFn) {
-    if (busy) return;
-    if (reduceMotion()) { renderFn()?.(); return; }
-    busy = true;
-    try {
-      const old = card.firstElementChild;
-      const h0 = card.offsetHeight;
-      await done(anim(old, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateX(-18px)' }], { duration: 200, easing: 'ease-in' }));
-      const focus = renderFn();
-      const form = card.firstElementChild;
-      card.style.overflow = 'hidden';
-      const h1 = card.offsetHeight;
-      anim(card, [{ height: `${h0}px` }, { height: `${h1}px` }], { duration: 420, easing: EASE_OUT, fill: 'none' });
-      revealChildren(form, { base: 40 });
-      await new Promise((r) => setTimeout(r, 420));
-      if (focus) focus();
-    } finally {
-      card.style.overflow = '';
-      busy = false;
-    }
+  function stepTo(renderFn) {
+    // Commit the new step immediately; keyboard/touch never waits for a transition.
+    const focus = renderFn();
+    revealContent(card);
+    focus?.();
+    return Promise.resolve();
   }
 
-  let busy = false;
   const overlay = h('div', { id: 'login-overlay', class: `lg-root${onBack ? ' lg-with-return' : ''}` }, brand, side);
   const close = () => { stopTimers(); closeModal(true); overlay.remove(); document.documentElement.classList.remove('lg-open'); };
   if (onBack) overlay.append(h('button', { type: 'button', class: 'lg-public-return', onclick: () => { close(); onBack(); } }, fa('arrow-left'), 'Back to safety guide'));
@@ -749,14 +727,8 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
   const focusFirst = recovery.active ? renderResetPassword(recovery.email)
     : recovery.error ? renderForgotPassword('', recovery.error)
       : reset ? renderNewPassword(reset) : renderCredentials();
-  if (!reduceMotion()) {
-    anim(brand, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 900, easing: EASE_OUT });
-    [...brandInner.children].forEach((el, i) => {
-      anim(el, [{ opacity: 0, transform: 'translateY(18px)' }, { opacity: 1, transform: 'none' }], { duration: 700, delay: 250 + i * 90, easing: EASE_OUT });
-    });
-    anim(card, [{ opacity: 0, transform: 'translateY(32px) scale(.97)' }, { opacity: 1, transform: 'none' }], { duration: 800, delay: 150, easing: EASE_OUT });
-    revealChildren(card.firstElementChild, { base: 350, step: 60 });
-  }
+  void movePresence(card, true, { distance: 10 });
+  revealContent(brandInner);
   focusFirst();
   return close;
 }

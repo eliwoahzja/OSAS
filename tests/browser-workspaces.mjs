@@ -29,6 +29,8 @@ try {
       const errors = [];
       const calls = [];
       const data = structuredClone(MOCK);
+      let heldTable = null, releaseHeld, requestHeld;
+      let failNextTable = null;
       data.incidents.unshift({ id: 'own-incident', date: '2026-11-03', created_at: '2026-11-03T05:00:00Z', reporter: 'Workspace Check', submitted_by: userId, description: 'Own report for verification', status: 'open' });
       data.student_grades = [{ user_id: userId, grade_level: 10 }];
       data.announcements = [{ id: 'announcement', title: 'Workspace announcement', body: 'Synthetic school update.', created_at: '2026-11-03T05:00:00Z', updated_at: '2026-11-03T05:00:00Z' }];
@@ -65,6 +67,15 @@ try {
           assert.equal(request.method(), 'GET', 'Workspace navigation/forms must not modify school records');
           assert.ok(url.pathname.startsWith('/rest/v1/'));
           const table = url.pathname.split('/').pop();
+          if (heldTable === table) {
+            heldTable = null;
+            requestHeld?.();
+            await new Promise(resolve => { releaseHeld = resolve; });
+          }
+          if (failNextTable === table) {
+            failNextTable = null;
+            return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Synthetic connection interruption'})});
+          }
           let rows = data[table] || [];
           for (const [key, value] of url.searchParams) {
             if (value.startsWith('eq.')) rows = rows.filter(row => String(row[key]) === value.slice(3));
@@ -120,10 +131,39 @@ try {
             await page.locator('.osas-modal-card').getByRole('button', { name: /Event Notice/i }).click();
           }
           assert.ok(await page.locator('.osas-modal-card input,.osas-modal-card textarea,.osas-modal-card select').count(), route + ' action has no fields');
-          await page.keyboard.press('Escape');
+          if (route === 'risk-assessment') {
+            await page.locator('.osas-modal-card input').first().fill('Unsaved room hazard');
+            await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+            await page.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true })
+              .getByRole('button', { name: 'Discard changes', exact: true }).click();
+          } else await page.keyboard.press('Escape');
           await page.locator('.osas-modal-overlay').waitFor({ state: 'detached' });
         }
       }
+      if (role === 'admin') {
+        const held = new Promise(resolve => { requestHeld = resolve; });
+        heldTable = 'inspections';
+        await page.evaluate(() => { location.hash = '#/safety-inspections'; });
+        await held;
+        await page.evaluate(() => { location.hash = '#/accounts'; });
+        await page.locator('#view .route-content[aria-busy="false"]').waitFor();
+        await page.locator('#view').getByRole('columnheader', {name:'Student ID',exact:true}).waitFor();
+        releaseHeld();
+        await page.waitForLoadState('networkidle');
+        assert.equal(await page.locator('#page-title').textContent(), 'Accounts', 'A stale response renamed the new page');
+        assert.equal(await page.locator('#view').getByRole('columnheader', {name:'Student ID',exact:true}).count(), 1, 'A stale response replaced Accounts');
+        failNextTable = 'inspections';
+        await page.evaluate(() => { location.hash = '#/safety-inspections'; });
+        await page.locator('#view').getByText('Could not load data',{exact:true}).waitFor();
+        assert.equal(await page.locator('#view .animate-pulse').count(),0,'Failure must not leave a loading skeleton');
+        await page.locator('#view').getByRole('button',{name:'Retry',exact:true}).click();
+        await page.locator('#view').getByRole('button',{name:/Add Room Inspection/i}).waitFor();
+        await page.waitForLoadState('networkidle');
+      }
+      await context.setOffline(true);
+      await page.getByRole('status').filter({hasText:'You’re offline.'}).waitFor();
+      await context.setOffline(false);
+      await page.locator('.connection-notice').waitFor({state:'hidden'});
       if (role !== 'admin') {
         for (const route of adminRoutes) {
           await page.evaluate(next => { location.hash = '#/' + next; }, route);

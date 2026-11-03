@@ -43,11 +43,15 @@ async function restFetch(method, path, { query = {}, body = null, prefer = null 
   };
   if (prefer) headers.Prefer = prefer;
   let res;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
-  } catch {
+    res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined, signal: controller.signal });
+  } catch (error) {
+    if (method !== 'GET') throw new Error('We could not confirm whether the change was saved. Refresh the records before trying again.');
+    if (error.name === 'AbortError') throw new Error('The request took too long. Check your connection and retry.');
     throw new Error('Could not reach the database. Check your internet connection.');
-  }
+  } finally { clearTimeout(timeout); }
   if (!res.ok) {
     let j = null;
     try { j = await res.json(); } catch {}
@@ -208,7 +212,7 @@ export async function listAnnouncements({ limit = 11, offset = 0 } = {}) {
 export async function listRows(table, filters = {}) {
   if (table === 'emergency_roles' && !auth.isAdmin()) throw new Error('Emergency roles are visible to administrators only.');
   if (isDemoMode()) return listMock(table, filters);
-  const query = { select: EMBEDS[table] || '*', order: 'created_at.desc' };
+  const query = { select: EMBEDS[table] || '*', order: 'created_at.desc,id.desc' };
   for (const [k, v] of Object.entries(filters)) {
     if (v) query[k] = k === 'category' ? `eq.${v}` : `ilike.*${v}*`;
   }
@@ -219,10 +223,10 @@ export async function listRows(table, filters = {}) {
   }
   let rows;
   try {
-    rows = await restFetch('GET', table, { query });
+    rows = await fetchEveryPage((offset, limit) => restFetch('GET', table, { query: { ...query, offset, limit } }));
   } catch (e) {
     if (!EMBEDS[table]) throw e;
-    rows = await restFetch('GET', table, { query: { ...query, select: '*' } });
+    rows = await fetchEveryPage((offset, limit) => restFetch('GET', table, { query: { ...query, select: '*', offset, limit } }));
   }
   rows = rows || [];
 

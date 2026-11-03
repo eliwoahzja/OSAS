@@ -85,9 +85,9 @@ export async function loadTable(el, {
     rows = await api.listRows(table, filters);
     if (transformRows) rows = transformRows(rows);
   } catch (e) {
-    holder.replaceChildren(errorBanner(e.message, onRetry || (() => {
+    wrap.replaceChildren(moduleShell({ icon: iconName, title, subtitle, children: errorBanner(e.message, onRetry || (() => {
       loadTable(el, { table, columns, empty, iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, secondaryActionLabel, secondaryActionIcon, onSecondaryAction, filters, searchKeys, searchPlaceholder, selectFilters, onRowClick, adminAction, dateFilter, transformRows, onRetry, selection, onFilteredRows, paginationStyle });
-    })));
+    })) }));
     return;
   }
 

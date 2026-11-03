@@ -264,12 +264,13 @@ export async function incidentLogging(el) {
     empty: { title: L.emptyTitle, text: L.emptyText },
     onAction: () => incidentForm(el),
   });
+  if (!el.isConnected) return rows;
   if (!admin) {
     const shell = el.firstElementChild;
     const stop = startDashboardUpdates(async () => {
-      if (!el.contains(shell)) { stop(); return; }
+      if (!el.isConnected || !el.contains(shell)) { stop(); return; }
       const latest = await api.listRows('incidents').catch(() => null);
-      if (!latest || !el.contains(shell)) return;
+      if (!latest || !el.isConnected || !el.contains(shell)) return;
       const statuses = new Map(latest.map((r) => [String(r.id), r.status]));
       el.querySelectorAll('[data-incident-status]').forEach((cell) => {
         const status = statuses.get(cell.dataset.incidentStatus);
@@ -292,6 +293,7 @@ function reporterName() {
 function incidentForm(el) {
   const L = incidentLabels(isAdmin());
   let closeModal = () => {};
+  let submitting = false;
   const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, L.modalTitle)),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
@@ -424,6 +426,7 @@ function incidentForm(el) {
     }
     errBox.classList.add('hidden');
     const btn = grid.querySelector('button[type="submit"]');
+    submitting = true;
     btn.disabled = true;
     imagePicker.disabled = true;
     btn.textContent = 'Uploading images…';
@@ -447,11 +450,19 @@ function incidentForm(el) {
       await Promise.allSettled(uploadedPaths.map((path) => api.removeUnlinkedIncidentEvidence(path)));
       errBox.textContent = err.message || 'Unable to submit the incident report.';
       errBox.classList.remove('hidden');
+      submitting = false;
       btn.disabled = false;
       imagePicker.disabled = false;
       btn.textContent = L.submit;
     }
   });
 
-  closeModal = openModal(form).close;
+  closeModal = openModal(form, {
+    onClose: revokeImagePreviews,
+    canClose: () => !submitting,
+    onDismissBlocked: () => {
+      errBox.textContent = 'Your report is still saving. Please wait for confirmation.';
+      errBox.classList.remove('hidden');
+    },
+  }).close;
 }

@@ -162,11 +162,11 @@ export function pill(status, tone) {
 
 export function moduleShell({ icon: iconName, title, subtitle, actionLabel, actionIcon, actionClass, onAction, children }) {
   const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-6' });
-  const head = h('div', { class: 'flex flex-wrap items-end justify-between gap-4' });
+  const head = h('div', { class: 'module-heading flex flex-wrap items-end justify-between gap-4' });
   const left = h('div');
   const sharedTitle = document.getElementById('page-title');
   if (sharedTitle && ['safety-inspections', 'first-aid-supplies', 'emergency-contacts'].includes(document.body.dataset.route)) {
-    sharedTitle.textContent = title;
+    // The router owns the shared heading; late responses must not rename a new page.
   } else {
     left.appendChild(h('h2', { class: 'text-2xl sm:text-[28px] font-extrabold text-gray-900 tracking-tight' }, title));
   }
@@ -388,7 +388,8 @@ export function skeletonTableWithColumns(columns = [], rowCount = 5) {
   table.appendChild(tbody);
 
   return h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
-    h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
+    h('p', { class: 'table-scroll-hint' }, icon('arrows-left-right'), 'Scroll sideways to see all columns'),
+    h('div', { class: 'data-table-scroll overflow-x-auto overflow-y-visible', tabindex: '0', role: 'region', 'aria-label': 'Records table' }, table)
   );
 }
 
@@ -577,6 +578,7 @@ export function toast(msg, kind = 'success') {
   const root = document.getElementById('toast-root');
   if (!root) return;
   const node = h('div', {
+    role: kind === 'error' ? 'alert' : 'status',
     class: 'bg-gray-900 text-white text-[13px] font-semibold px-4 py-3 rounded-xl shadow-lg flex items-center gap-3'
       + (kind === 'error' ? ' border-l-4 border-red-500' : ''),
   },
@@ -610,7 +612,7 @@ export function dataTable(columns, rows, { onRowClick } = {}) {
   const tbody = h('tbody');
   rows.forEach((r, i) => {
     const row = h('tr', {
-      class: `animate-row border-b border-gray-50 ${i % 2 ? 'bg-gray-50/40' : ''} hover:bg-pink-50/30 transition-colors`
+      class: `border-b border-gray-50 ${i % 2 ? 'bg-gray-50/40' : ''} hover:bg-pink-50/30 transition-colors`
         + (onRowClick ? ' cursor-pointer' : ''),
       style: { animationDelay: `${Math.min(i * 40, 320)}ms` },
       onclick: onRowClick ? () => onRowClick(r) : undefined,
@@ -624,7 +626,8 @@ export function dataTable(columns, rows, { onRowClick } = {}) {
   table.appendChild(tbody);
 
   return h('div', { class: 'data-table-frame bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
-    h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
+    h('p', { class: 'table-scroll-hint' }, icon('arrows-left-right'), 'Scroll sideways to see all columns'),
+    h('div', { class: 'data-table-scroll overflow-x-auto overflow-y-visible', tabindex: '0', role: 'region', 'aria-label': 'Records table' }, table)
   );
 }
 
