@@ -5,11 +5,53 @@ import {
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { loadTable } from './table-loader.js';
+import { viewRecord, recordForm, rowActions, confirmDelete } from './record-actions.js';
 
 export const DRILL_TYPES = ['Fire', 'Earthquake', 'Lockdown', 'Evacuation'];
 export const AUDIENCES = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12', 'All Parents'];
 
+const drillEditFields = [
+  { key: 'type', label: 'Drill type', type: 'select', required: true, options: DRILL_TYPES.map((value) => ({ value, label: value })) },
+  { key: 'date', label: 'Scheduled date', type: 'date', required: true },
+  { key: 'time', label: 'Scheduled time', type: 'time', required: true },
+  { key: 'building', label: 'Building / Area', required: true, maxLength: 255 },
+  { key: 'person_in_charge', label: 'Person in Charge', required: true, maxLength: 255 },
+  { key: 'status', label: 'Status', type: 'select', required: true, options: [
+    { value: 'upcoming', label: 'Upcoming' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+  ] },
+  { key: 'notes', label: 'Outcome Notes', type: 'textarea', wide: true },
+];
+
+const drillDetailFields = [
+  ...drillEditFields.map(({ key, label, type }) => ({ key, label, type })),
+  { key: 'created_at', label: 'Record created', type: 'date' },
+];
+
 export async function drillScheduling(el) {
+  const edit = (record) => recordForm({
+    title: 'Edit ' + record.type.toLowerCase() + ' drill',
+    table: 'drills',
+    record,
+    fields: drillEditFields,
+    onSaved: () => drillScheduling(el),
+  });
+  const remove = (record) => confirmDelete({
+    title: record.type + ' drill on ' + formatDate(record.date),
+    table: 'drills',
+    record,
+    onSaved: () => drillScheduling(el),
+  });
+  const view = (record) => viewRecord(
+    record.type + ' drill details',
+    record,
+    drillDetailFields,
+    isAdmin() ? [
+      { label: 'Edit drill', onClick: () => edit(record) },
+      { label: 'Delete drill', onClick: () => remove(record) },
+    ] : [],
+  );
   const columns = [
     { key: 'type', label: 'Drill Type', render: (r) => pill(r.type) },
     { key: 'date', label: 'Schedule', render: (r) => h('span', { class: 'whitespace-nowrap' }, h('span', { class: 'font-semibold text-gray-900' }, formatDate(r.date)), h('span', { class: 'text-gray-400' }, ` · ${r.time}`)) },
@@ -17,6 +59,14 @@ export async function drillScheduling(el) {
     { key: 'person_in_charge', label: 'Person in Charge' },
     { key: 'status', label: 'Status', render: (r) => pill(r.status) },
     { key: 'notes', label: 'Outcome Notes', render: (r) => r.notes ? h('span', { class: 'block max-w-[340px] text-gray-600' }, r.notes) : h('span', { class: 'text-gray-300' }, '—') },
+    ...(isAdmin() ? [{
+      key: 'actions', label: 'Actions', cls: 'workspace-actions-column', cellCls: 'workspace-actions-cell',
+      render: (record) => rowActions(
+        () => view(record),
+        () => edit(record),
+        { compact: true, onDelete: () => remove(record) },
+      ),
+    }] : []),
   ];
 
   return loadTable(el, {
@@ -29,6 +79,7 @@ export async function drillScheduling(el) {
     searchPlaceholder: 'Search by type, building, or person in charge…',
     empty: { title: 'No drills scheduled yet', text: 'Schedule the first drill — parent notices can be sent straight from the form.' },
     onAction: () => drillForm(el),
+    onRowClick: (record) => view(record),
   });
 }
 
