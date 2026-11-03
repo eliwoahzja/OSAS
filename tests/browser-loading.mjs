@@ -50,5 +50,17 @@ try {
  await page.evaluate(()=>window.resolveDialog());
  await page.locator('.osas-modal-loader').waitFor({state:'detached'});
  await page.evaluate(()=>window.pendingDialog.close());
+ const anchors=await page.evaluate(async()=>{
+  const {coverLoading}=await import('/js/loading.js');const results=[];
+  for(const position of ['static','relative','absolute','fixed','sticky']){
+   const target=document.createElement('div');target.style.cssText=`position:${position};width:200px;height:300px;top:12px;left:12px`;document.body.append(target);
+   const initial=getComputedStyle(target).position;const loading=coverLoading(target,{duration:0});
+   const during=getComputedStyle(target).position;await loading.ready;
+   const restored=getComputedStyle(target).position;const clean=target.style.position===position;
+   const cancelled=coverLoading(target);cancelled.clear();
+   results.push({initial,during,restored,clean,cancelled:getComputedStyle(target).position});target.remove();
+  }return results;
+ });
+ for(const result of anchors){assert.equal(result.during,result.initial==='static'?'relative':result.initial);assert.equal(result.restored,result.initial);assert.equal(result.cancelled,result.initial);assert.equal(result.clean,true);}
  console.log('Loading buttons OK: 1.5-second minimum, spinner-only contents, stable size, one action per click sequence, live-event target, slow/failure restoration and cancellation.');
 } finally {await browser.close()}

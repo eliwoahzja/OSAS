@@ -97,6 +97,11 @@ export function loadingSkeleton(kind = 'form', { fields = 3, label = 'Loading co
 }
 
 export function coverLoading(container, { kind = 'form', fields = 3, label = 'Loading form', duration = DEFAULT_LOADING_MS, until = null } = {}) {
+  // Static containers need an anchor; floating panels already have one.
+  const needsAnchor = getComputedStyle(container).position === 'static';
+  const position = container.style.getPropertyValue('position');
+  const positionPriority = container.style.getPropertyPriority('position');
+  if (needsAnchor) container.style.setProperty('position', 'relative');
   const content = [...container.children];
   const skeleton = loadingSkeleton(kind, {fields,label});
   skeleton.classList.add('loading-cover');
@@ -114,6 +119,10 @@ export function coverLoading(container, { kind = 'form', fields = 3, label = 'Lo
     if (settled) return;
     settled = true;
     clearTimeout(timer);skeleton.remove();container.classList.remove('has-loading-cover');container.removeAttribute('aria-busy');
+    if (needsAnchor) {
+      if (position) container.style.setProperty('position', position, positionPriority);
+      else container.style.removeProperty('position');
+    }
     states.forEach(({element,inert,hidden})=>{element.inert=inert;element.classList.remove('loading-source');if(hidden===null)element.removeAttribute('aria-hidden');else element.setAttribute('aria-hidden',hidden);});
     if (cancelled) resolve?.(false);
   }

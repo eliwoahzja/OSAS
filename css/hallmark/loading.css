@@ -22,7 +22,7 @@
 .loading-submit { width:34%; height:40px; margin-top:10px; align-self:flex-end; }
 .loading-mark { display:flex; align-items:center; gap:9px; color:#765863; font-size:12px; line-height:1.5; }
 .loading-mark::before { content:''; width:16px; height:16px; border:2px solid #dac8c0; border-top-color:#7a1b38; border-radius:50%; animation:pending-spin .75s linear infinite; }
-.has-loading-cover { position:relative; min-height:260px; }
+.has-loading-cover { min-height:260px; }
 .has-loading-cover > .loading-source { visibility:hidden !important; }
 .loading-cover { position:absolute; inset:0; z-index:3; padding:28px 32px; border-radius:inherit; background:#fffdf8; overflow:hidden; gap:12px; }
 .osas-modal-card.has-loading-cover { overflow:hidden !important; }

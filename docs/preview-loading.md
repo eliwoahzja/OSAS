@@ -17,3 +17,5 @@ Validation includes measured 1.5-second page/popup/button durations, role-specif
 The original loading rollout passed 156 automated Auth/API/script checks, all 12 browser suites and the production build. Desktop/mobile screenshots confirmed the visible school photograph and distinct student/admin loading layouts.
 
 The 1.5-second update passed 158 automated checks, the production build and focused feedback, loading-button, popup and student/admin workspace browser suites on desktop and mobile. Toasts and conversation cards now use the preview theme; assistant replies have no branded name or divider. Pending states wait longer when their underlying operation is unfinished.
+
+Opening-position fix: loading covers preserve fixed, absolute, relative and sticky positioning; only static containers receive a temporary relative anchor, restored on completion or cancellation. Chat geometry is checked during the skeleton and after it clears for both roles at 390, 980 (touch/desktop layout) and 1440 pixels.

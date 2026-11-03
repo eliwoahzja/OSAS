@@ -8,8 +8,8 @@ const shots=process.env.SCREENSHOT_DIR;
 if(shots)mkdirSync(shots,{recursive:true});
 const browser=await chromium.launch({executablePath:existsSync('/usr/bin/chromium')?'/usr/bin/chromium':undefined,args:['--no-sandbox']});
 try{
- for(const width of [1440,390])for(const role of ['admin','client']){
-  const context=await browser.newContext({viewport:{width,height:844},hasTouch:width<600,reducedMotion:'reduce'});
+ for(const width of [1440,980,390])for(const role of ['admin','client']){
+  const context=await browser.newContext({viewport:{width,height:844},hasTouch:width<1000,reducedMotion:'reduce'});
   const page=await context.newPage();const errors=[];let calls=0;
   page.on('pageerror',error=>errors.push(error.message));
   await context.route('**/*',async route=>{
@@ -39,6 +39,15 @@ try{
   await page.waitForFunction(()=>!document.querySelector('.osas-toast'));
   await page.getByRole('button',{name:role==='admin'?'Open OSAS desk':'Open Chatbot',exact:true}).click();
   const chat=page.getByRole('dialog',{name:role==='admin'?'OSAS desk':'Chatbot',exact:true});
+  await chat.locator('.loading-cover').waitFor();
+  assert.equal(await chat.evaluate(el=>getComputedStyle(el).position),width<=640?'fixed':'absolute','Opening loaders must preserve the floating chat position');
+  const loadingBox=await chat.boundingBox(),coverBox=await chat.locator('.loading-cover').boundingBox();
+  assert.ok(loadingBox.x>=0&&loadingBox.y>=0&&loadingBox.x+loadingBox.width<=width+1&&loadingBox.y+loadingBox.height<=845,'Loading chat must fit in the viewport');
+  assert.ok(Math.abs(coverBox.x-loadingBox.x)<=2&&Math.abs(coverBox.y-loadingBox.y)<=2,'Skeleton must cover its own chat panel');
+  if(shots)await page.screenshot({path:`${shots}/${role}-${width}-opening.png`});
+  await chat.locator('.loading-cover').waitFor({state:'detached'});
+  const readyBox=await chat.boundingBox();
+  for(const key of ['x','y','width','height'])assert.ok(Math.abs(readyBox[key]-loadingBox[key])<=1,`Chat ${key} must stay stable after loading`);
   const message=role==='admin'?'Show the incident overview.':'Where can I report an incident?';
   await chat.getByRole('textbox').fill(message);await chat.getByRole('button',{name:'Send message',exact:true}).click();
   await chat.locator('.agent-row.is-assistant').waitFor();
