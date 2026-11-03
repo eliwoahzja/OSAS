@@ -1,11 +1,11 @@
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
-  capitalize, toast, openModal, moduleShell, skeletonHeader, skeletonTableWithColumns,
-  dataTable, emptyBanner, errorBanner, checkRow,
+  toast, openModal, moduleShell, skeletonHeader, skeletonTableWithColumns,
+  dataTable, emptyBanner, errorBanner,
 } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
-import { AUDIENCES } from './drills.js';
+import { EVENT_NOTICE_CATEGORIES, EVENT_NOTICE_AUDIENCES, eventNoticePayload, validateEventNotice } from './event-notice.js';
 
 // The school covers Grade 7 to Grade 10.
 export const GRADE_OPTIONS = [7, 8, 9, 10];
@@ -89,7 +89,7 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
     const shell = moduleShell({
       icon: 'notifications',
       title: 'Parent Notification System',
-      subtitle: isAdmin() ? 'Send urgent incident alerts or informational event notices to parents.' : 'View sent incident alerts and event notices. Only administrators can send new notifications.',
+      subtitle: 'Notify parents and guardians about upcoming school events, drills, preparedness activities, and meetings.',
       actionLabel: isAdmin() ? 'New Notification' : null,
       onAction: () => composer(el),
     });
@@ -101,11 +101,10 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
     const filterRow = h('div', { class: 'flex flex-wrap items-center gap-2' },
       [
         { key: 'all', label: 'All' },
-        { key: 'incident_alert', label: 'Urgent Incident Alerts' },
-        { key: 'event_notice', label: 'Event Notices & Drills' },
+        { key: 'event_notice', label: 'Event Notifications' },
       ].map((k) =>
         h('button', {
-          class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k.key === currentType ? (k.key === 'incident_alert' ? 'bg-red-600 text-white border-red-600' : 'bg-pink-600 text-white border-pink-600') : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
+          class: `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors clickable ${k.key === currentType ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}`,
           onclick: () => renderNotifications(el, k.key, currentGrade),
         }, k.label)));
     realHolder.appendChild(filterRow);
@@ -116,13 +115,13 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
         const rawMsg = String(r.message || '');
         const rawAudience = String(r.audience_group || '');
         const isStock = r.notif_type === 'alert' ||
-          /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
-          /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
-          /clinic|custodian/i.test(rawAudience);
+          (r.notif_type !== 'event_notice' && (
+            /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+            /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
+            /clinic|custodian/i.test(rawAudience)));
         return !isStock;
       })
       .filter((r) => {
-        if (currentType === 'incident_alert') return r.notif_type === 'incident_alert';
         if (currentType === 'event_notice') return r.notif_type === 'event_notice';
         return true;
       });
@@ -155,14 +154,14 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
         icon: 'notifications',
         title: gradeNum === null ? 'No notifications found' : `No notifications for Grade ${gradeNum}`,
         text: gradeNum === null
-          ? 'Use "New Notification" to send an incident alert or event notice to parents.'
+          ? 'Use "New Notification" to notify parents about upcoming events, drills, activities, or meetings.'
           : `Nothing matches Grade ${gradeNum} with this type tab. Try "All Grades" or another tab.`,
       }));
       return;
     }
     const columns = [
       { key: 'notif_type', label: 'Type', render: (r) => notifBadge(r) },
-      { key: 'message', label: 'Message', render: (r) => h('span', { class: 'text-gray-900 block max-w-[320px]' }, r.message) },
+      { key: 'message', label: 'Notice', render: (r) => h('div', { class: 'max-w-[320px] space-y-1' }, h('strong', { class: 'block text-gray-900 font-bold' }, r.title || 'Parent Notification'), h('span', { class: 'block text-gray-600' }, r.message)) },
       { key: 'audience', label: 'Audience', render: (r) => audienceCell(r) },
       { key: 'contact_method', label: 'Channel', render: (r) => pill(r.contact_method) },
       { key: 'sent_at', label: 'Sent', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.sent_at)) },
@@ -193,9 +192,10 @@ function notifBadge(r) {
   const rawMsg = String(r.message || '');
   const rawAudience = String(r.audience_group || '');
   const isStock = r.notif_type === 'alert' ||
-    /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
-    /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
-    /clinic|custodian/i.test(rawAudience);
+    (r.notif_type !== 'event_notice' && (
+      /restock|supplies|stock|inventory|shortage/i.test(rawTitle) ||
+      /restock|supplies|stock|inventory|depleted/i.test(rawMsg) ||
+      /clinic|custodian/i.test(rawAudience)));
   const isParentAlert = !isStock && (r.notif_type === 'incident_alert' || Boolean(r.student_name) || Boolean(r.student_id && r.student_id !== '11111111-1111-4111-8111-111111111111') || Boolean(r.related_incident_id));
 
   if (isStock) {
@@ -210,11 +210,10 @@ function notifBadge(r) {
 
   if (isParentAlert) {
     return h('span', {
-      class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap bg-red-50 text-red-700 border-red-200',
-      style: { borderLeft: '3px solid #EF4444' },
+      class: 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border whitespace-nowrap bg-gray-100 text-gray-600 border-gray-200',
     },
-      icon('priority_high', 'text-[12px] text-red-600'),
-      'Urgent Incident Alert',
+      icon('info', 'text-[12px] text-gray-500'),
+      'Past Incident Notice',
     );
   }
 
@@ -226,182 +225,160 @@ function notifBadge(r) {
   );
 }
 
+
 function composer(el) {
   let closeModal = () => {};
-  const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' });
-  const tabs = h('div', { class: 'grid grid-cols-2 gap-1 p-2 bg-gray-50 border-b border-gray-100' });
-  card.appendChild(tabs);
+  let reviewing = false;
+  let sending = false;
+  let errorBox;
 
   const f = {
-    notif_type: 'incident_alert',
-    studentId: '',
-    student_name: '',
-    student_grade: null,
-    related_incident_id: '',
-    notify_all_parents: false,
+    category: 'Upcoming Event',
     title: '',
     message: '',
-    contact_method: 'email',
     audience_group: 'All Parents & Guardians',
     event_start_at: '',
     event_end_at: '',
   };
 
-  const fields = h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' });
+  const card = h('div', { class: 'bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden' });
+  card.appendChild(h('div', { class: 'p-5 sm:p-6 border-b border-gray-100' },
+    h('p', { class: 'text-[11px] font-bold tracking-wider uppercase text-pink-700' }, 'Parent Notification System'),
+    h('h2', { class: 'mt-1 text-xl font-extrabold text-gray-900' }, 'Event Notification'),
+    h('p', { class: 'mt-2 text-sm leading-relaxed text-gray-500' },
+      'One place to notify parents about upcoming events, preparedness drills, school activities, and meetings.')));
+  const fields = h('div', { class: 'p-5 sm:p-6 space-y-4' });
   card.appendChild(fields);
 
-  async function awaitP(t) {
-    try { return await api.listRows(t); } catch { return []; }
+  function showError(message) {
+    if (!errorBox) return;
+    errorBox.textContent = message;
+    errorBox.classList.remove('hidden');
   }
 
-  const students = awaitP('students');
-  const incidents = awaitP('incidents');
+  function selectField(label, key, options, description) {
+    const select = h('select', {
+      class: inputCls,
+      value: f[key],
+      onchange: (e) => { f[key] = e.target.value; },
+    }, options.map((value) => h('option', { value, selected: value === f[key] }, value)));
+    return h('div', {}, h('label', { class: labelCls }, label), select,
+      ...(description ? [h('p', { class: 'lg-field-hint' }, description)] : []));
+  }
 
-  const renderFields = async () => {
-    fields.innerHTML = '';
-    const isIncident = f.notif_type === 'incident_alert';
-    const isEvent = f.notif_type === 'event_notice';
-    const st = await students;
-    const inc = await incidents;
+  function inputField(label, key, type, placeholder = '') {
+    return h('div', {},
+      h('label', { class: labelCls }, label),
+      h('input', {
+        type, class: inputCls, value: f[key], placeholder,
+        ...(key === 'title' ? { maxlength: '180' } : {}),
+        oninput: (e) => { f[key] = e.target.value; },
+      }));
+  }
 
-    if (isIncident) {
-      fields.appendChild(h('div', { class: 'sm:col-span-2' },
-        h('span', { class: 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200' },
-          icon('emergency', 'text-[12px]'), 'URGENT INCIDENT ALERT — Direct email notification to student parent / guardian')));
+  function actions(...buttons) {
+    return h('div', { class: 'flex flex-wrap gap-3 pt-2' }, buttons);
+  }
 
-      if (!f.notify_all_parents) {
-        const studentSel = h('select', { class: inputCls, onchange: (e) => {
-          const s = st.find((x) => x.id === e.target.value);
-          f.studentId = e.target.value;
-          f.student_name = s?.name || '';
-          f.student_grade = s?.grade || null;
-        } },
-          h('option', { value: '' }, 'Select student involved…'),
-          st.map((s) => h('option', { value: s.id, selected: s.id === f.studentId }, `${s.name} — Grade ${s.grade}${s.section ? ` (${s.section})` : ''}`)));
-        fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Student Involved (required)'), studentSel,
-          h('p', { class: 'lg-field-hint' }, 'Pick from the student records — the alert emails that student\u2019s registered guardian.')));
-      }
+  function button(label, handler, secondary = false) {
+    return h('button', {
+      type: 'button',
+      class: secondary ? 'btn-ghost' : 'btn-primary',
+      onclick: handler,
+    }, ...(secondary ? [] : [icon('send', 'text-base')]), label);
+  }
 
-      const incSel = h('select', { class: inputCls, onchange: (e) => { f.related_incident_id = e.target.value; } },
-        h('option', { value: '' }, 'No related incident log'),
-        inc.map((i) => h('option', { value: i.id, selected: i.id === f.related_incident_id }, `${capitalize(i.type)} — ${i.location} · ${formatDate(i.date)}${i.time ? `, ${i.time}` : ''}`)));
-      fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Related Incident Log (optional)'), incSel));
+  function render() {
+    fields.replaceChildren();
+    fields.appendChild(h('p', {
+      class: 'text-[12px] text-gray-500 rounded-xl border border-pink-100 bg-pink-50 p-3',
+    }, reviewing
+      ? 'Review the notice and its recipients. Selecting Send will email registered parents and guardians.'
+      : 'All dates and times use Philippine time (PHT, UTC+8).'));
 
-      const recipientChoice = (value, title, hint, checked) => checkRow({
-        id: `incident-recipients-${value}`,
-        type: 'radio',
-        name: 'incident-recipients',
-        label: title,
-        hint,
-        checked,
-        onChange: () => { f.notify_all_parents = value === 'all'; renderFields(); },
-      });
-      const broadcastToggle = h('div', { class: 'sm:col-span-2 space-y-2.5 p-3 rounded-xl bg-gray-50 border border-gray-200' },
-        h('span', { class: 'block text-[11px] font-bold uppercase tracking-wider text-gray-500' }, 'Who should receive this email?'),
-        recipientChoice('student', 'Only the selected student\u2019s parent / guardian', 'Recommended. The email names the student.', !f.notify_all_parents),
-        recipientChoice('all', 'All parents (campus-wide alert)', 'Administrators only. The email does not name the student.', f.notify_all_parents));
-      fields.appendChild(broadcastToggle);
+    if (!reviewing) {
+      fields.appendChild(selectField('Notice Category', 'category', EVENT_NOTICE_CATEGORIES,
+        'Choose Upcoming Event, Drill & Preparedness, School Activity, Meeting, or Other School Notice.'));
+      fields.appendChild(inputField('Notice Title (required)', 'title', 'text', 'e.g. Earthquake Drill, PTA Meeting'));
+      fields.appendChild(selectField('Parents / Guardians to Notify', 'audience_group', EVENT_NOTICE_AUDIENCES,
+        'Only guardians registered for the selected grades will receive the email.'));
+      fields.appendChild(h('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-4' },
+        inputField('Start Date & Time (PHT)', 'event_start_at', 'datetime-local'),
+        inputField('End Date & Time (PHT)', 'event_end_at', 'datetime-local')));
+      fields.appendChild(h('div', {},
+        h('label', { class: labelCls }, 'Message to Parents (required)'),
+        h('textarea', {
+          class: inputCls + ' min-h-[110px] resize-y',
+          value: f.message,
+          maxlength: '2000',
+          placeholder: 'Describe the activity, preparation required, location, and what parents need to know.',
+          oninput: (e) => { f.message = e.target.value; },
+        })));
     } else {
-      fields.appendChild(h('div', { class: 'sm:col-span-2' },
-        h('span', { class: 'inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[11px] font-bold bg-pink-50 text-pink-700 border border-pink-200' },
-          icon('event', 'text-[12px]'), 'EVENT NOTICE — Send campus event notice, drills schedule, or advisories to parents')));
-      const audSel = h('select', { class: inputCls, onchange: (e) => { f.audience_group = e.target.value; } },
-        ['All Parents & Guardians', 'Grade 7 Parents', 'Grade 8 Parents', 'Grade 9 Parents', 'Grade 10 Parents', 'Grade 11 Parents', 'Grade 12 Parents', 'Grade 7-10 Parents', 'Senior High Parents'].map((g) =>
-          h('option', { value: g, selected: g === f.audience_group }, g)));
-      fields.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls }, 'Audience Group (required)'), audSel,
-        h('p', { class: 'lg-field-hint' }, 'Grade-specific groups (e.g. Grade 7 Parents) only email guardians of students in that grade.')));
-      const startWrap = h('div', {}, h('label', { class: labelCls }, 'Event Start'), h('input', { type: 'datetime-local', class: inputCls, 'aria-describedby': 'event-format-hint', oninput: (e) => { f.event_start_at = e.target.value; } }),
-        h('p', { class: 'lg-field-hint', id: 'event-format-hint' }, 'Format: pick date and 24-hour time, e.g. 2026-03-15 09:00'));
-      fields.appendChild(startWrap);
-      const endWrap = h('div', {}, h('label', { class: labelCls }, 'Event End'), h('input', { type: 'datetime-local', class: inputCls, oninput: (e) => { f.event_end_at = e.target.value; } }),
-        h('p', { class: 'lg-field-hint' }, 'Must be after the start time'));
-      fields.appendChild(endWrap);
+      const summary = eventNoticePayload(f);
+      const format = (iso) => new Date(iso).toLocaleString('en-PH', {
+        dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Manila',
+      });
+      const rows = [
+        ['Category', f.category],
+        ['Title', f.title.trim()],
+        ['Audience', f.audience_group],
+        ['Starts', format(summary.event_start_at)],
+        ['Ends', format(summary.event_end_at)],
+        ['Message', f.message.trim()],
+      ];
+      fields.appendChild(h('div', { class: 'rounded-xl border border-gray-200 divide-y divide-gray-100' },
+        rows.map(([label, value]) => h('div', { class: 'p-3 sm:p-4' },
+          h('p', { class: 'text-[10px] uppercase tracking-wide font-bold text-gray-500' }, label),
+          h('p', { class: 'mt-1 text-sm text-gray-900 whitespace-pre-wrap break-words' }, value)))));
     }
 
-    fields.appendChild(h('div', { class: 'sm:col-span-2' },
-      h('label', { class: labelCls }, 'Message Details'),
-      h('textarea', {
-        class: `${inputCls} min-h-[85px] resize-y`,
-        placeholder: isIncident ? 'Detail the incident, immediate care given, and instructions for parents…' : 'Details for parents regarding the upcoming event, drill, or advisory…',
-        oninput: (e) => { f.message = e.target.value; },
-      })));
+    errorBox = h('p', { class: 'hidden text-[13px] text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2' });
+    fields.appendChild(errorBox);
 
-    const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
-    fields.appendChild(errBox);
-    fields.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
-      h('button', {
-        class: 'btn-primary',
-        onclick: async (e) => {
-          if (isIncident && !f.notify_all_parents && !f.studentId) { errBox.textContent = 'A student is required for incident alerts.'; errBox.classList.remove('hidden'); return; }
-          if (isEvent && (!f.audience_group || !f.event_start_at || !f.event_end_at)) {
-            errBox.textContent = 'Audience group and event start/end times are required for event notices.'; errBox.classList.remove('hidden'); return;
-          }
-          if (isEvent && f.event_end_at <= f.event_start_at) { errBox.textContent = 'Event end must be after event start.'; errBox.classList.remove('hidden'); return; }
-          if (!f.message.trim()) { errBox.textContent = 'Message is required.'; errBox.classList.remove('hidden'); return; }
-          errBox.classList.add('hidden');
-          const btn = e.currentTarget;
-          const originalLabel = btn.innerHTML;
+    if (reviewing) {
+      fields.appendChild(actions(
+        button('Confirm & Send Email', async (event) => {
+          if (sending) return;
+          const btn = event.currentTarget;
+          sending = true;
           btn.disabled = true;
-          btn.classList.add('opacity-70', 'cursor-wait');
-          btn.innerHTML = '';
-          btn.appendChild(icon('schedule', 'text-base animate-spin'));
-          btn.appendChild(document.createTextNode(' Sending…'));
           try {
-            let payload;
-            if (isIncident) {
-              payload = {
-                notif_type: 'incident_alert',
-                priority: 'urgent',
-                student_id: f.studentId || null,
-                related_incident_id: f.related_incident_id || null,
-                notify_all_parents: Boolean(f.notify_all_parents),
-                title: f.message.trim().slice(0, 60) || 'Incident Alert',
-                message: f.message.trim(),
-                contact_method: 'email',
-              };
-            } else {
-              payload = { notif_type: 'event_notice', priority: 'informational', audience_group: f.audience_group, title: f.message.trim().slice(0, 60), message: f.message.trim(), event_start_at: f.event_start_at, event_end_at: f.event_end_at, contact_method: 'email' };
+            const payload = eventNoticePayload(f);
+            const result = await api.sendNotification(payload);
+            if (!result.ok) {
+              showError(result.error || 'The email was not sent. Check the notification service.');
+              return;
             }
-            const res = await api.sendNotification(payload);
-            if (res.ok) {
-              const n = res.delivery && res.delivery.sent != null ? res.delivery.sent : null;
-              const count = n != null ? ` (${n} recipient${n === 1 ? '' : 's'})` : '';
-              toast(isIncident
-                ? (f.notify_all_parents ? `Incident alert emailed to all parents${count}.` : `Incident alert emailed to ${f.student_name || 'the student'}\u2019s parent/guardian${count}.`)
-                : `Event notice emailed to ${f.audience_group}${count}.`);
-            } else {
-              toast(res.error || 'Notification queued but email delivery failed.', 'error');
-            }
+            const delivered = result.delivery && Number.isFinite(Number(result.delivery.sent))
+              ? Number(result.delivery.sent) : null;
+            const failed = Number(result.delivery?.failed || 0);
+            toast(failed
+              ? 'Event notice sent to ' + (delivered ?? 0) + ' parent(s); ' + failed + ' delivery attempt(s) failed.'
+              : 'Event notice sent to ' + f.audience_group + (delivered !== null
+                ? ' (' + delivered + ' recipient' + (delivered === 1 ? '' : 's') + ')' : '') + '.');
             closeModal();
-            el.innerHTML = '';
-            parentNotifications(el);
-          } catch (e2) {
-            errBox.textContent = e2.message || 'Something went wrong sending this notification.';
-            errBox.classList.remove('hidden');
+            renderNotifications(el);
+          } catch (error) {
+            showError(error.message || 'Unable to send this notice.');
+          } finally {
+            sending = false;
             btn.disabled = false;
-            btn.classList.remove('opacity-70', 'cursor-wait');
-            btn.innerHTML = originalLabel;
           }
-        },
-      }, icon('send', 'text-base'), 'Send Notification to Parents'),
-      h('button', { class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
-  };
+        }),
+        button('Edit Details', () => { reviewing = false; render(); }, true)));
+    } else {
+      fields.appendChild(actions(
+        button('Review Notification', () => {
+          const error = validateEventNotice(f);
+          if (error) return showError(error);
+          reviewing = true;
+          render();
+        }),
+        button('Cancel', () => closeModal(), true)));
+    }
+  }
 
-  const mkTab = (label, type) => h('button', {
-    class: `py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors clickable ${f.notif_type === type ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`,
-    onclick: (e) => {
-      f.notif_type = type;
-      f.contact_method = 'email';
-      tabs.querySelectorAll('button').forEach((b) => {
-        b.classList.remove('bg-white', 'text-pink-600', 'shadow-sm');
-        if (b === e.currentTarget) b.classList.add('bg-white', 'text-pink-600', 'shadow-sm');
-      });
-      renderFields();
-    },
-  }, label);
-
-  tabs.appendChild(mkTab('Urgent Incident Alert', 'incident_alert'));
-  tabs.appendChild(mkTab('Event Notice', 'event_notice'));
-  renderFields();
+  render();
   closeModal = openModal(card).close;
 }

@@ -1,14 +1,43 @@
-# OSAS Administrative Agent (n8n + Gemini)
+# OSAS Administrative Agent (n8n + AI Model)
 
 The in-dashboard **Assistant** button is available to administrators. It sends the
 conversation to the `agent-chat` Supabase Edge Function, which verifies the
-administrator's session and relays the request to n8n. n8n uses Gemini to decide
+administrator's session and relays the request to n8n. n8n uses the configured language model to decide
 which read or write action to call. Every action goes through the `agent-tools`
 gateway, which re-checks the administrator, validates the fields, writes an audit
 row, and performs the operation.
 
 n8n never receives a Supabase service-role key. The only secrets it holds are the
 n8n webhook secret (to accept calls from `agent-chat`) and the Gemini API key.
+
+## Current production endpoint and live workflow repair
+
+The OSAS chat gateway now targets `https://osas.app.n8n.cloud/webhook/osas-admin-assistant`.
+The repository's workflow template uses the same webhook path. A GitHub change does not update
+an existing n8n Cloud workflow automatically.
+
+**Critical fix for the supplied n8n screenshot:** If `Verify Admin Token` performs an
+HTTP GET to Supabase Auth with `agentToken`, and the `Is Admin` false branch runs,
+remove these two nodes. `agentToken` is an HMAC-signed gateway credential, **not**
+a Supabase Auth login JWT. `agent-chat` already verifies the administrator's
+Supabase session, and `agent-tools` independently validates the HMAC signature
+and admin role before every operation.
+
+Connect `Admin Message` to a `Check Secret` IF node comparing the request
+header `x-agent-key` against your configured `N8N_WEBHOOK_SECRET`.
+Connect **true** to the AI Agent, **false** to an HTTP 401 Respond to Webhook node.
+Configure the secret privately in n8n, never in the browser.
+Keep the existing Claude Sonnet model if it is working, or reconnect your preferred model.
+
+To use the corrected JSON template, import it in n8n, configure the model and
+`Check Secret` node, and publish it. Deactivate the original workflow before activating
+another workflow with the same webhook path. The existing template uses Gemini by
+default and requires you to select a valid model and credentials.
+
+The inbound body contains `message`, `chatInput`, `transcript`, `history`,
+`sessionId`, `requestId`, and `agentToken`. Use `body.transcript` or
+`body.chatInput` for the AI prompt. The final Respond to Webhook node must
+return JSON containing a `reply` or `output` string.
 
 ## 1. Create the n8n workflow
 
@@ -17,13 +46,13 @@ n8n webhook secret (to accept calls from `agent-chat`) and the Gemini API key.
 3. Import [`osas-admin-agent.workflow.json`](./osas-admin-agent.workflow.json).
 4. Open the **Google Gemini** node and create a **Google Gemini(PaLM) API**
    credential with a key from [Google AI Studio](https://aistudio.google.com/apikey).
-   Select the credential and choose `models/gemini-3.8-flash` in the Model field.
+   Select the credential and select an available model in the Model field.
 5. Open the **Check Secret** node and replace
    `REPLACE_WITH_N8N_WEBHOOK_SECRET` with the webhook secret you will store in
    Supabase. This is the secret that proves a request came from `agent-chat`.
 6. Save the workflow, then click **Activate**.
 7. Copy the **Production URL** shown by the **OSAS Webhook** node. It looks like
-   `https://<workspace>.app.n8n.cloud/webhook/osas-admin-agent`.
+   `https://osas.app.n8n.cloud/webhook/osas-admin-assistant`.
 
 ## 2. Configure Supabase secrets
 
@@ -34,7 +63,6 @@ Supabase and in the n8n **Check Secret** node:
 supabase secrets set `
   AGENT_GATEWAY_KEY="<random-gateway-key>" `
   N8N_WEBHOOK_SECRET="<random-webhook-secret>" `
-  N8N_AGENT_WEBHOOK_URL="https://<workspace>.app.n8n.cloud/webhook/osas-admin-agent" `
   --project-ref rwqaeabxusivkyjgskko
 ```
 
@@ -42,7 +70,7 @@ supabase secrets set `
   verified by `agent-tools`. n8n never sees it.
 - `N8N_WEBHOOK_SECRET` is sent by `agent-chat` in the `x-agent-key` header and
   checked by the **Check Secret** node.
-- `N8N_AGENT_WEBHOOK_URL` is the production webhook URL from step 1.
+- The current OSAS gateway targets `https://osas.app.n8n.cloud/webhook/osas-admin-assistant`.
 
 ## 3. Apply the migration and deploy
 
@@ -112,5 +140,5 @@ writes in the same assistant turn are still applied.
   dashboard.
 - Rotate `AGENT_GATEWAY_KEY` and `N8N_WEBHOOK_SECRET` immediately if either is
   exposed, then update Supabase and the n8n **Check Secret** node.
-- The n8n webhook URL is public by nature. The webhook secret and the signed
+- The configured endpoint is `https://osas.app.n8n.cloud/webhook/osas-admin-assistant`. The n8n webhook URL is public by nature. The webhook secret and the signed
   actor token are what prevent unauthorized use.

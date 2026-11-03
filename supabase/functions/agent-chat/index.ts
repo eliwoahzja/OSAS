@@ -4,7 +4,7 @@ import { mintAgentToken } from '../_shared/agent-token.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const AGENT_GATEWAY_KEY = Deno.env.get('AGENT_GATEWAY_KEY') || '';
-const N8N_AGENT_WEBHOOK_URL = (Deno.env.get('N8N_AGENT_WEBHOOK_URL') || '').trim();
+const N8N_AGENT_WEBHOOK_URL = 'https://osas.app.n8n.cloud/webhook/osas-admin-assistant';
 const N8N_WEBHOOK_SECRET = Deno.env.get('N8N_WEBHOOK_SECRET') || '';
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 
@@ -66,6 +66,22 @@ Deno.serve(async (req) => {
   }
   if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'Invalid request.' }, 400);
 
+  const image = body.image;
+  let imageInput: { mimeType: string; fileName: string; data: string } | null = null;
+  if (image !== undefined && image !== null) {
+    if (!image || typeof image !== 'object' || Array.isArray(image)) return json({ error: 'Invalid image attachment.' }, 400);
+    const mimeType = String(image.mimeType || '');
+    const data = String(image.data || '');
+    const fileName = String(image.fileName || 'attached-image').replace(/[^a-zA-Z0-9_.-]/g, '_').slice(0, 80);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) return json({ error: 'Only JPEG, PNG, and WebP images are supported.' }, 400);
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(data) || data.length > 2_800_000 || data.length < 16) {
+      return json({ error: 'Invalid or oversized image. Select an image smaller than 2 MB.' }, 400);
+    }
+    const estimatedBytes = Math.floor(data.length * 3 / 4) - (data.endsWith('==') ? 2 : data.endsWith('=') ? 1 : 0);
+    if (estimatedBytes > 2 * 1024 * 1024) return json({ error: 'The image must be smaller than 2 MB.' }, 400);
+    imageInput = { mimeType, fileName, data };
+  }
+
   const message = text(body.message);
   if (message.length < 1) return json({ error: 'Type a message for the assistant.' }, 400);
   if (message.length > 4000) return json({ error: 'Keep each message under 4,000 characters.' }, 400);
@@ -104,27 +120,67 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         message,
+        chatInput: message,
         transcript: transcriptFrom(body.history, message),
+        history: Array.isArray(body.history) ? body.history.slice(-14) : [],
         sessionId,
         requestId,
         actorId: user.id,
         actorName,
         agentToken,
+        ...(imageInput ? { image: imageInput } : {}),
       }),
-      signal: AbortSignal.timeout(55000),
+      signal: AbortSignal.timeout(75000),
     });
   } catch {
     return json({ error: 'The assistant took too long to respond. Try a shorter request.' }, 504);
   }
 
   if (!response.ok) {
-    return json({ error: `The assistant workflow returned an error (${response.status}). Check that the n8n workflow is active.` }, 502);
+    if (response.status === 401 || response.status === 403) {
+      return json({ error: 'n8n rejected the gateway credentials. Check the workflow authentication settings.' }, 502);
+    }
+    if (response.status === 404) {
+      return json({ error: 'The n8n production webhook was not found. Publish the workflow and verify its path.' }, 502);
+    }
+    return json({ error: `The n8n workflow failed (HTTP ${response.status}). Inspect its execution log.` }, 502);
   }
 
+  let raw = '';
+  try { raw = await response.text(); } catch {}
   let payload: any = null;
-  try { payload = await response.json(); } catch {}
-  const reply = text(payload?.reply || payload?.output || payload?.text);
-  if (!reply) return json({ error: 'The assistant returned an empty response. Try again.' }, 502);
+  try { payload = JSON.parse(raw); } catch {}
 
-  return json({ reply: reply.slice(0, 16000), requestId });
+  const extractReply = (value: any, depth = 0): string => {
+    if (depth > 4 || value === null || value === undefined) return '';
+    if (typeof value === 'string') return value.trim();
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const result = extractReply(item, depth + 1);
+        if (result) return result;
+      }
+      return '';
+    }
+    if (typeof value !== 'object') return '';
+    for (const key of ['reply', 'output', 'text', 'response', 'message', 'json']) {
+      if (value[key] !== undefined) {
+        const result = extractReply(value[key], depth + 1);
+        if (result) return result;
+      }
+    }
+    return '';
+  };
+
+  if (payload?.error) {
+    return json({ error: 'The n8n workflow reported an error. Inspect its execution log.' }, 502);
+  }
+  const reply = (extractReply(payload) || (payload === null ? raw.trim() : '')).slice(0, 16000);
+  if (!reply || /^<(!doctype|html)/i.test(reply)) {
+    return json({ error: 'n8n did not return an assistant reply. Check the Respond to Webhook node.' }, 502);
+  }
+
+  if (imageInput && payload?.imageProcessed !== true) {
+    return json({ error: 'Image analysis is not enabled in the n8n workflow. Configure its image input and republish it.' }, 502);
+  }
+  return json({ reply, requestId, ...(imageInput ? { imageProcessed: true } : {}) });
 });
