@@ -8,9 +8,10 @@ DO $$ DECLARE ids uuid[]; admin_id uuid; BEGIN
 END $$;
 SET LOCAL ROLE authenticated;
 -- Older or forged clients cannot override submitter, reporter, status or classifications.
-INSERT INTO public.incidents(date, description, reporter, status, type, severity, location, submitted_by, photo_path)
+INSERT INTO public.incidents(date, description, reporter, status, type, severity, location, submitted_by, photo_path, photo_paths)
 VALUES (current_date,'__qa_incident_privacy_a__','Forged reporter','resolved','medical','high','Forged room',current_setting('qa.student_b')::uuid,
-        current_setting('qa.student_a') || '/11111111-1111-4111-8111-111111111111.jpg');
+        current_setting('qa.student_a') || '/11111111-1111-4111-8111-111111111111.jpg',
+        ARRAY[current_setting('qa.student_a') || '/11111111-1111-4111-8111-111111111111.jpg']);
 DO $$ BEGIN
  IF (SELECT count(*) FROM public.incidents WHERE description='__qa_incident_privacy_a__' AND submitted_by=auth.uid() AND reporter='QA Student A' AND status='open' AND type IS NULL AND severity IS NULL AND location IS NULL) <> 1 THEN RAISE EXCEPTION 'Attribution or minimal report normalization failed'; END IF;
  IF EXISTS(SELECT 1 FROM public.incidents WHERE submitted_by IS DISTINCT FROM auth.uid()) THEN RAISE EXCEPTION 'Student A can see another account report'; END IF;
@@ -18,9 +19,10 @@ DO $$ BEGIN
  PERFORM set_config('request.jwt.claims',json_build_object('sub',current_setting('qa.student_b'),'email','qa-b@example.invalid','app_metadata',json_build_object('role','client'),'user_metadata',json_build_object('name','QA Student B'))::text,true);
  IF EXISTS(SELECT 1 FROM public.incidents WHERE description='__qa_incident_privacy_a__') THEN RAISE EXCEPTION 'Student B can read A report'; END IF;
 END $$;
-INSERT INTO public.incidents(date, description, status, photo_path)
+INSERT INTO public.incidents(date, description, status, photo_path, photo_paths)
 VALUES (current_date,'__qa_incident_privacy_b__','open',
-        current_setting('qa.student_b') || '/22222222-2222-4222-8222-222222222222.jpg');
+        current_setting('qa.student_b') || '/22222222-2222-4222-8222-222222222222.jpg',
+        ARRAY[current_setting('qa.student_b') || '/22222222-2222-4222-8222-222222222222.jpg']);
 DO $$ DECLARE touched integer; BEGIN
  IF (SELECT count(*) FROM public.incidents WHERE description LIKE '__qa_incident_privacy_%') <> 1 THEN RAISE EXCEPTION 'Student B report ownership failed'; END IF;
  UPDATE public.incidents SET status='resolved' WHERE description='__qa_incident_privacy_b__'; GET DIAGNOSTICS touched = ROW_COUNT;

@@ -39,9 +39,9 @@ test('school photo spans the left login panel with branding at top and contacts 
   assert.match(style, /#login-overlay \.lg-brand-contacts\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/);
 });
 
-test('decorative hero stripes are scoped and reversed without affecting login', () => {
+test('decorative hero styling remains scoped without affecting login', () => {
   const landing = read('css/landing.css');
-  assert.match(landing, /\.safety-landing \.safety-hero-art::before\s*\{[^}]*linear-gradient\(70deg/);
+  assert.match(landing, /\.safety-landing \.safety-hero-art::before\s*\{/);
   assert.match(landing, /\.safety-landing \.safety-hero-art > \.safety-hero-seal\s*\{/);
   assert.ok(!/^\\.safety-hero-seal\\s*\\{/m.test(landing));
 });

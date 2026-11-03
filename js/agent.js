@@ -185,7 +185,7 @@ function setScreen(next) {
 }
 
 function showStartup() {
-  screen = 'startup';
+  setScreen('startup');
   listEl.replaceChildren(h('div', { class: 'agent-startup' },
     h('span', { class: 'agent-loader', role: 'status', 'aria-label': 'Loading chat' }),
     h('p', {}, 'Opening conversation…')));

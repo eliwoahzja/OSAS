@@ -33,8 +33,8 @@ const sdk = `export function createClient(url, key, options = {}) {
   }};
 }`;
 
-async function scenario({ hasPin = true, failStatus = false, trusted = false } = {}) {
-  const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 900 } });
+async function scenario({ hasPin = true, failStatus = false, trusted = false, mobile = false } = {}) {
+  const context = await browser.newContext({ reducedMotion: 'reduce', hasTouch: mobile, isMobile: mobile, viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 } });
   if (trusted) await context.addInitScript(() => {
     try { localStorage.setItem('osas.device.trust', JSON.stringify({ 'admin@example.test': { expiresAt: Date.now() + 86400000 } })); } catch {}
   });
@@ -93,7 +93,7 @@ const noOtp = requests => assert.equal(requests.filter(r => r.path === '/auth/v1
 const pinCalls = requests => requests.filter(r => r.path === '/functions/v1/admin-pin');
 
 try {
-  const existing = await scenario({ trusted: true });
+  const existing = await scenario({ trusted: true, mobile: true });
   await existing.signIn();
   await existing.page.getByRole('heading', { name: 'Enter your PIN', exact: true }).waitFor();
   assert.equal(await existing.page.locator('.lg-pin-dot').count(), 4);
@@ -103,7 +103,7 @@ try {
   await existing.page.keyboard.type('0000');
   await existing.page.getByRole('alert').filter({ hasText: 'Wrong PIN. Try again.' }).waitFor();
   assert.equal(await existing.page.evaluate(async () => (await import('/js/auth.js')).isSignedIn()), false);
-  await existing.page.keyboard.type('1234');
+  for (const digit of '1234') await existing.page.locator('.lg-keypad').getByRole('button', { name: digit, exact: true }).tap();
   await existing.page.waitForFunction(() => document.body.dataset.session === 'active');
   assert.equal(await existing.page.evaluate(async () => (await import('/js/auth.js')).isAdmin()), true);
   assert.deepEqual(pinCalls(existing.requests).map(r => r.body.action), ['status', 'verify', 'verify']);

@@ -143,7 +143,8 @@ try {
 
   const student = await scenario();
   await student.page.goto(`${origin}/#/sign-in`);
-  assert.equal(await student.page.getByText('Student ID or email', { exact: true }).count(), 1);
+  await student.page.getByRole('heading', { name: 'Welcome Back', exact: true }).waitFor();
+  assert.equal(await student.page.getByText('Student ID or admin email', { exact: true }).count(), 1);
   await student.page.locator('input[autocomplete="username"]').fill('S260000001');
   await student.page.locator('input[autocomplete="current-password"]').fill('Password12');
   await student.page.getByRole('button', { name: 'Sign In', exact: true }).click();

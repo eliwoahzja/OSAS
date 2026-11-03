@@ -48,7 +48,7 @@ export function printReport(key, records) {
     h('h1', {}, dataset.label),
     h('p', {}, `SAAC · Office of Student Affairs and Services · ${rows.length} records`),
     h('table', {},
-      h('thead', {}, h('tr', {}, dataset.cols.map((key) => h('th', {}, key.replaceAll('_', ' '))))),
+      h('thead', {}, h('tr', {}, dataset.cols.map((key) => h('th', { scope: 'col' }, key.replaceAll('_', ' '))))),
       h('tbody', {}, rows.map((row) => h('tr', {}, dataset.cols.map((key) => h('td', {}, row[key] ?? '—')))))),
   );
   report.focus();

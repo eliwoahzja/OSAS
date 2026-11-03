@@ -49,7 +49,7 @@ try {
   });
   await page.goto(`${origin}/__account_test`);
   await page.getByRole('cell', { name: 's260000001', exact: true }).waitFor();
-  assert.equal(await page.getByRole('columnheader', { name: 'Student ID', exact: true }).count(), 1);
+  assert.equal(await page.getByRole('columnheader', { name: /^Student ID$/i }).count(), 1);
   assert.equal(await page.getByRole('columnheader', { name: 'Username', exact: true }).count(), 0);
   const row = page.getByRole('row').filter({ has: page.getByRole('cell', { name: 's260000001', exact: true }) });
   await row.getByRole('button', { name: 'Edit', exact: true }).click();

@@ -600,6 +600,7 @@ export function dataTable(columns, rows, { onRowClick } = {}) {
   const tr = h('tr', { class: 'border-b border-gray-100' });
   for (const col of columns) {
     tr.appendChild(h('th', {
+      scope: 'col',
       class: 'px-5 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap ' + (col.cls || ''),
     }, col.label));
   }

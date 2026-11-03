@@ -18,7 +18,7 @@ try {
     await context.route('**/*', async (route) => {
       const url = new URL(route.request().url());
       if (url.origin === origin && url.pathname === '/js/config.js') {
-        return route.fulfill({ contentType: 'text/javascript', body: `window.OSAS={SUPABASE_URL:'${backend}',SUPABASE_ANON_KEY:'test-key',PIN_ACCOUNTS:{}};` });
+        return route.fulfill({ contentType: 'text/javascript', body: `window.OSAS={SUPABASE_URL:'${backend}',SUPABASE_ANON_KEY:'test-key'};` });
       }
       if (url.origin === origin && url.pathname === '/js/auth.js') {
         return route.fulfill({ contentType: 'text/javascript', body: `
@@ -30,6 +30,7 @@ try {
           export const passwordRecovery=()=>({active:false,error:''});
           export const currentAccessToken=async()=>'test-token';
           export const subscribeIncidentChanges=async()=>()=>{};
+          export const onAuthChange=()=>()=>{};
         ` });
       }
       if (url.origin === backend) {

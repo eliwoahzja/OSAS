@@ -163,8 +163,11 @@ export function createSafetyLanding({ onSignIn }) {
   const jump = (id, label, cls = '') => h('a', { href: `#${id}`, class: cls, onclick: (event) => {
     event.preventDefault();
     const destination = root.querySelector(`#${id}`);
-    destination?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
-    destination?.focus({ preventScroll: true });
+    if (!destination) return;
+    const margin = parseFloat(getComputedStyle(destination).scrollMarginTop) || 0;
+    const top = Math.max(0, window.scrollY + destination.getBoundingClientRect().top - margin);
+    destination.focus({ preventScroll: true });
+    window.scrollTo({ top, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   } }, label);
   const signIn = (label, cls = 'safety-button') => h('button', { type: 'button', class: cls, onclick: onSignIn }, label, icon('arrow-right'));
 
@@ -218,6 +221,7 @@ export function createSafetyLanding({ onSignIn }) {
           h('p', { class: 'safety-open-note' }, icon('book-open'), 'Read, learn, and prepare. No account needed.'),
         ),
         h('div', { class: 'safety-hero-art', 'aria-hidden': 'true' },
+          h('span', { class: 'safety-hero-stripe' }),
           h('img', { class: 'safety-hero-seal', src: '/assets/logo.png', alt: '', width: '497', height: '502', decoding: 'async' }),
         ),
       ),
