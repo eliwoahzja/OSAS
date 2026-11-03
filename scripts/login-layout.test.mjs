@@ -31,5 +31,5 @@ test('decorative hero stripes are scoped and reversed without affecting login', 
   const landing = read('css/landing.css');
   assert.match(landing, /\.safety-landing \.safety-hero-art::before\s*\{[^}]*linear-gradient\(70deg/);
   assert.match(landing, /\.safety-landing \.safety-hero-art > \.safety-hero-seal\s*\{/);
-  assert.ok(!landing.includes('.safety-hero-seal { position: absolute;'));
+  assert.ok(!/^\\.safety-hero-seal\\s*\\{/m.test(landing));
 });
