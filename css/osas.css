@@ -113,7 +113,18 @@ pre::-webkit-scrollbar-thumb:hover,
   border: 1px solid #f1f1ef;
 }
 
-/* School announcements sit below dashboard analytics in both workspaces. */
+/* High-school student details precede the announcement feed. */
+.student-info-grid { display: grid; grid-template-columns: minmax(0,1fr); }
+.student-info-card { min-width: 0; padding: 22px 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; color: #4b5563; }
+.student-info-card h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: #303a42; font-size: 15px; font-weight: 650; }
+.student-info-card h2 i { color: #7c8790; font-size: 13px; }
+.student-info-card dl { display: grid; gap: 5px; font-size: 12px; }
+.student-info-card dl > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.student-info-card dt::after { content: ':'; }
+.student-info-card dd { overflow-wrap: anywhere; color: #303a42; }
+@media (max-width: 640px) { .student-info-grid { grid-template-columns: minmax(0,1fr); gap: 14px; } .student-info-card { padding: 18px; } }
+
+/* School announcements follow student details or administrator analytics. */
 .announcement-board { min-width: 0; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; }
 .announcement-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 28px 28px; }
 .announcement-heading h3 { display: flex; align-items: center; gap: 9px; color: #303a42; font-size: 17px; font-weight: 650; }
@@ -693,14 +704,8 @@ body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #vi
 .inspection-safety-note { padding-top:8px; padding-bottom:8px; }
 .inspection-safety-note img { width:140px; height:46px; }
 
-/* Student summaries and both incident charts use the available page width. */
-.student-dashboard .dashboard-summary-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.student-dashboard .trend-chart-shell { max-width:none; width:100%; }
-.student-dashboard .dashboard-analytics-grid > * { min-width:0; }
+/* The student profile and announcement feed scroll as one page. */
 body[data-route="dashboard"]:has(.student-dashboard) > main { overflow-y:auto; }
 body[data-route="dashboard"]:has(.student-dashboard) #view { flex:0 0 auto; overflow:visible; }
-@media(max-width:767px) {
-  .student-dashboard .dashboard-analytics-grid { grid-template-columns:minmax(0,1fr); }
-}
 
 @media(min-width:1280px){.dashboard-analytics-grid.xl\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr));}}

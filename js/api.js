@@ -367,26 +367,46 @@ export async function sendNotification(raw = {}) {
 }
 
 export async function getDashboardStats() {
-  // First-aid stock is school-confidential: only administrators fetch it
-  // (the dashboard charts that use it are administrators-only too).
-  const includeSupplies = auth.isAdmin();
-  if (isDemoMode()) {
-    return computeStats(
-      listMock('incidents'), listMock('inspections'), listMock('drills'),
-      includeSupplies ? listMock('supplies') : [], listMock('emergency_contacts', { category: 'school' }),
-    );
-  }
+  if (!auth.isAdmin()) throw new Error('School analytics are available to administrators only.');
+  if (isDemoMode()) return computeStats(
+    listMock('incidents'), listMock('inspections'), listMock('drills'), listMock('supplies'), listMock('emergency_contacts', { category: 'school' }),
+  );
   const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
-    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,created_at,type,status,submitted_by', order: 'id.asc', offset, limit, ...(!auth.isAdmin() ? { submitted_by: `eq.${auth.currentUser()?.id}` } : {}) } })),
-    includeSupplies ? restFetch('GET', 'inspections', { query: { select: '*' } }) : [],
-    includeSupplies ? restFetch('GET', 'drills', { query: { select: '*' } }) : [],
-    includeSupplies ? restFetch('GET', 'supplies', { query: { select: '*' } }) : [],
+    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,created_at,type,status,submitted_by', order: 'id.asc', offset, limit } })),
+    restFetch('GET', 'inspections', { query: { select: '*' } }),
+    restFetch('GET', 'drills', { query: { select: '*' } }),
+    restFetch('GET', 'supplies', { query: { select: '*' } }),
     restFetch('GET', 'emergency_contacts', { query: { select: 'id,category', category: 'eq.school' } }),
   ]);
-  return computeStats(
-    visibleIncidents(incidents || []), withDerived('inspections', inspections || []), drills || [],
-    supplies || [], contacts || [],
-  );
+  return computeStats(incidents || [], withDerived('inspections', inspections || []), drills || [], supplies || [], contacts || []);
+}
+
+export async function getStudentGrade(userId = auth.currentUser()?.id) {
+  if (!userId || !auth.currentUser()?.id) throw new Error('Sign in to view your grade.');
+  if (!auth.isAdmin() && userId !== auth.currentUser().id) throw new Error('You can only view your own grade.');
+  if (isDemoMode()) return snapshot('student_grades').find(row => row.user_id === userId)?.grade_level ?? null;
+  const rows = await restFetch('GET', 'student_grades', { query: { select: 'grade_level', user_id: `eq.${userId}`, limit: 1 } });
+  return rows?.[0]?.grade_level ?? null;
+}
+
+export async function saveStudentGrade(userId, gradeLevel) {
+  if (!auth.isAdmin()) throw new Error('Only administrators may assign student grades.');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(userId))) throw new Error('Select a valid student account.');
+  if (gradeLevel !== null && (!Number.isInteger(gradeLevel) || gradeLevel < 7 || gradeLevel > 12)) throw new Error('Select a grade from 7 to 12.');
+  if (isDemoMode()) {
+    MOCK.student_grades ||= [];
+    const existing = MOCK.student_grades.find(row => row.user_id === userId);
+    if (existing) existing.grade_level = gradeLevel;
+    else MOCK.student_grades.push({ user_id: userId, grade_level: gradeLevel });
+    persistMock();
+    return;
+  }
+  const rows = await restFetch('POST', 'student_grades', {
+    query: { on_conflict: 'user_id' }, body: { user_id: userId, grade_level: gradeLevel },
+    prefer: 'resolution=merge-duplicates,return=representation',
+  });
+  if (!rows?.length) throw new Error('The grade was not saved. Please try again.');
+  window.dispatchEvent(new Event('osas:data-changed'));
 }
 
 export async function uploadFile(bucket, file, path) {

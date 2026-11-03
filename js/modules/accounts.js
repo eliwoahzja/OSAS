@@ -5,6 +5,7 @@ import {
 import * as auth from '../auth.js';
 import { roleLabel } from '../labels.js';
 import { passwordResetCall } from '../password-reset.js';
+import { editStudentGrade } from './student-dashboard.js';
 
 function fnUrl() {
   const base = window.OSAS.NOTIFY_FN_URL || '';
@@ -280,6 +281,10 @@ export async function accounts(el) {
             class: 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 clickable',
             onclick: () => openEditModal(u, u.id === me, load),
           }, icon('pen-to-square', 'text-[11px]'), 'Edit'),
+          u.role !== 'admin' && h('button', {
+            type: 'button', class: 'btn-ghost text-xs', onclick: () => editStudentGrade(u),
+            'aria-label': 'Set grade: ' + u.name,
+          }, icon('graduation-cap', 'text-[11px]'), 'Set grade'),
           u.id === me
             ? h('span', { class: 'text-xs text-gray-400 px-1' }, 'You')
             : h('button', {

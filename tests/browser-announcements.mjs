@@ -11,6 +11,8 @@ let serial = 0;
 let failSave = false;
 let failRead = false;
 const requests = [];
+const dataRequests = [];
+let gradeLevel = null;
 
 async function scenario(role) {
   const context = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1440, height: 1000 } });
@@ -20,9 +22,9 @@ async function scenario(role) {
   await context.route('**/*', async route => {
     const req = route.request();
     const url = new URL(req.url());
-    if (url.origin === origin && url.pathname === '/js/config.js') return route.fulfill({ contentType: 'text/javascript', body: `window.OSAS={SUPABASE_URL:'${backend}',SUPABASE_ANON_KEY:'test-key'};` });
+    if (url.origin === origin && url.pathname === '/js/config.js') return route.fulfill({ contentType: 'text/javascript', body: `window.OSAS={SUPABASE_URL:'${backend}',SUPABASE_ANON_KEY:'test-key',NOTIFY_FN_URL:'${backend}/functions/v1/send-notification'};` });
     if (url.origin === origin && url.pathname === '/js/auth.js') return route.fulfill({ contentType: 'text/javascript', body: `
-      const user={id:'11111111-1111-4111-8111-111111111111',name:'School Administrator',role:'${role}',email:'admin@example.test',student_id:'s260000001'};
+      const user={id:'11111111-1111-4111-8111-111111111111',name:'${role === 'admin' ? 'School Administrator' : 'Student One'}',role:'${role}',email:'student@example.test',student_id:'s260000001'};
       const session={provider:'supabase',user,access_token:'test-token'};
       export const currentUser=()=>user;
       export const isAdmin=()=>user.role==='admin';
@@ -36,6 +38,20 @@ async function scenario(role) {
       export const subscribeIncidentChanges=async()=>()=>{};
     ` });
     if (url.origin === backend) {
+      dataRequests.push({ role, path: url.pathname, method: req.method() });
+      if (url.pathname === '/functions/v1/manage-accounts') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ users: [{ id: '11111111-1111-4111-8111-111111111111', name: 'Student One', email: 'student@example.test', role: 'client', student_id: 's260000001' }], me: '22222222-2222-4222-8222-222222222222' }) });
+      if (url.pathname === '/functions/v1/password-reset') return route.fulfill({ contentType: 'application/json', body: '{"requests":[]}' });
+      if (url.pathname === '/rest/v1/student_grades') {
+        if (req.method() === 'GET') {
+          assert.equal(url.searchParams.get('user_id'), 'eq.11111111-1111-4111-8111-111111111111');
+          return route.fulfill({ contentType: 'application/json', body: JSON.stringify(gradeLevel === null ? [] : [{ grade_level: gradeLevel }]) });
+        }
+        assert.equal(role, 'admin');
+        assert.equal(req.method(), 'POST');
+        gradeLevel = req.postDataJSON().grade_level;
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify([{ grade_level: gradeLevel }]) });
+      }
+      if (role !== 'admin' && ['/rest/v1/incidents', '/rest/v1/inspections', '/rest/v1/supplies', '/rest/v1/drills'].includes(url.pathname)) throw new Error('Student dashboard requested school analytics: ' + url.pathname);
       if (url.pathname === '/rest/v1/incidents') return route.fulfill({ contentType: 'application/json', body: JSON.stringify([
         { id: 'incident-1', submitted_by: '11111111-1111-4111-8111-111111111111', date: '2026-11-03', created_at: '2026-11-03T05:00:00Z', status: 'open', type: null },
         { id: 'incident-2', submitted_by: '11111111-1111-4111-8111-111111111111', date: '2026-11-03', created_at: '2026-11-03T06:00:00Z', status: 'resolved', type: null },
@@ -96,13 +112,21 @@ try {
   await student.board.getByRole('heading', { name: 'Campus safety reminder', exact: true }).waitFor();
   assert.equal(await student.board.getByRole('button').count(), 0);
   assert.equal(await student.page.evaluate(() => {
-    const charts = document.querySelector('.dashboard-analytics-grid');
+    const info = document.querySelector('.student-info-grid');
     const board = document.querySelector('.announcement-board');
-    return !!charts && Boolean(charts.compareDocumentPosition(board) & Node.DOCUMENT_POSITION_FOLLOWING);
-  }), true, 'The board must follow the student graphs');
-  await student.page.getByRole('heading', { name: 'Incidents by Status', exact: true }).waitFor();
+    return !!info && Boolean(info.compareDocumentPosition(board) & Node.DOCUMENT_POSITION_FOLLOWING);
+  }), true, 'Student details must precede announcements');
+  const info = student.page.getByRole('region', { name: 'Student information' });
+  await info.getByRole('heading', { name: 'Student One', exact: true }).waitFor();
+  assert.deepEqual(await info.locator('dt').allTextContents(), ['Student ID', 'Grade']);
+  assert.equal(await info.getByText('s260000001', { exact: true }).count(), 1);
+  assert.equal(await info.getByText('Not assigned', { exact: true }).count(), 1);
+  assert.equal(await student.page.getByRole('heading', { name: 'Adviser', exact: true }).count(), 0);
+  assert.equal(await student.page.locator('.dashboard-analytics-grid,.yearly-chart').count(), 0);
+  await admin.page.getByRole('heading', { name: 'Incidents by Status', exact: true }).waitFor();
+  await admin.page.getByRole('heading', { name: 'Incidents by Year', exact: true }).waitFor();
   assert.equal(await student.page.getByRole('heading', { name: 'Incidents by Type', exact: true }).count(), 0);
-  const yearBar = student.page.locator('.yearly-chart-bar');
+  const yearBar = admin.page.locator('.yearly-chart-bar');
   assert.equal(await yearBar.locator('.yearly-chart-value').textContent(), '2');
   assert.ok(await yearBar.evaluate(el => el.getBoundingClientRect().height) > 50, 'A single year must show a visible bar');
 
@@ -167,10 +191,22 @@ try {
   await student.board.scrollIntoViewIfNeeded();
   assert.equal(await student.board.evaluate(el => el.scrollWidth <= el.clientWidth), true);
   await student.page.screenshot({ path: '/tmp/osas-announcements/student-mobile.png' });
+  await admin.page.goto(`${origin}/#/accounts`);
+  await admin.page.getByRole('button', { name: 'Set grade: Student One', exact: true }).click();
+  const gradeForm = admin.page.locator('.osas-modal-card form');
+  await gradeForm.getByLabel('Grade level').selectOption('10');
+  await gradeForm.getByRole('button', { name: 'Save grade', exact: true }).click();
+  await admin.page.locator('.osas-modal-overlay').waitFor({ state: 'detached' });
+  assert.equal(gradeLevel, 10);
+  await student.page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await info.locator('dd').last().filter({ hasText: /^10$/ }).waitFor();
+  await info.scrollIntoViewIfNeeded();
+  await student.page.screenshot({ path: '/tmp/osas-announcements/student-details-mobile.png' });
   assert.deepEqual(admin.errors, []);
   assert.deepEqual(student.errors, []);
   assert.ok(requests.filter(r => r.role === 'client').every(r => r.method === 'GET'));
+  assert.ok(dataRequests.filter(r => r.role === 'client').every(r => ['/rest/v1/student_grades', '/rest/v1/announcements'].includes(r.path)));
   await admin.context.close();
   await student.context.close();
-  console.log('Announcements browser OK: status counts, single-year bars, admin publish/edit/delete, save retry, read-only students, refresh/retry, text safety, two-post pages, posters and mobile layout.');
+  console.log('Dashboard browser OK: admin-only charts, student name/ID/grade with no adviser, no student analytics requests, admin grade assignment, announcement publishing, two-post pages, posters and mobile layout.');
 } finally { await browser.close(); }

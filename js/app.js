@@ -13,6 +13,7 @@ import { startDashboardUpdates } from './live-dashboard.js';
 import { createSafetyLanding, startLandingAnimations } from './landing.js';
 import { mountAgentChat, unmountAgentChat } from './agent.js';
 import { createAnnouncementBoard } from './modules/announcements.js';
+import { studentOverview } from './modules/student-dashboard.js';
 
 let closeLogin = null;
 let stopLandingAnimations = null;
@@ -539,27 +540,20 @@ function drawStats(box, s) {
     cards,
   ));
 
-  // First-aid stock is school-confidential: only the Administrator workspace
-  // renders these two charts, and only the admin dashboard fetches the rows.
+  // School analytics belong exclusively to the Administrator workspace.
+  if (!admin) return;
   const analyticsCharts = [
-    barChart(admin ? s.incident_breakdown || [] : s.incident_status || [], { title: admin ? 'Incidents by Type' : 'Incidents by Status' }),
-    ...(admin ? [pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' })] : []),
+    pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
+    barChart(s.incident_status || [], { title: 'Incidents by Status' }),
+    pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' }),
   ];
-  if (admin) {
-    analyticsCharts.unshift(
-      pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),
-    );
-  }
-  if (!admin) analyticsCharts.push(yearBarChart(s.years_by_year || [], { title: 'Incidents by Year', subtitle: 'Saved incident reports by calendar year. Updates when reports change.' }));
   box.appendChild(h('section', { class: 'space-y-5' },
     h('div', {},
       h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-1.5' }, 'Safety Analytics'),
-      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, admin ? 'Incident, Inspection & Supplies Health' : 'Incident Reports'),
-      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, admin
-        ? 'Live breakdown of supplies inventory, incidents, and inspection status.'
-        : 'Only reports submitted from your account.'),
+      h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, 'Incident, Inspection & Supplies Health'),
+      h('p', { class: 'text-[15px] text-gray-500 mt-1' }, 'Live breakdown of supplies inventory, incidents, and inspection status.'),
     ),
-    h('div', { class: `dashboard-analytics-grid grid md:grid-cols-2 ${admin ? 'xl:grid-cols-3' : ''} gap-5` }, ...analyticsCharts),
+    h('div', { class: 'dashboard-analytics-grid grid md:grid-cols-2 xl:grid-cols-3 gap-5' }, ...analyticsCharts),
   ));
 
   const yearsData = s.years_by_year || [];
@@ -575,12 +569,15 @@ function drawStats(box, s) {
 
 async function renderDashboard(el) {
   el.innerHTML = '';
-  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' + (auth.isAdmin() ? '' : ' student-dashboard') });
+  const admin = auth.isAdmin();
+  const wrap = h('div', { class: 'max-w-[1400px] 2xl:max-w-[1600px] mx-auto space-y-8' + (admin ? '' : ' student-dashboard') });
   el.appendChild(wrap);
 
   const heroWrap = h('div');
-  heroWrap.appendChild(skeletonHeroBanner());
-  wrap.appendChild(heroWrap);
+  if (admin) {
+    heroWrap.appendChild(skeletonHeroBanner());
+    wrap.appendChild(heroWrap);
+  }
 
   const statsWrap = h('div', { class: 'space-y-8' });
   wrap.appendChild(statsWrap);
@@ -588,38 +585,42 @@ async function renderDashboard(el) {
   wrap.appendChild(announcementBoard.element);
 
   const skeletonBox = h('div', { class: 'space-y-8' });
-  if (auth.isAdmin()) skeletonBox.appendChild(skeletonSupplyAlert());
-  skeletonBox.appendChild(h('section', {},
-    h('div', { class: 'mb-6 animate-pulse' },
-      h('div', { class: 'h-2.5 w-20 bg-pink-200/80 rounded-full mb-2' }),
-      h('div', { class: 'flex items-center justify-between' },
-        h('div', { class: 'space-y-1.5' },
-          h('div', { class: 'h-7 w-60 bg-gray-200/90 rounded-xl' }),
-          h('div', { class: 'h-4 w-52 bg-gray-100 rounded-full' }),
+  if (admin) {
+    skeletonBox.appendChild(skeletonSupplyAlert());
+    skeletonBox.appendChild(h('section', {},
+      h('div', { class: 'mb-6 animate-pulse' },
+        h('div', { class: 'h-2.5 w-20 bg-pink-200/80 rounded-full mb-2' }),
+        h('div', { class: 'flex items-center justify-between' },
+          h('div', { class: 'space-y-1.5' },
+            h('div', { class: 'h-7 w-60 bg-gray-200/90 rounded-xl' }),
+            h('div', { class: 'h-4 w-52 bg-gray-100 rounded-full' }),
+          ),
+          h('div', { class: 'h-7 w-28 bg-gray-100 rounded-full' }),
         ),
-        h('div', { class: 'h-7 w-28 bg-gray-100 rounded-full' }),
       ),
-    ),
-    skeletonStatCards(6, 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5'),
-  ));
-  skeletonBox.appendChild(h('section', { class: 'space-y-5' },
-    h('div', { class: 'animate-pulse space-y-1.5' },
-      h('div', { class: 'h-2.5 w-28 bg-pink-200/80 rounded-full mb-2' }),
-      h('div', { class: 'h-7 w-80 bg-gray-200/90 rounded-xl' }),
-      h('div', { class: 'h-4 w-96 max-w-full bg-gray-100 rounded-full' }),
-    ),
-    skeletonAnalyticsGrid(auth.isAdmin() ? 3 : 2),
-  ));
-  skeletonBox.appendChild(skeletonTrendChart());
+      skeletonStatCards(6, 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-5'),
+    ));
+    skeletonBox.appendChild(h('section', { class: 'space-y-5' },
+      h('div', { class: 'animate-pulse space-y-1.5' },
+        h('div', { class: 'h-2.5 w-28 bg-pink-200/80 rounded-full mb-2' }),
+        h('div', { class: 'h-7 w-80 bg-gray-200/90 rounded-xl' }),
+        h('div', { class: 'h-4 w-96 max-w-full bg-gray-100 rounded-full' }),
+      ),
+      skeletonAnalyticsGrid(3),
+    ));
+    skeletonBox.appendChild(skeletonTrendChart());
+  } else {
+    skeletonBox.appendChild(skeletonStatCards(1, 'grid grid-cols-1 gap-5'));
+  }
   statsWrap.appendChild(skeletonBox);
 
   const refresh = async (isInitial = false) => {
     const announcementsLoaded = announcementBoard.refresh();
     try {
-      const s = await api.getDashboardStats();
+      const s = admin ? await api.getDashboardStats() : await api.getStudentGrade();
       if (!el.contains(wrap)) return;
 
-      if (isInitial) {
+      if (admin && isInitial) {
         heroWrap.innerHTML = '';
         heroWrap.appendChild(
           h('section', {
@@ -651,7 +652,8 @@ async function renderDashboard(el) {
       }
 
       statsWrap.innerHTML = '';
-      drawStats(statsWrap, s);
+      if (admin) drawStats(statsWrap, s);
+      else statsWrap.appendChild(studentOverview(auth.currentUser(), s));
     } catch (e) {
       if (isInitial) {
         statsWrap.innerHTML = '';

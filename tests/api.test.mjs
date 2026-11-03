@@ -73,13 +73,14 @@ test('blank descriptions are rejected before any network request', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('dashboard totals and type breakdown only contain the client reports', async () => {
-  const { api, calls } = await fixture({ respond: ({ url }) => url.pathname.endsWith('/incidents') ? [own, other, legacy] : [] });
-  const stats = await api.getDashboardStats();
-  assert.equal(stats.incidents_total, 1);
-  assert.equal(stats.incidents_open, 1);
-  assert.deepEqual(stats.incident_breakdown, [{ label: 'Unclassified', value: 1 }]);
-  assert.equal(calls.find(({ url }) => url.pathname.endsWith('/incidents')).url.searchParams.get('submitted_by'), `eq.${user.id}`);
+test('school dashboard analytics are unavailable to students in live and demo mode', async () => {
+  for (const demo of [false, true]) {
+    const { api, calls } = await fixture({ demo });
+    await assert.rejects(api.getDashboardStats(), /administrators only/);
+    assert.equal(calls.length, 0);
+  }
+  const { api } = await fixture({ admin: true, respond: ({ url }) => url.pathname.endsWith('/incidents') ? [own, other, legacy] : [] });
+  assert.equal((await api.getDashboardStats()).incidents_total, 3);
 });
 
 test('client cannot reassign ownership or delete incident reports', async () => {
@@ -100,7 +101,7 @@ test('mock lists, dashboard counts and writes apply the same account ownership',
   assert.deepEqual(await api.listRows('incidents'), [own]);
   const created = await api.insertRow('incidents', { description: 'Demo report', submitted_by: other.submitted_by });
   assert.equal(created.submitted_by, user.id);
-  assert.equal((await api.getDashboardStats()).incidents_total, 2);
+  assert.equal((await api.listRows('incidents')).length, 2);
   await assert.rejects(api.updateRow('incidents', other.id, { description: 'Changed' }), /Only administrators/);
   assert.equal(calls.length, 0);
 });
@@ -166,4 +167,34 @@ test('demo announcements persist through create, edit and delete with original a
   assert.equal((await api.listAnnouncements())[0].title, 'Edited');
   await api.deleteRow('announcements', saved.id);
   assert.deepEqual(await api.listAnnouncements(), []);
+});
+
+test('students read only their own grade assignment and cannot write grades', async () => {
+  const { api, calls } = await fixture({ respond: () => [{ grade_level: 10 }] });
+  assert.equal(await api.getStudentGrade(), 10);
+  assert.equal(calls[0].url.pathname, '/rest/v1/student_grades');
+  assert.equal(calls[0].url.searchParams.get('user_id'), `eq.${user.id}`);
+  await assert.rejects(api.getStudentGrade(other.submitted_by), /only view your own/);
+  await assert.rejects(api.saveStudentGrade(user.id, 11), /Only administrators/);
+  assert.equal(calls.length, 1);
+  const empty = await fixture({ respond: () => [] });
+  assert.equal(await empty.api.getStudentGrade(), null);
+  const signedOut = await fixture({ signedIn: false });
+  await assert.rejects(signedOut.api.getStudentGrade(), /Sign in/);
+  assert.equal(signedOut.calls.length, 0);
+});
+
+test('administrators assign or clear grades 7 through 12 and reject invalid grades before sending', async () => {
+  const { api, calls } = await fixture({ admin: true, respond: ({ body }) => [body] });
+  await api.saveStudentGrade(user.id, 10);
+  assert.deepEqual(calls[0].body, { user_id: user.id, grade_level: 10 });
+  assert.equal(calls[0].url.searchParams.get('on_conflict'), 'user_id');
+  assert.match(calls[0].headers.Prefer, /resolution=merge-duplicates/);
+  await api.saveStudentGrade(user.id, null);
+  assert.equal(calls[1].body.grade_level, null);
+  for (const grade of [6, 13, 7.5, '10', NaN]) await assert.rejects(api.saveStudentGrade(user.id, grade), /grade from 7 to 12/);
+  assert.equal(calls.length, 2);
+  const demo = await fixture({ admin: true, demo: true });
+  await demo.api.saveStudentGrade(user.id, 12);
+  assert.equal(await demo.api.getStudentGrade(user.id), 12);
 });
