@@ -6,7 +6,7 @@ CREATE POLICY drills_delete_admin ON public.drills
 -- Incident evidence is optional, linked by a private Storage object key.
 ALTER TABLE public.incidents ADD COLUMN IF NOT EXISTS photo_path text;
 ALTER TABLE public.incidents ADD CONSTRAINT incidents_photo_path_format
-  CHECK (photo_path IS NULL OR photo_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|png|webp)$');
+  CHECK (photo_path IS NULL OR photo_path ~ '^[0-9a-f-]{36}/[0-9a-f-]{36}[.](jpg|png|webp)$');
 
 -- Separate, non-public evidence storage. Restrict media and size server-side.
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
