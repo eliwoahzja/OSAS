@@ -151,20 +151,14 @@ export function confirmDelete({ title, table, record, onSaved, description, acti
   });
 }
 
-export function rowActions(onView, onEdit, { compact = false, onMore, onDelete } = {}) {
-  const buttons = [h('button', {
-    type: 'button', class: compact ? 'btn-ghost record-action-icon' : 'btn-ghost text-xs', title: 'View details',
-    'aria-label': 'View details', onclick: onView,
-  }, icon('eye', 'text-xs'), compact ? null : 'View')];
-  if (isAdmin() && onEdit) buttons.push(h('button', {
-    type: 'button', class: compact ? 'btn-ghost record-action-icon' : 'btn-ghost text-xs', title: 'Edit record',
-    'aria-label': 'Edit record', onclick: onEdit,
-  }, icon('pen', 'text-xs'), compact ? null : 'Edit'));
-  if (isAdmin() && (onMore || onDelete)) buttons.push(h('button', {
-    type: 'button', class: 'btn-ghost record-action-icon',
-    title: onMore ? 'More actions' : 'Delete record',
-    'aria-label': onMore ? 'More actions' : 'Delete record', onclick: onMore || onDelete,
-  }, icon(onMore ? 'ellipsis' : 'trash-can', 'text-xs')));
-  // 8px between adjacent action buttons (icon/label spacing lives in .btn-ghost).
-  return h('div', { class: 'flex items-center gap-2' }, buttons);
+export function rowActions(onView, onEdit, { onMore, onDelete, deleteLabel = 'Delete' } = {}) {
+  const action = (label, name, title, onClick, destructive = false) => h('button', {
+    type: 'button', class: 'btn-ghost text-xs' + (destructive ? ' record-action-danger' : ''),
+    title, 'aria-label': title, onclick: onClick,
+  }, icon(name, 'text-xs'), label);
+  const buttons = [action('View', 'eye', 'View details', onView)];
+  if (isAdmin() && onEdit) buttons.push(action('Edit', 'pen', 'Edit record', onEdit));
+  if (isAdmin() && onMore) buttons.push(action('More', 'ellipsis', 'More actions', onMore));
+  else if (isAdmin() && onDelete) buttons.push(action(deleteLabel, 'trash-can', deleteLabel + ' record', onDelete, true));
+  return h('div', { class: 'record-actions flex flex-wrap items-center gap-2' }, buttons);
 }

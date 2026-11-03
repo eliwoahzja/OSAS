@@ -65,7 +65,7 @@ export async function drillScheduling(el) {
       render: (record) => rowActions(
         () => view(record),
         () => edit(record),
-        { compact: true, onDelete: () => remove(record) },
+        { onDelete: () => remove(record) },
       ),
     }] : []),
   ];
@@ -193,6 +193,16 @@ export async function evacuationPlans(el) {
     { key: 'version', label: 'Version', render: (r) => h('span', { class: 'font-mono text-xs text-gray-500' }, r.version || '—') },
     { key: 'updated', label: 'Last Updated', render: (r) => h('span', { class: 'whitespace-nowrap text-gray-500' }, formatDate(r.updated)) },
     { key: 'current', label: 'Status', render: (r) => pill(r.current ? 'current' : 'archived') },
+    { key: 'actions', label: 'Actions', render: (record) => rowActions(
+      () => planDetailModal(record),
+      () => planUploadForm(el, record),
+      { deleteLabel: 'Remove', onDelete: () => confirmDelete({
+        title: 'floor plan: ' + record.building + ' — ' + record.floor,
+        table: 'evacuation_plans', record, actionLabel: 'Remove floor plan',
+        description: 'This removes the evacuation plan from the list. This action cannot be undone.',
+        successMessage: 'Floor plan removed.', onSaved: () => evacuationPlans(el),
+      }) },
+    ) },
   ];
   return loadTable(el, {
     table: 'evacuation_plans', columns, iconName: 'map',
@@ -204,19 +214,18 @@ export async function evacuationPlans(el) {
     searchPlaceholder: 'Search by building, floor, or exit…',
     empty: { title: 'No floor plans uploaded yet', text: 'Upload the first building floor plan with its evacuation routes.' },
     onAction: () => planUploadForm(el),
-    onRowClick: (row) => planDetailModal(row),
   });
 }
 
 function planDetailModal(row) {
   const detail = (label, value) =>
-    value ? h('div', { class: 'flex flex-col gap-0.5' },
+    value ? h('div', { class: 'flex flex-col gap-0.5 min-w-0' },
       h('span', { class: 'text-[10px] uppercase tracking-wider font-bold text-gray-400' }, label),
-      h('span', { class: 'text-[13px] text-gray-800' }, value),
+      h('span', { class: 'text-[13px] text-gray-800 break-words' }, value),
     ) : null;
 
   const hasFile = row.file_url && typeof row.file_url === 'string';
-  const isPdf = hasFile && row.file_url.toLowerCase().endsWith('.pdf');
+  const isPdf = hasFile && /\.pdf(?:[?#]|$)/i.test(row.file_url);
 
   const infoGrid = h('div', { class: 'grid grid-cols-2 gap-x-6 gap-y-4' },
     detail('Building', row.building),
@@ -252,14 +261,14 @@ function planDetailModal(row) {
     );
   } else {
     fileSection = h('div', { class: 'mt-4 flex items-center gap-3 rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-5 justify-center' },
-      h('span', { class: 'material-symbols-rounded text-2xl text-gray-300' }, 'image_not_supported'),
+      icon('image', 'text-2xl text-gray-300'),
       h('span', { class: 'text-[13px] text-gray-400' }, 'No floor plan file uploaded for this entry.'),
     );
   }
 
   const content = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 w-full max-w-2xl' },
     h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100 flex items-center gap-3' },
-      h('span', { class: 'material-symbols-rounded text-xl text-pink-500' }, 'map'),
+      icon('map', 'text-xl text-pink-500'),
       h('h3', { class: 'text-sm font-bold text-gray-900 flex-1' }, `${row.building} — ${row.floor}`),
     ),
     h('div', { class: 'p-6' }, infoGrid, fileSection),
@@ -274,36 +283,51 @@ function planDetailModal(row) {
   const modal = openModal(content, { delay: 400 });
 }
 
-function planUploadForm(el) {
+function planUploadForm(el, record = null) {
+  if (!isAdmin()) return;
+  const editing = Boolean(record);
   let closeModal = () => {};
   const form = h('form', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
-    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, 'Upload Floor Plan')),
+    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100' }, h('h3', { class: 'text-sm font-bold text-gray-900' }, editing ? 'Edit Floor Plan' : 'Upload Floor Plan')),
     h('div', { class: 'p-6 grid grid-cols-1 sm:grid-cols-2 gap-4' }));
   const grid = form.querySelector('.grid');
-  const f = { building: '', floor: '', exits: '', routes: '', assembly_point: '', file: null };
+  const f = { building: record?.building || '', floor: record?.floor || '', exits: record?.exits || '', routes: record?.routes || '', assembly_point: record?.assembly_point || '', version: record?.version || 'v1.0', current: record?.current ?? true, file: null };
 
-  const txt = (label, placeholder, onChange) => {
+  const txt = (label, placeholder, key, maxLength = 255) => {
     return h('div', {}, h('label', { class: labelCls }, label),
-      h('input', { class: inputCls, placeholder, oninput: (e) => onChange(e.target.value) }));
+      h('input', { class: inputCls, placeholder, value: f[key], maxLength, required: ['building', 'floor', 'version'].includes(key), 'aria-label': label, oninput: (e) => { f[key] = e.target.value; } }));
   };
-  grid.appendChild(txt('Building', 'e.g. Main Building', (v) => { f.building = v; }));
-  grid.appendChild(txt('Floor', 'e.g. Ground Floor', (v) => { f.floor = v; }));
-  grid.appendChild(txt('Exits', 'e.g. Exit A, Exit B', (v) => { f.exits = v; }));
-  grid.appendChild(txt('Routes', 'e.g. R1 via Front Lobby', (v) => { f.routes = v; }));
-  grid.appendChild(txt('Assembly Point', 'e.g. Quadrangle — Zone 1', (v) => { f.assembly_point = v; }));
-  grid.appendChild(h('div', {}, h('label', { class: labelCls }, 'Floor Plan File (image/PDF)'),
+  grid.appendChild(txt('Building', 'e.g. Main Building', 'building'));
+  grid.appendChild(txt('Floor', 'e.g. Ground Floor', 'floor', 100));
+  grid.appendChild(txt('Exits', 'e.g. Exit A, Exit B', 'exits', 2000));
+  grid.appendChild(txt('Routes', 'e.g. R1 via Front Lobby', 'routes', 2000));
+  grid.appendChild(txt('Assembly Point', 'e.g. Quadrangle — Zone 1', 'assembly_point'));
+  if (editing) {
+    grid.appendChild(txt('Version', 'e.g. v2.1', 'version', 20));
+    grid.appendChild(h('div', {}, h('label', { class: labelCls }, 'Status'),
+      h('select', { class: inputCls, 'aria-label': 'Status', onchange: (event) => { f.current = event.target.value === 'current'; } },
+        h('option', { value: 'current', selected: f.current }, 'Current'),
+        h('option', { value: 'archived', selected: !f.current }, 'Archived'))));
+  }
+  grid.appendChild(h('div', {}, h('label', { class: labelCls }, editing ? 'Replace floor plan file (optional)' : 'Floor Plan File (image/PDF)'),
     h('input', { type: 'file', accept: 'image/*,.pdf', class: inputCls, onchange: (e) => { f.file = e.target.files[0] || null; } })));
 
-  const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
+  const errBox = h('p', { role: 'alert', class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
-    h('button', { type: 'submit', class: 'btn-primary' }, icon('upload', 'text-base'), 'Upload Plan'),
+    h('button', { type: 'submit', class: 'btn-primary' }, icon('upload', 'text-base'), editing ? 'Save changes' : 'Upload Plan'),
     h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
 
   listenLoading(form, 'submit', async (e) => {
     e.preventDefault();
+    if (!isAdmin()) return;
     if (!f.building.trim() || !f.floor.trim()) {
       errBox.textContent = 'Building and floor are required.';
+      errBox.classList.remove('hidden');
+      return;
+    }
+    if (editing && !f.version.trim()) {
+      errBox.textContent = 'Version is required.';
       errBox.classList.remove('hidden');
       return;
     }
@@ -311,18 +335,21 @@ function planUploadForm(el) {
     const btn = grid.querySelector('button[type="submit"]');
     btn.disabled = true;
     try {
-      let url = null;
+      let url = record?.file_url || null;
       if (f.file) {
-        const up = await api.uploadFile('evacuation-maps', f.file, `${f.building}-${f.floor}-${Date.now()}`);
+        const extension = f.file.type === 'application/pdf' ? 'pdf' : (f.file.name.split('.').pop() || 'png').replace(/[^a-z0-9]/gi, '').toLowerCase();
+        const up = await api.uploadFile('evacuation-maps', f.file, `${f.building}-${f.floor}-${Date.now()}.${extension}`);
         url = up.url;
       }
-      await api.insertRow('evacuation_plans', {
+      const payload = {
         building: f.building.trim(), floor: f.floor.trim(),
         exits: f.exits.trim(), routes: f.routes.trim(), assembly_point: f.assembly_point.trim(),
-        version: 'v1.0', updated: new Date().toISOString().slice(0, 10),
-        file_url: url, current: true,
-      });
-      toast(`Floor plan for ${f.building} (${f.floor}) uploaded.`);
+        version: f.version.trim(), updated: new Date().toISOString().slice(0, 10),
+        file_url: url, current: f.current,
+      };
+      if (editing) await api.updateRow('evacuation_plans', record.id, payload);
+      else await api.insertRow('evacuation_plans', payload);
+      toast(editing ? 'Floor plan updated.' : `Floor plan for ${f.building} (${f.floor}) uploaded.`);
       closeModal();
       evacuationPlans(el);
     } catch (err) {

@@ -11,7 +11,7 @@ test('drill scheduling has inspection-style View, Edit and Delete row actions', 
   assert.ok(drill.includes("import { viewRecord, recordForm, rowActions, confirmDelete }"));
   assert.match(drill, /key: 'actions', label: 'Actions', cls: 'workspace-actions-column', cellCls: 'workspace-actions-cell'/);
   assert.match(drill, /rowActions\(\s*\(\) => view\(record\),\s*\(\) => edit\(record\),/);
-  assert.ok(drill.includes("compact: true, onDelete: () => remove(record)"));
+  assert.ok(drill.includes("onDelete: () => remove(record)"));
 });
 
 test('editing a drill updates an existing record and supports all schedule fields', () => {

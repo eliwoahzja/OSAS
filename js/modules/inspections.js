@@ -203,7 +203,7 @@ export async function safetyInspections(el) {
       }, [...inspectionDetails, { key: 'next_due', label: 'Next due', type: 'date' }],
       [{ label: 'Edit inspection', onClick: () => edit(r) }, { label: 'Delete inspection', onClick: () => confirmDelete({ title: r.item, table: 'inspections', record: r, onSaved: () => safetyInspections(el) }) }]),
       () => edit(r),
-      { compact: true, onDelete: () => confirmDelete({ title: r.item, table: 'inspections', record: r, onSaved: () => safetyInspections(el) }) },
+      { onDelete: () => confirmDelete({ title: r.item, table: 'inspections', record: r, onSaved: () => safetyInspections(el) }) },
     ) },
   ];
   let selectedRows = [], filteredRows = [];
@@ -339,7 +339,7 @@ export async function firstAidSupplies(el) {
     { key: 'actions', label: 'Actions', cls: 'workspace-actions-column', cellCls: 'workspace-actions-cell', render: (r) => rowActions(
       () => show(r),
       () => edit(r),
-      { compact: true, onMore: () => moreActions(r) },
+      { onMore: () => moreActions(r) },
     ) },
   ];
   const rows = await loadTable(el, {

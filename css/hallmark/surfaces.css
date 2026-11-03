@@ -67,7 +67,33 @@
 :is(.btn-primary, .btn-ghost):active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 0 0 0 transparent; }
 :is(.btn-primary, .btn-ghost):disabled { cursor: not-allowed; box-shadow: none; opacity: .55; }
 :is(.btn-primary, .btn-ghost):focus-visible { outline: 3px solid #ae7440; outline-offset: 4px; }
-#view .record-action-icon { min-height: 36px; }
+/* Shared record actions, including inspections, supplies and floor plans. */
+#view .record-actions .btn-ghost { min-height:40px; padding:8px 10px; white-space:nowrap; }
+#view .record-actions .record-action-danger { background:#fbefeb; color:#913e4c; border-color:#b9858d; box-shadow:2px 2px 0 #d6b7bd; }
+#view .record-actions .record-action-danger:hover { background:#f3ddda; }
+#view :is(.inspection-workspace,.supplies-workspace) .workspace-actions-column { width:190px; min-width:190px; background:var(--neo-paper-muted); border-left-color:var(--neo-rule-soft); }
+#view :is(.inspection-workspace,.supplies-workspace) .workspace-actions-cell { background:var(--neo-paper); border-left-color:var(--neo-rule-soft); }
+@media (pointer:coarse) { #view .record-actions .btn-ghost { min-height:44px; } }
+
+/* Risk calculations use the same warm cards and readable, wrapping formula. */
+.risk-explanation { color:var(--neo-ink); }
+.risk-explanation-header > div { min-width:0; }
+.risk-explanation-close { flex-shrink:0; min-width:40px; padding:8px; }
+.risk-factor-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.risk-factor, .risk-band, .risk-qualitative { padding:14px 10px; border:1px solid var(--neo-rule-soft); border-radius:10px; background:var(--neo-paper-muted); box-shadow:2px 2px 0 var(--neo-shadow); }
+.risk-factor { text-align:center; }
+.risk-factor-label { display:block; color:#765863; font-size:10px; font-weight:750; text-transform:uppercase; line-height:1.5; overflow-wrap:anywhere; }
+.risk-factor-value { display:block; margin-top:5px; color:var(--neo-ink); font-size:17px; font-weight:750; font-variant-numeric:tabular-nums; }
+.risk-calculation { margin:0; padding:18px; border:1.5px solid var(--neo-rule); border-radius:11px; box-shadow:3px 3px 0 var(--neo-shadow); color:var(--neo-ink); background:var(--neo-paper-muted); font:12px/1.9 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; word-break:normal; user-select:all; }
+.risk-band-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.risk-band { text-align:center; background:var(--neo-paper); }
+.risk-band.is-current { border:1.5px solid var(--neo-accent); background:#f7ebe8; box-shadow:3px 3px 0 #cfa8b1; }
+.risk-current-label { display:block; margin-top:8px; color:var(--neo-accent); font-size:10px; font-weight:750; }
+.risk-legacy-note { padding:14px; color:#765863; border:1px solid var(--neo-rule-soft); border-radius:10px; background:var(--neo-paper-muted); }
+.risk-explanation .status-pill { border-radius:7px; }
+@media (min-width:600px) { .risk-factor-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .risk-band-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media (max-width:640px) { .risk-explanation-body { padding:20px; } .risk-explanation-header { padding:20px; } .risk-calculation { padding:14px; font-size:11px; } }
+
 
 /* Dialogs are framed paper, with an offset edge and a quiet backdrop. */
 .osas-modal-overlay { padding: 24px; background: #2c17265c; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); overscroll-behavior: contain; transition: opacity 180ms ease; }

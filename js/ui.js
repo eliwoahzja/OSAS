@@ -79,6 +79,7 @@ const FA = {
   menu: 'bars',
   notifications: 'bell',
   person: 'user',
+  picture_as_pdf: 'file-pdf',
   'person-running': 'person-running',
   phone: 'phone',
   print: 'print',
@@ -393,7 +394,6 @@ export function skeletonTableWithColumns(columns = [], rowCount = 5) {
   table.appendChild(tbody);
 
   return h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
-    h('p', { class: 'table-scroll-hint' }, icon('arrows-left-right'), 'Scroll sideways to see all columns'),
     h('div', { class: 'data-table-scroll overflow-x-auto overflow-y-visible', tabindex: '0', role: 'region', 'aria-label': 'Records table' }, table)
   );
 }
@@ -645,7 +645,6 @@ export function dataTable(columns, rows, { onRowClick } = {}) {
   table.appendChild(tbody);
 
   return h('div', { class: 'data-table-frame bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
-    h('p', { class: 'table-scroll-hint' }, icon('arrows-left-right'), 'Scroll sideways to see all columns'),
     h('div', { class: 'data-table-scroll overflow-x-auto overflow-y-visible', tabindex: '0', role: 'region', 'aria-label': 'Records table' }, table)
   );
 }

@@ -182,22 +182,22 @@ export function showRiskExplanationModal(r) {
   let closeModal = () => {};
   const isQuantitative = hasFactorData(r);
 
-  const card = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible max-w-2xl w-full' },
-    h('div', { class: 'px-6 pt-5 pb-4 border-b border-gray-100 flex items-center justify-between' },
+  const card = h('div', { class: 'risk-explanation max-w-2xl w-full' },
+    h('div', { class: 'risk-explanation-header px-6 pt-5 pb-4 border-b flex items-center justify-between gap-3' },
       h('div', {},
         h('h3', { class: 'text-base font-bold text-gray-900' }, isQuantitative ? 'Quantitative Risk Calculation' : 'Qualitative Risk Evaluation'),
         h('p', { class: 'text-xs text-gray-500 mt-0.5 truncate max-w-md' }, r.hazard || 'Risk Explanation'),
       ),
       h('button', {
         type: 'button',
-        class: 'text-gray-400 hover:text-gray-600 text-lg w-8 h-8 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors',
+        class: 'btn-ghost risk-explanation-close', 'aria-label': 'Close dialog',
         onclick: () => closeModal(),
       }, icon('close')),
     ),
-    h('div', { class: 'p-6 space-y-5 max-h-[80vh] overflow-y-auto' }),
+    h('div', { class: 'risk-explanation-body p-6 space-y-5' }),
   );
 
-  const body = card.querySelector('.space-y-5');
+  const body = card.querySelector('.risk-explanation-body');
   const driverSummary = getRiskDriverSummary(r);
 
   if (isQuantitative) {
@@ -211,7 +211,7 @@ export function showRiskExplanationModal(r) {
     const level = r.risk_level || scoreToLevel(score);
     const band = levelBandRange(level);
 
-    const factorsGrid = h('div', { class: 'grid grid-cols-3 sm:grid-cols-6 gap-2 text-center' },
+    const factorsGrid = h('div', { class: 'risk-factor-grid' },
       [
         { label: 'Threat', val: t },
         { label: 'Vulnerability', val: v },
@@ -220,9 +220,9 @@ export function showRiskExplanationModal(r) {
         { label: 'Asset Value', val: av },
         { label: 'Controls', val: sc },
       ].map((item) =>
-        h('div', { class: 'p-2 rounded-xl bg-gray-50 border border-gray-100' },
-          h('span', { class: 'block text-[10px] uppercase font-bold text-gray-500', title: item.label }, item.label),
-          h('span', { class: 'block text-sm font-extrabold text-gray-900 mt-0.5 font-mono' }, `${item.val}/5`),
+        h('div', { class: 'risk-factor' },
+          h('span', { class: 'risk-factor-label', title: item.label }, item.label),
+          h('span', { class: 'risk-factor-value' }, `${item.val}/5`),
         )),
     );
     body.appendChild(factorsGrid);
@@ -238,7 +238,7 @@ export function showRiskExplanationModal(r) {
     body.appendChild(h('div', {},
       h('label', { class: labelCls }, 'Calculation Breakdown'),
       h('pre', {
-        class: 'p-4 rounded-2xl bg-gray-900 text-gray-100 font-mono text-xs leading-relaxed overflow-x-hidden whitespace-pre-wrap break-words select-all shadow-inner',
+        class: 'risk-calculation',
       }, breakdownText),
     ));
 
@@ -251,22 +251,22 @@ export function showRiskExplanationModal(r) {
 
     body.appendChild(h('div', { class: 'pt-1' },
       h('label', { class: labelCls }, 'Risk Bands Reference'),
-      h('div', { class: 'grid grid-cols-2 sm:grid-cols-4 gap-2' },
+      h('div', { class: 'risk-band-grid' },
         BANDS.map((b) => {
           const isCurrent = b.label.toLowerCase() === level.toLowerCase();
           return h('div', {
-            class: `p-2.5 rounded-xl border text-center transition-all ${isCurrent ? 'bg-pink-50/80 border-pink-300 ring-2 ring-pink-400/20 shadow-xs' : 'bg-gray-50 border-gray-100 opacity-70'}`,
+            class: 'risk-band' + (isCurrent ? ' is-current' : ''), 'aria-current': isCurrent ? 'true' : null,
           },
           h('span', { class: 'block text-xs font-mono font-bold text-gray-700' }, b.range),
           h('div', { class: 'mt-1' }, pill(b.label, b.tone)),
-          isCurrent ? h('span', { class: 'block text-[10px] font-bold text-pink-600 mt-1' }, 'Current Level') : null,
+          isCurrent ? h('span', { class: 'risk-current-label' }, 'Current Level') : null,
           );
         }),
       ),
     ));
   } else {
     body.appendChild(h('div', { class: 'space-y-4' },
-      h('div', { class: 'p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-3' },
+      h('div', { class: 'risk-qualitative space-y-3' },
         h('div', { class: 'flex items-center justify-between border-b border-gray-200/70 pb-2.5' },
           h('span', { class: 'text-xs font-semibold text-gray-600' }, 'Evaluated Likelihood'),
           pill(r.likelihood || 'Medium', r.likelihood === 'High' ? 'red' : r.likelihood === 'Medium' ? 'amber' : 'green'),
@@ -280,7 +280,7 @@ export function showRiskExplanationModal(r) {
           pill(r.risk_level || 'Medium', r.risk_level === 'Critical' || r.risk_level === 'High' ? 'red' : (r.risk_level === 'Moderate' || r.risk_level === 'Medium') ? 'amber' : 'green'),
         ),
       ),
-      h('div', { class: 'text-xs text-gray-500 leading-relaxed bg-amber-50/70 border border-amber-200/60 rounded-xl p-3' },
+      h('div', { class: 'risk-legacy-note text-xs leading-relaxed' },
         h('p', { class: 'font-semibold text-amber-800 mb-1' }, 'Legacy Qualitative Assessment'),
         h('p', {}, `This risk was evaluated using the qualitative 3×3 Likelihood and Impact matrix (Likelihood: ${r.likelihood || '—'}, Impact: ${r.impact || '—'}).`),
         h('p', { class: 'mt-1.5 text-[11px] text-amber-700' }, 'Quantitative factors (Threat, Vulnerability, Exploit, Asset Value, Controls) are not present on this legacy record. New assessments recorded via "New Risk" will feature full quantitative scoring.'),
