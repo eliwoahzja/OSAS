@@ -13,10 +13,10 @@ function readCooldown(kind, email) {
 function armCooldown(kind, email) {
   const cur = readCooldown(kind, email);
   const next = { n: cur.n + 1, until: Date.now() + COOLDOWNS[Math.min(cur.n, COOLDOWNS.length - 1)] * 1000 };
-  try { sessionStorage.setItem(cdKey(kind, email), JSON.stringify(next)); } catch {}
+  try { sessionStorage.setItem(cdKey(kind, email), JSON.stringify(next)); } catch { }
   return next;
 }
-function clearCooldown(kind, email) { try { sessionStorage.removeItem(cdKey(kind, email)); } catch {} }
+function clearCooldown(kind, email) { try { sessionStorage.removeItem(cdKey(kind, email)); } catch { } }
 const fmt = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 const EASE = 'cubic-bezier(.76,0,.24,1)';
@@ -24,7 +24,7 @@ const EASE_SWAP = 'cubic-bezier(.6,.05,.26,.99)';
 const EASE_OUT = 'cubic-bezier(.22,1,.36,1)';
 const reduceMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const anim = (el, frames, opts) => (el && el.animate ? el.animate(frames, { fill: 'both', ...opts }) : null);
-const done = (a) => (a ? a.finished.catch(() => {}) : Promise.resolve());
+const done = (a) => (a ? a.finished.catch(() => { }) : Promise.resolve());
 
 function field({ label, icon, input, trailing, hint, extra }) {
   return h('div', { class: 'lg-field' },
@@ -95,10 +95,10 @@ function passwordChecklist(input) {
     const a = anim(el, frames, opts);
     if (!a) return null;
     live.add(a);
-    a.finished.catch(() => {}).then(() => live.delete(a));
+    a.finished.catch(() => { }).then(() => live.delete(a));
     return a;
   };
-  const stopAll = () => { live.forEach((a) => { try { a.cancel(); } catch {} }); live.clear(); };
+  const stopAll = () => { live.forEach((a) => { try { a.cancel(); } catch { } }); live.clear(); };
 
   function setOpen(show) {
     if (show === open) return;
@@ -112,7 +112,7 @@ function passwordChecklist(input) {
       duration: show ? 560 : 300, easing: show ? EASE_OUT : EASE_SWAP,
     });
     done(grow).then(() => {
-      try { grow.cancel(); } catch {}
+      try { grow.cancel(); } catch { }
       if (show && open) wrap.style.height = 'auto';
     });
     play(panel, show ? [{ opacity: 0 }, { opacity: 1 }] : [{ opacity: 1 }, { opacity: 0 }], {
@@ -210,9 +210,25 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
   const timers = new Set();
   const stopTimers = () => { timers.forEach(clearInterval); timers.clear(); };
 
+  const brandContacts = h('nav', { class: 'safety-hero-contacts lg-brand-contacts', 'aria-label': 'School contacts' },
+      h('a', { class: 'safety-contact', href: 'tel:+63289901206' },
+        h('span', { class: 'safety-contact-icon' }, fa('phone')),
+        h('span', { class: 'safety-contact-text' }, h('small', {}, 'Trunkline'), h('strong', {}, '02-89901206'))),
+      h('a', { class: 'safety-contact', href: 'tel:+639957793280' },
+        h('span', { class: 'safety-contact-icon' }, fa('mobile-screen')),
+        h('span', { class: 'safety-contact-text' }, h('small', {}, 'Mobile'), h('strong', {}, '0995-779-3280'))),
+      h('a', { class: 'safety-contact', href: 'https://www.facebook.com/StAgnesAcademyOfCaloocanInc', target: '_blank', rel: 'noopener noreferrer' },
+        h('span', { class: 'safety-contact-icon' }, fa('facebook-f')),
+        h('span', { class: 'safety-contact-text' }, h('small', {}, 'FB Official Page'), h('strong', {}, 'StAgnesAcademyOfCaloocanInc'))),
+    );
   const brandInner = h('div', { class: 'lg-brand-inner' },
-    h('img', { src: '/assets/logo.png', alt: 'SAAC seal', class: 'lg-logo' }),
-    h('h1', { class: 'lg-brand-title' }, 'St. Agnes Academy'),
+    h('h1', { class: 'safety-hero-brand lg-brand-wordmark' },
+      h('img', { class: 'safety-hero-seal', src: '/assets/logo.png', alt: '', width: '46', height: '46', decoding: 'async' }),
+      h('span', { class: 'lg-brand-wordmark-text' },
+        h('span', { class: 'safety-hero-name' }, 'St. Agnes Academy', h('br'), 'of Caloocan, Inc.'),
+        h('span', { class: 'safety-hero-tagline' }, 'Education That Prepares Every Path'),
+      ),
+    ),
     h('p', { class: 'lg-brand-sub' }, 'Office of Student Affairs & Services'),
     h('p', { class: 'lg-brand-text' }, 'Secure access to the campus safety and disaster-risk dashboard of St. Agnes Academy.'),
     h('div', { class: 'lg-glass' },
@@ -222,7 +238,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       ),
     ),
   );
-  const brand = h('section', { class: 'lg-brand' }, brandInner);
+  const brand = h('section', { class: 'lg-brand' }, brandInner, brandContacts);
   const card = h('div', { class: 'lg-card' });
   const side = h('section', { class: 'lg-side' }, card);
 
@@ -280,7 +296,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         e.preventDefault();
         err.clear();
         if (code.value.length < OTP_MIN || code.value.length > OTP_MAX || !/^\d+$/.test(code.value)) {
-           err.show(`Enter the complete ${OTP_MIN}–${OTP_MAX}-digit code from your email. It expires in 10 minutes.`);
+          err.show(`Enter the complete ${OTP_MIN}–${OTP_MAX}-digit code from your email. It expires in 10 minutes.`);
           return;
         }
         submit.disabled = true;
@@ -401,7 +417,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
           if (ex.unconfirmed) {
             const contact = addr || email.value.trim().toLowerCase();
             if (readCooldown('signup', contact).until <= Date.now()) {
-              try { await auth.resendSignup(contact); armCooldown('signup', contact); } catch {}
+              try { await auth.resendSignup(contact); armCooldown('signup', contact); } catch { }
             }
             openVerifyModal(contact);
           } else {
@@ -422,7 +438,6 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       notice,
       err.el,
       submit,
-      h('p', { class: 'lg-hint' }, 'Students enter an emailed code. Administrators enter their PIN.'),
     );
     card.appendChild(form);
     return () => (prefillEmail ? password : email).focus({ preventScroll: true });
@@ -434,7 +449,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const err = mkErr();
     if (errorText) err.show(errorText, { quiet: true });
     const email = h('input', {
-      type: 'text', class: 'lg-input', placeholder: 's260000001',
+      type: 'text', class: 'lg-input', placeholder: 's26XXXXXXX',
       autocomplete: 'username', required: true, value: prefillEmail,
     });
     const notice = h('p', { class: 'lg-notice lg-hidden', role: 'status' });
@@ -471,10 +486,12 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       notice,
       err.el,
       submit,
-      h('button', { type: 'button', class: 'lg-link', onclick: async () => {
-        try { await auth.cancelPasswordRecovery(); stepTo(() => renderCredentials(email.value)); }
-        catch (error) { err.show(error.message); }
-      } }, '← Back to sign in'),
+      h('button', {
+        type: 'button', class: 'lg-link', onclick: async () => {
+          try { await auth.cancelPasswordRecovery(); stepTo(() => renderCredentials(email.value)); }
+          catch (error) { err.show(error.message); }
+        }
+      }, '← Back to sign in'),
     );
     card.appendChild(form);
     return () => email.focus({ preventScroll: true });
@@ -515,10 +532,12 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       field({ label: 'Confirm password', icon: 'lock', input: confirm }),
       err.el,
       submit,
-      h('button', { type: 'button', class: 'lg-link', onclick: async () => {
-        try { await auth.cancelPasswordRecovery(); stepTo(() => renderCredentials(addr)); }
-        catch (error) { err.show(error.message); }
-      } }, '← Cancel and sign in'),
+      h('button', {
+        type: 'button', class: 'lg-link', onclick: async () => {
+          try { await auth.cancelPasswordRecovery(); stepTo(() => renderCredentials(addr)); }
+          catch (error) { err.show(error.message); }
+        }
+      }, '← Cancel and sign in'),
     );
     card.appendChild(form);
     return () => password.focus({ preventScroll: true });
@@ -535,22 +554,24 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const password = h('input', { type: 'password', 'aria-label': 'New password', class: 'lg-input', required: true, minlength: '8', maxlength: '128', autocomplete: 'new-password' });
     const confirm = h('input', { type: 'password', 'aria-label': 'Confirm new password', class: 'lg-input', required: true, minlength: '8', maxlength: '128', autocomplete: 'new-password' });
     const save = h('button', { type: 'submit', class: 'lg-btn' }, 'Save new password');
-    const form = h('form', { class: 'lg-form', onsubmit: async (event) => {
-      event.preventDefault(); err.clear();
-      if (password.value !== confirm.value) { err.show('The two passwords do not match.'); return; }
-      save.disabled = true; save.textContent = 'Saving…';
-      try {
-        const data = await passwordResetCall({ action: 'complete', id: reset.id, token: reset.token, password: password.value });
-        password.value = ''; confirm.value = ''; reset.token = '';
-        await auth.signOut();
-        history.replaceState(null, '', location.pathname + location.search + '#/dashboard');
-        renderCredentials(data.student_id || '', data.message)();
-      } catch (error) { err.show(error.message); save.disabled = false; save.textContent = 'Save new password'; }
-    } }, h('p', { class: 'lg-eyebrow' }, 'Approved account request'),
-    h('h2', { class: 'lg-title' }, 'Choose a new password'),
-    h('p', { class: 'lg-lead' }, 'This link expires 30 minutes after approval and works once.'),
-    field({ label: 'New password', icon: 'lock', input: password, trailing: eyeToggle([password, confirm]) }),
-    field({ label: 'Confirm new password', icon: 'lock', input: confirm }), err.el, save, back);
+    const form = h('form', {
+      class: 'lg-form', onsubmit: async (event) => {
+        event.preventDefault(); err.clear();
+        if (password.value !== confirm.value) { err.show('The two passwords do not match.'); return; }
+        save.disabled = true; save.textContent = 'Saving…';
+        try {
+          const data = await passwordResetCall({ action: 'complete', id: reset.id, token: reset.token, password: password.value });
+          password.value = ''; confirm.value = ''; reset.token = '';
+          await auth.signOut();
+          history.replaceState(null, '', location.pathname + location.search + '#/dashboard');
+          renderCredentials(data.student_id || '', data.message)();
+        } catch (error) { err.show(error.message); save.disabled = false; save.textContent = 'Save new password'; }
+      }
+    }, h('p', { class: 'lg-eyebrow' }, 'Approved account request'),
+      h('h2', { class: 'lg-title' }, 'Choose a new password'),
+      h('p', { class: 'lg-lead' }, 'This link expires 30 minutes after approval and works once.'),
+      field({ label: 'New password', icon: 'lock', input: password, trailing: eyeToggle([password, confirm]) }),
+      field({ label: 'Confirm new password', icon: 'lock', input: confirm }), err.el, save, back);
     card.appendChild(form);
     return () => password.focus({ preventScroll: true });
   }
@@ -650,7 +671,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const onPaste = (e) => {
       if (!document.querySelector('.lg-keypad')) { document.removeEventListener('paste', onPaste); return; }
       const digits = ((e.clipboardData && e.clipboardData.getData('text')) || '').replace(/\D/g, '').slice(0, LEN);
-      if (digits) { e.preventDefault(); [...digits].forEach(press); }
+      if (digits) { e.preventDefault();[...digits].forEach(press); }
     };
     document.addEventListener('keydown', onKey);
     document.addEventListener('paste', onPaste);
@@ -666,7 +687,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       h('button', { type: 'button', class: 'lg-link', onclick: async () => { await auth.cancelPin(); stepTo(() => renderCredentials(addr)); } }, '← Use a different account'),
     );
     card.appendChild(form);
-    return () => {};
+    return () => { };
   }
 
   function renderOtp(addr) {
@@ -727,7 +748,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
   if (reset) history.replaceState(null, '', location.pathname + location.search + '#/reset-password');
   const focusFirst = recovery.active ? renderResetPassword(recovery.email)
     : recovery.error ? renderForgotPassword('', recovery.error)
-    : reset ? renderNewPassword(reset) : renderCredentials();
+      : reset ? renderNewPassword(reset) : renderCredentials();
   if (!reduceMotion()) {
     anim(brand, [{ opacity: 0, transform: 'translateX(-40px)' }, { opacity: 1, transform: 'none' }], { duration: 900, easing: EASE_OUT });
     [...brandInner.children].forEach((el, i) => {
