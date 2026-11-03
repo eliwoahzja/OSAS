@@ -150,7 +150,7 @@ export async function promptNotifyStockHandlers(lowItems = null, triggerBtn = nu
           } catch (err) {
             btn.disabled = false;
             btn.textContent = 'Send Restock Alert';
-            toast(`Failed to send alert: ${err.message || 'Network error'}`);
+            toast(`Failed to send alert: ${err.message || 'Network error'}`, 'error');
           }
         },
       }, icon('send', 'text-xs'), 'Send Restock Alert'),

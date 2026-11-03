@@ -1,4 +1,4 @@
-import { coverLoading } from './loading.js';
+import { coverLoading, DEFAULT_LOADING_MS } from './loading.js';
 // Administrator chat panel for the OSAS AI assistant.
 // The browser never talks to n8n directly: agent-chat verifies the admin JWT,
 // mints a short-lived tool token, and relays the conversation to n8n.
@@ -131,12 +131,7 @@ function bubble(role, content, options = {}) {
   if (isUser && options.imageUrl) body.appendChild(h('img', { class: 'agent-sent-image', src: options.imageUrl, alt: 'Attached image' }));
   else if (isUser && options.imageName) body.appendChild(h('span', { class: 'agent-saved-image-note' }, icon('image', 'text-sm'), ' Image attached: ' + options.imageName));
   if (!isUser) body.setAttribute('data-agent-reply', '');
-  const children = isUser
-    ? [body]
-    : [h('div', { class: 'agent-reply-heading', 'aria-hidden': 'true' },
-        icon('auto_awesome', 'text-[13px]'),
-        h('span', {}, isAdmin() ? 'OSAS AI Assistant' : 'OSAS Chatbot')),
-      body];
+  const children = isUser ? [h('p', { class: 'agent-message-sender' }, 'You'), body] : [body];
   if (!isUser && studentRouteAllowed(options.route)) {
     children.push(h('a', {
       class: 'agent-page-link',
@@ -144,7 +139,7 @@ function bubble(role, content, options = {}) {
       onclick: closePanel,
     }, 'Open page ', icon('arrow_forward', 'text-xs')));
   }
-  return h('div', { class: `agent-row ${isUser ? 'is-user' : 'is-assistant'}` },
+  return h('div', { class: `agent-row ${isUser ? 'is-user' : 'is-assistant'}`, role: 'article', 'aria-label': isUser ? 'Your message' : options.error ? 'Assistant error' : 'Assistant reply' },
     h('div', { class: `agent-bubble ${isUser ? 'is-user' : 'is-assistant'}${options.error ? ' is-error' : ''}` }, children));
 }
 
@@ -225,7 +220,7 @@ function showHistory() {
             h('button', { type: 'button', class: 'agent-history-open', onclick: () => openSavedConversation(conversation.id) },
               h('strong', {}, conversation.title),
               h('small', {}, new Date(conversation.updatedAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })),
-              h('span', {}, conversation.messages.length + ' messages')),
+              h('span', { class: 'agent-history-count' }, conversation.messages.length + ' messages')),
             h('button', { type: 'button', class: 'agent-history-delete', 'aria-label': 'Delete conversation: ' + conversation.title,
               onclick: () => { chatStore.remove(conversation.id); if (sessionId === conversation.id) { sessionId = ''; messages = []; } showHistory(); } },
               icon('trash', 'text-sm')))))
@@ -258,7 +253,7 @@ function openSavedConversation(id) {
     setScreen('chat');
     renderMessages();
     inputEl?.focus();
-  }, 230);
+  }, DEFAULT_LOADING_MS);
 }
 
 function startNewConversation() {

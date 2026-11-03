@@ -1,5 +1,5 @@
 // One duration for the preview's requested loading states.
-export const DEFAULT_LOADING_MS = 3000;
+export const DEFAULT_LOADING_MS = 1500;
 export const waitForLoading = (duration = DEFAULT_LOADING_MS) => new Promise(resolve => setTimeout(resolve, duration));
 export async function minimumLoading(task, duration = DEFAULT_LOADING_MS) {
   const result = Promise.resolve().then(() => typeof task === 'function' ? task() : task)
@@ -27,7 +27,7 @@ export async function runButtonLoading(button, task, { duration = DEFAULT_LOADIN
   button.disabled = true;
   button.inert = true;
   try {
-    // Present the requested three-second loading state before committing an action.
+    // Present the requested 1.5-second loading state before committing an action.
     // A dismissed form cancels its queued action instead of saving invisibly later.
     await waitForLoading(duration);
     if (!button.isConnected || button.parentElement?.closest('[inert]')) return;

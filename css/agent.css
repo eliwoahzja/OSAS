@@ -244,20 +244,6 @@
 
 .agent-bubble-text { white-space: pre-wrap; }
 .agent-bubble.is-assistant { max-width: 100%; min-width: 0; }
-.agent-reply-heading {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 10px;
-  padding-bottom: 9px;
-  border-bottom: 1px solid #f2ebee;
-  color: #775064;
-  font-size: 10px;
-  font-weight: 750;
-  letter-spacing: .055em;
-  text-transform: uppercase;
-}
-.agent-reply-heading i { color: #995372; }
 .agent-record-fields {
   margin: 12px 0;
   border: 1px solid #eee4e8;

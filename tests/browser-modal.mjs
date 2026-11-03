@@ -45,7 +45,7 @@ try {
     await dialog.waitFor();
     assert.equal(await page.locator('.osas-modal-loader').count(), 1, 'Popups must show the requested loading skeleton');
     await page.locator('.osas-modal-loader').waitFor({state:'detached'});
-    assert.ok(Date.now()-openedAt >= 2900, 'Popup skeleton must last three seconds');
+    assert.ok(Date.now()-openedAt >= 1400, 'Popup skeleton must last 1.5 seconds');
     assert.equal(await page.locator('#dashboard-shell').evaluate(el => el.inert), true);
     assert.equal(await dialog.evaluate(el => el.contains(document.activeElement)), true);
     await dialog.getByRole('button', { name: 'Save changes', exact: true }).focus();

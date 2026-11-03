@@ -29,7 +29,7 @@ try {
  assert.equal(Math.round((await button.boundingBox()).width),Math.round(initial.width));
  await page.evaluate(()=>document.getElementById('check').dispatchEvent(new MouseEvent('click',{bubbles:true,cancelable:true})));
  await page.waitForFunction(()=>window.outcome==='success'&&!document.getElementById('check').classList.contains('is-pending-action'));
- assert.ok(Date.now()-started>=2900);assert.equal(await page.evaluate(()=>window.calls),1);assert.equal(await page.evaluate(()=>window.actor),'check');
+ assert.ok(Date.now()-started>=1400 && Date.now()-started<2800, 'A quick action should use the 1.5-second default');assert.equal(await page.evaluate(()=>window.calls),1);assert.equal(await page.evaluate(()=>window.actor),'check');
  assert.equal(await button.innerText(),'Run check');assert.equal(await button.isEnabled(),true);assert.equal(await button.getAttribute('aria-busy'),null);
  await page.evaluate(()=>{window.create();window.mode='long';window.outcome='';});await button.click();
  await page.waitForFunction(()=>!!window.finish);assert.equal(await button.getAttribute('aria-busy'),'true');
@@ -38,17 +38,17 @@ try {
  await page.waitForFunction(()=>window.outcome==='Synthetic failure'&&!document.getElementById('check').classList.contains('is-pending-action'));
  assert.equal(await button.innerText(),'Run check');assert.equal(await button.isEnabled(),true);
  await page.evaluate(()=>{window.create();window.beforeCancel=window.calls;});await button.click();await page.evaluate(()=>document.getElementById('check').remove());
- await page.waitForTimeout(3100);assert.equal(await page.evaluate(()=>window.calls===window.beforeCancel),true);
+ await page.waitForTimeout(1600);assert.equal(await page.evaluate(()=>window.calls===window.beforeCancel),true);
  await page.evaluate(async()=>{
   const {h,openModal}=await import('/js/ui.js');
   const ready=new Promise(resolve=>{window.resolveDialog=resolve});
   window.pendingDialog=openModal(h('div',{class:'p-6'},h('h3',{},'Pending image data')), {ready});
  });
  await page.locator('.osas-modal-loader').waitFor();
- await page.waitForTimeout(3100);
- assert.equal(await page.locator('.osas-modal-loader').count(),1,'Unfinished data must keep the skeleton beyond three seconds');
+ await page.waitForTimeout(1600);
+ assert.equal(await page.locator('.osas-modal-loader').count(),1,'Unfinished data must keep the skeleton beyond 1.5 seconds');
  await page.evaluate(()=>window.resolveDialog());
  await page.locator('.osas-modal-loader').waitFor({state:'detached'});
  await page.evaluate(()=>window.pendingDialog.close());
- console.log('Loading buttons OK: three-second minimum, spinner-only contents, stable size, one action per click sequence, live-event target, slow/failure restoration and cancellation.');
+ console.log('Loading buttons OK: 1.5-second minimum, spinner-only contents, stable size, one action per click sequence, live-event target, slow/failure restoration and cancellation.');
 } finally {await browser.close()}

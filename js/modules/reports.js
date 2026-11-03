@@ -136,7 +136,7 @@ export async function complianceReports(el) {
             const n = await exportCsv(selected);
             toast(`Exported ${n} ${DATASETS[selected].label.toLowerCase()} row${n === 1 ? '' : 's'} to CSV.`);
           } catch (err) {
-            toast(`Export failed: ${err.message}`);
+            toast(`Export failed: ${err.message}`, 'error');
           }
         },
       }, icon('download', 'text-base'), 'Export CSV'),

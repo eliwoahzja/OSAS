@@ -51,14 +51,14 @@ test('treats raw HTML from tool results as inert text', () => {
   assert.ok(dom.textContent.includes('<img src=x onerror=alert(1)>'));
 });
 
-test('removes sign-in hint while maintaining role-specific chat formatting', () => {
+test('keeps formatted replies without a branded response heading or divider', () => {
   const login = readFileSync(new URL('../js/login.js', import.meta.url), 'utf8');
   const agent = readFileSync(new URL('../js/agent.js', import.meta.url), 'utf8');
   const css = readFileSync(new URL('../css/agent.css', import.meta.url), 'utf8');
   assert.ok(!login.includes('Students enter an emailed code. Administrators enter their PIN.'));
-  assert.ok(agent.includes('agent-reply-heading'));
+  assert.ok(!agent.includes('agent-reply-heading'));
   assert.ok(agent.includes('renderMarkdownMessage(content)'));
   assert.ok(agent.includes('animateFormattedReply'));
   assert.ok(css.includes('.agent-record-fields'));
-  assert.ok(css.includes('.agent-reply-heading'));
+  assert.ok(!css.includes('.agent-reply-heading'));
 });

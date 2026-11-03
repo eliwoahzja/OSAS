@@ -177,7 +177,7 @@ async function route() {
   }
   const navItem = NAV.find((n) => n.route === r);
   if (navItem && navItem.access === 'admin' && !auth.isAdmin()) {
-    toast('That section is for administrators only.');
+    toast('That section is for administrators only.', 'error');
     r = 'dashboard';
     if (location.hash !== '#/dashboard') history.replaceState(null, '', '#/dashboard');
   }

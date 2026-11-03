@@ -1,3 +1,4 @@
+import { movePresence } from './motion.js';
 import { loadingListener } from './loading.js';
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
@@ -581,23 +582,37 @@ export function errorBanner(message, onRetry) {
 export function toast(msg, kind = 'success') {
   const root = document.getElementById('toast-root');
   if (!root) return;
+  const error = kind === 'error';
+  let timer = null;
+  let remaining = error ? 8000 : 4500;
+  let started = 0;
+  let closing = false;
   const node = h('div', {
-    role: kind === 'error' ? 'alert' : 'status',
-    class: 'bg-gray-900 text-white text-[13px] font-semibold px-4 py-3 rounded-xl shadow-lg flex items-center gap-3'
-      + (kind === 'error' ? ' border-l-4 border-red-500' : ''),
+    role: error ? 'alert' : 'status', class: 'osas-toast', 'data-tone': error ? 'error' : 'success',
   },
-    kind === 'error'
-      ? icon('warning', 'text-red-400 text-base shrink-0')
-      : icon('check_circle', 'text-emerald-400 text-base shrink-0'),
-    h('span', { class: 'flex-1' }, msg),
-    h('button', {
-      class: 'text-gray-400 hover:text-white clickable shrink-0',
-      'aria-label': 'Dismiss',
-      onclick: () => node.remove(),
-    }, '✕'),
+    h('span', { class: 'osas-toast-symbol', 'aria-hidden': 'true' }, icon(error ? 'warning' : 'check_circle')),
+    h('div', { class: 'osas-toast-copy' },
+      h('p', { class: 'osas-toast-title' }, error ? 'Action needed' : 'OSAS update'),
+      h('p', { class: 'osas-toast-message' }, msg)),
+    h('button', { type: 'button', class: 'osas-toast-dismiss', 'aria-label': 'Dismiss notification', onclick: dismiss }, icon('close')),
   );
+  function pause() { if (timer !== null) { clearTimeout(timer); timer = null; remaining = Math.max(0, remaining - (performance.now() - started)); } }
+  function resume() {
+    if (closing || timer !== null || node.matches(':hover') || node.contains(document.activeElement)) return;
+    started = performance.now(); timer = setTimeout(dismiss, remaining);
+  }
+  function dismiss() {
+    if (closing) return;
+    closing = true; pause();
+    void movePresence(node, false, { distance: 6, scale: 1 }).finally(() => node.remove());
+  }
+  node.addEventListener('mouseenter', pause);
+  node.addEventListener('mouseleave', resume);
+  node.addEventListener('focusin', pause);
+  node.addEventListener('focusout', () => queueMicrotask(resume));
   root.appendChild(node);
-  setTimeout(() => node.remove(), kind === 'error' ? 8000 : 4500);
+  resume();
+  return { dismiss };
 }
 
 export function dataTable(columns, rows, { onRowClick } = {}) {

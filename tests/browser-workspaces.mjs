@@ -95,7 +95,7 @@ try {
       assert.equal(await page.locator('.loading-skeleton .loading-charts').count(), role === 'admin' ? 1 : 0);
       assert.equal(await page.locator('.loading-skeleton .loading-profile').count(), role === 'client' ? 1 : 0);
       await page.locator('#view .route-content[aria-busy="false"]').waitFor();
-      assert.ok(Date.now() - openedAt >= 2900, 'Dashboard loader must last three seconds');
+      assert.ok(Date.now() - openedAt >= 1400, 'Dashboard loader must last 1.5 seconds');
       await page.waitForFunction(() => document.body.dataset.session === 'active');
       const routes = role === 'admin' ? [...publicRoutes, ...adminRoutes] : publicRoutes;
       assert.equal(await page.locator('#sidebar-nav a').count(), routes.length);
