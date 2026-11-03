@@ -75,7 +75,7 @@ const VIEWS = {
 const viewEl = () => document.getElementById('view');
 const titleEl = () => document.getElementById('page-title');
 
-// Students file reports; administrators log incidents. Same page, one label map.
+
 const navLabel = (item) => (item && item.route === 'incident-logging' ? incidentLabels(auth.isAdmin()).nav : (item && item.label));
 
 function renderSidebar() {
@@ -540,7 +540,7 @@ function drawStats(box, s) {
     cards,
   ));
 
-  // School analytics belong exclusively to the Administrator workspace.
+  
   if (!admin) return;
   const analyticsCharts = [
     pieChart(s.supplies_breakdown || [], { title: 'First Aid Supplies', centerLabel: 'Supplies' }),

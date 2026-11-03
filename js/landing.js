@@ -262,9 +262,9 @@ export function createSafetyLanding({ onSignIn }) {
   return root;
 }
 
-// Start after mounting so the initial viewport check uses real element bounds.
-// Return a disposer for sign-in/sign-out cycles; never leave hidden content or
-// scroll listeners attached to a removed public page.
+
+
+
 export function startLandingAnimations(root) {
   const pending = new Set(root.querySelectorAll('[data-reveal]'));
   const motion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -309,7 +309,7 @@ export function startLandingAnimations(root) {
   root.addEventListener('focusin', onFocus);
   motion.addEventListener('change', onMotion);
   update();
-  // Font loading can move the next section into view without a scroll event.
+  
   document.fonts?.ready.then(schedule);
   return stop;
 }

@@ -1,4 +1,4 @@
-// The hosted Supabase project may issue a different OTP length than the local config.
+
 export const EMAIL_OTP_MIN_LENGTH = 6;
 export const EMAIL_OTP_MAX_LENGTH = 10;
 export const EMAIL_OTP_EXPIRY_MINUTES = 10;
@@ -9,8 +9,8 @@ const emailOtpHint = `Enter the complete ${EMAIL_OTP_MIN_LENGTH}–${EMAIL_OTP_M
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STUDENT_ID_RE = /^s\d{9}$/;
 
-// Normalize an identifier without inventing an email address. Student-ID-to-email
-// resolution happens server-side, and reveals the email only after authentication.
+
+
 export function accountAddress(input) {
   const raw = String(input || '').trim().toLowerCase();
   if (!raw) throw new Error('Enter your student ID or email.');
@@ -95,8 +95,8 @@ function saveSession(s) {
   if (s?.provider === 'supabase') void loadStudentId(s);
 }
 
-// IDs are private profile data, not user-editable Auth metadata. Loading the
-// signed-in user's own row must never prevent a valid account from signing in.
+
+
 async function loadStudentId(s) {
   const cfg = window.OSAS || {};
   try {
@@ -164,8 +164,8 @@ async function getRecoveryClient() {
       storage: storage || undefined, storageKey: 'osas.password.recovery.session',
     },
   });
-  // Recovery tokens never enter the sign-in client's shared localStorage. A
-  // different tab can therefore only restore a completed normal sign-in.
+  
+  
   return recoveryClient;
 }
 
@@ -420,7 +420,7 @@ function clearRecoveryLocation() {
 }
 
 export async function cancelPasswordRecovery() {
-  // Keep the recovery guard until the SDK has discarded its temporary session.
+  
   if (recoveryClient) {
     const { error } = await recoveryClient.auth.signOut({ scope: 'local' });
     if (error) throw new Error('Could not end the recovery session. Check your connection and try again.');
@@ -445,7 +445,7 @@ async function restoreRecovery(c, url, fragment) {
   saveSession(null);
   const clean = new URL(url.pathname, url.origin);
   clean.searchParams.set('recovery', '1');
-  // Remove access/refresh tokens from the address bar before rendering anything.
+  
   window.history.replaceState(null, '', `${clean.pathname}${clean.search}`);
   try {
     if (!c) throw new Error('Cannot reach the password reset service. Check your connection and reopen the link from your email.');

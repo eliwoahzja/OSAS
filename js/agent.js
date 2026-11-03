@@ -1,6 +1,6 @@
-// Administrator chat panel for the OSAS AI assistant.
-// The browser never talks to n8n directly: agent-chat verifies the admin JWT,
-// mints a short-lived tool token, and relays the conversation to n8n.
+
+
+
 
 import { h, icon } from './ui.js';
 import { renderMarkdownMessage } from './agent-markdown.js';

@@ -394,7 +394,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         err.clear();
         let addr = '';
         try {
-          // The server resolves the student ID to its saved verification email.
+          
           addr = auth.accountAddress(email.value);
         } catch (bad) {
           err.show(bad.message || 'Enter your student ID or email.');
