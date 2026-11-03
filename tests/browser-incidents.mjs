@@ -105,7 +105,7 @@ try {
   await client.page.getByRole('button', { name: 'Report Incident', exact: true }).click();
   await client.page.locator('.osas-modal-loader').waitFor({ state: 'detached' });
   const modal = client.page.locator('.osas-modal-card');
-  assert.deepEqual(await modal.locator('label').allTextContents(), ['Reporter', 'Description', 'Attach incident image (required)']);
+  assert.deepEqual(await modal.locator('label').allTextContents(), ['Reporter', 'Description', 'Attach incident images (required)']);
   assert.equal(await modal.locator('select,input[type="checkbox"]').count(), 0);
   assert.equal(await modal.getByLabel('Reporter').inputValue(), 'Student One');
   assert.equal(await modal.getByLabel('Reporter').evaluate((input) => input.readOnly), true);
@@ -113,7 +113,12 @@ try {
   await modal.getByRole('button', { name: 'Save Report', exact: true }).click();
   assert.equal(client.posts.length, 0, 'A report without an image cannot submit.');
   const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+5xL8AAAAASUVORK5CYII=', 'base64');
-  await modal.locator('input[type="file"]').setInputFiles({ name: 'evidence.png', mimeType: 'image/png', buffer: tinyPng });
+  await modal.locator('input[type="file"]').setInputFiles([
+    { name: 'evidence-one.png', mimeType: 'image/png', buffer: tinyPng },
+    { name: 'evidence-two.png', mimeType: 'image/png', buffer: tinyPng },
+  ]);
+  assert.equal(await modal.getByRole('img', { name: /Attached incident image/ }).count(), 2);
+  assert.equal(await modal.getByText('2 of 8 images attached').count(), 1);
   await modal.getByLabel('Description').fill('   ');
   await modal.getByRole('button', { name: 'Save Report', exact: true }).click();
   await modal.getByText('Describe what happened before submitting your report.', { exact: true }).waitFor();
@@ -173,12 +178,15 @@ try {
   }
   assert.deepEqual(empty.errors, []);
   await empty.context.close();
-  console.log('Browser incidents OK: exact column order, Manila report timestamps, legacy timestamp fallback, status-only admin action, client privacy, mandatory image field, immutable reporter, server-owned timestamps, save/reload, empty state, failed save retry. All backend traffic intercepted.');
+  console.log('Browser incidents OK: exact column order, Manila report timestamps, legacy timestamp fallback, status-only admin action, client privacy, multiple mandatory images, immutable reporter, server-owned timestamps, save/reload, empty state, failed save retry. All backend traffic intercepted.');
 } finally {
   await browser.close();
 }
 ));
-  assert.equal(client.storageUploads.length, 1);
+  assert.equal(client.storageUploads.length, 2);
+  assert.equal(client.posts[0].photo_paths.length, 2);
+  assert.equal(client.posts[0].photo_paths[0], client.posts[0].photo_path);
+  assert.notEqual(client.posts[0].photo_paths[0], client.posts[0].photo_paths[1]);
   for (const key of ['type', 'severity', 'location', 'student_id', 'notify_parent', 'date', 'time', 'created_at']) assert.equal(key in client.posts[0], false);
   assert.equal(await client.page.getByText('Private report from someone else', { exact: true }).count(), 0);
   assert.equal(await client.page.getByText('To review', { exact: true }).count(), 0);
