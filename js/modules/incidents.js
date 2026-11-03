@@ -170,6 +170,30 @@ function contactForm(el) {
 
 const incidentSubscriptions = new WeakMap();
 
+async function openIncidentImage(record) {
+  if (!record.photo_path) return;
+  const body = h('div', { class: 'p-6 sm:p-8 space-y-4 max-w-2xl w-full' },
+    h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Attached incident image'),
+    h('p', { class: 'text-xs text-gray-500' }, 'Images are available only to the reporting student and authorized administrators.'),
+    h('div', { class: 'text-sm text-gray-500' }, 'Loading image…'));
+  const modal = openModal(body, { delay: 0 });
+  try {
+    const url = await api.getIncidentEvidenceUrl(record.photo_path);
+    body.replaceChildren(
+      h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Attached incident image'),
+      h('div', { class: 'rounded-xl border border-gray-200 bg-gray-50 overflow-hidden' },
+        h('img', { src: url, alt: 'Image attached to the incident report',
+          class: 'max-w-full max-h-[66vh] object-contain mx-auto', referrerpolicy: 'no-referrer' })),
+      h('div', { class: 'flex justify-end' },
+        h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Close')));
+  } catch (error) {
+    body.replaceChildren(
+      h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Attached incident image'),
+      h('p', { class: 'text-sm text-red-600', role: 'alert' }, error.message || 'The image could not be opened.'),
+      h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Close'));
+  }
+}
+
 function reportDateTime(record) {
   const reportedAt = record.created_at ? new Date(record.created_at) : null;
   const validTimestamp = reportedAt && !Number.isNaN(reportedAt.getTime());
@@ -192,6 +216,10 @@ export async function incidentLogging(el) {
     { key: 'date', label: 'Date / Time', render: reportDateTime },
     { key: 'reporter', label: 'Reporter' },
     { key: 'description', label: 'Description', render: (r) => h('span', { class: 'block w-72 max-w-[22rem] text-gray-600 leading-snug' }, r.description) },
+    { key: 'photo_path', label: 'Photo', render: (r) => r.photo_path
+      ? h('button', { type: 'button', class: 'btn-ghost text-xs', 'aria-label': 'View attached incident image',
+          onclick: () => openIncidentImage(r) }, icon('image', 'text-sm'), 'View image')
+      : h('span', { class: 'text-gray-300' }, '—') },
     { key: 'status', label: 'Status', render: (r) => h('span', { 'data-incident-status': r.id }, pill(r.status)) },
     ...(admin ? [{ key: 'actions', label: 'Action', render: (r) => h('button', {
       type: 'button', class: 'btn-ghost text-xs',
@@ -261,11 +289,58 @@ function incidentForm(el) {
   grid.appendChild(h('div', { class: 'sm:col-span-2' }, h('label', { class: labelCls, for: 'incident-description' }, 'Description'),
     h('textarea', { id: 'incident-description', required: true, maxLength: 10000, class: `${inputCls} min-h-[80px] resize-y`, placeholder: 'Describe what happened and where. Include any immediate help needed.', oninput: (e) => { f.description = e.target.value; } })));
 
+  let previewUrl = null;
+  const photoPreview = h('div', { class: 'hidden sm:col-span-2 rounded-xl border border-gray-200 bg-gray-50 p-3 space-y-2' });
+  const imagePicker = h('input', {
+    type: 'file', accept: 'image/jpeg,image/png,image/webp',
+    class: inputCls, 'aria-label': 'Attach an incident image',
+    onchange: (event) => {
+      const file = event.target.files?.[0] || null;
+      if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+      f.image = null;
+      photoPreview.replaceChildren();
+      photoPreview.classList.add('hidden');
+      if (!file) return;
+      const issue = api.validateIncidentImage(file);
+      if (issue) {
+        event.target.value = '';
+        errBox.textContent = issue;
+        errBox.classList.remove('hidden');
+        return;
+      }
+      errBox.classList.add('hidden');
+      f.image = file;
+      previewUrl = URL.createObjectURL(file);
+      photoPreview.appendChild(
+        h('img', { src: previewUrl, alt: 'Preview of the attached incident image',
+          class: 'w-full max-h-48 object-contain rounded-lg' }),
+        h('div', { class: 'flex justify-between items-center gap-3' },
+          h('span', { class: 'text-xs text-gray-600 truncate' }, file.name),
+          h('button', { type: 'button', class: 'btn-ghost text-xs', onclick: () => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+            f.image = null;
+            imagePicker.value = '';
+            photoPreview.replaceChildren();
+            photoPreview.classList.add('hidden');
+          } }, 'Remove image')));
+      photoPreview.classList.remove('hidden');
+    },
+  });
+  grid.appendChild(h('div', { class: 'sm:col-span-2' },
+    h('label', { class: labelCls }, 'Attach image (optional)'),
+    imagePicker,
+    h('p', { class: 'lg-field-hint' }, 'JPG, PNG, or WebP. Maximum 5 MB. Only you and OSAS administrators may view the image.')));
+  grid.appendChild(photoPreview);
   const errBox = h('p', { class: 'hidden sm:col-span-2 text-[13px] text-red-600 bg-red-50 border border-red-200/70 rounded-xl px-3.5 py-2.5' });
   grid.appendChild(errBox);
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
     h('button', { type: 'submit', class: 'btn-primary' }, icon('send', 'text-base'), L.submit),
-    h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = null;
+      closeModal();
+    } }, 'Cancel')));
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -278,15 +353,25 @@ function incidentForm(el) {
     const btn = grid.querySelector('button[type="submit"]');
     btn.disabled = true;
     btn.textContent = 'Saving…';
+    let uploadedPath = null;
     try {
+      if (f.image) {
+        btn.textContent = 'Uploading image…';
+        uploadedPath = await api.uploadIncidentEvidence(f.image);
+      }
+      btn.textContent = 'Saving report…';
       await api.insertRow('incidents', {
         description: f.description.trim(), reporter, status: 'open',
+        photo_path: uploadedPath,
       });
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      previewUrl = null;
       toast(L.saved());
       closeModal();
       incidentLogging(el);
     } catch (err) {
-      errBox.textContent = err.message;
+      if (uploadedPath) await api.removeUnlinkedIncidentEvidence(uploadedPath).catch(() => {});
+      errBox.textContent = err.message || 'Unable to submit the incident report.';
       errBox.classList.remove('hidden');
       btn.disabled = false;
       btn.textContent = L.submit;
