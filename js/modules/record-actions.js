@@ -42,7 +42,7 @@ export function viewRecord(title, record, fields, actions = []) {
   modal = openModal(details, { delay: 0 });
 }
 
-export function recordForm({ title, table, record = null, fields, onSaved, validate, prepare }) {
+export function recordForm({ title, table, record = null, fields, onSaved, validate, prepare, submitLabel, successMessage }) {
   if (!isAdmin()) return;
   const editing = Boolean(record);
   const form = h('form', { class: 'p-6 sm:p-8 space-y-4' });
@@ -74,7 +74,7 @@ export function recordForm({ title, table, record = null, fields, onSaved, valid
   }
   form.appendChild(grid);
   const err = h('p', { class: 'hidden text-sm text-red-600', role: 'alert' });
-  const save = h('button', { type: 'submit', class: 'btn-primary' }, icon('check_circle', 'text-sm'), editing ? 'Save changes' : 'Create');
+  const save = h('button', { type: 'submit', class: 'btn-primary' }, icon('check_circle', 'text-sm'), submitLabel || (editing ? 'Save changes' : 'Create'));
   const cancel = h('button', { type: 'button', class: 'btn-ghost' }, 'Cancel');
   form.appendChild(err);
   form.appendChild(h('div', { class: 'flex flex-wrap justify-end gap-2' }, cancel, save));
@@ -112,7 +112,7 @@ export function recordForm({ title, table, record = null, fields, onSaved, valid
     try {
       if (editing) await api.updateRow(table, record.id, payload);
       else await api.insertRow(table, payload);
-      toast(editing ? 'Changes saved.' : 'Record created.');
+      toast(successMessage || (editing ? 'Changes saved.' : 'Record created.'));
       modal.close();
       await onSaved?.();
     } catch (e) {
@@ -125,13 +125,13 @@ export function recordForm({ title, table, record = null, fields, onSaved, valid
   controls[fields[0]?.key]?.focus();
 }
 
-export function confirmDelete({ title, table, record, onSaved }) {
+export function confirmDelete({ title, table, record, onSaved, description, actionLabel, successMessage }) {
   if (!isAdmin()) return;
   const err = h('p', { class: 'hidden text-sm text-red-600', role: 'alert' });
-  const del = h('button', { type: 'button', class: 'btn-primary' }, 'Delete record');
+  const del = h('button', { type: 'button', class: 'btn-primary' }, actionLabel || 'Delete record');
   const modal = openModal(h('div', { class: 'p-6 sm:p-8 space-y-4' },
     h('h3', { class: 'text-lg font-bold' }, 'Delete ' + title + '?'),
-    h('p', { class: 'text-sm text-gray-600' }, 'This action cannot be undone. Existing references may prevent deletion.'),
+    h('p', { class: 'text-sm text-gray-600' }, description || 'This action cannot be undone. Existing references may prevent deletion.'),
     err,
     h('div', { class: 'flex gap-2 justify-end' },
       h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Cancel'), del),
@@ -140,7 +140,7 @@ export function confirmDelete({ title, table, record, onSaved }) {
     del.disabled = true;
     try {
       await api.deleteRow(table, record.id);
-      toast('Record deleted.');
+      toast(successMessage || 'Record deleted.');
       modal.close();
       await onSaved?.();
     } catch (e) {

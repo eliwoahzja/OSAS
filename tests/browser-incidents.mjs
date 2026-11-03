@@ -97,7 +97,7 @@ try {
   await client.page.getByRole('heading', { name: 'Report Incident', exact: true }).waitFor();
   assert.equal(await client.page.getByText('My original report', { exact: true }).count(), 1);
   assert.equal(await client.page.getByText('Private report from someone else', { exact: true }).count(), 0);
-  assert.deepEqual(await client.page.locator('table thead th').allTextContents(), ['Date / Time', 'Reporter', 'Description', 'Photo', 'Status']);
+  assert.deepEqual(await client.page.locator('table thead th').allTextContents(), ['Date / Time', 'Reporter', 'Description', 'Photos', 'Status']);
   await client.page.getByText('Oct 30, 2026', { exact: true }).waitFor();
   await client.page.getByText('· 12:30 AM', { exact: true }).waitFor();
   assert.equal(client.requests[0].query.get('submitted_by'), `eq.${ownId}`);
@@ -117,6 +117,7 @@ try {
     { name: 'evidence-one.png', mimeType: 'image/png', buffer: tinyPng },
     { name: 'evidence-two.png', mimeType: 'image/png', buffer: tinyPng },
   ]);
+  await modal.getByRole('img', { name: 'Attached incident image 2', exact: true }).waitFor();
   assert.equal(await modal.getByRole('img', { name: /Attached incident image/ }).count(), 2);
   assert.equal(await modal.getByText('2 of 8 images attached').count(), 1);
   await modal.getByLabel('Description').fill('   ');
@@ -131,7 +132,11 @@ try {
   assert.equal(client.posts[0].description, 'A blocked exit needs attention.');
   assert.equal(client.posts[0].reporter, 'Student One');
   assert.equal(client.posts[0].submitted_by, ownId);
-  assert.match(client.posts[0].photo_path, new RegExp('^' + ownId + '/[0-9a-f-]+\\.png
+  assert.match(client.posts[0].photo_path, new RegExp('^' + ownId + '/[0-9a-f-]+\\.png$'));
+  assert.equal(client.storageUploads.length, 2);
+  assert.equal(client.posts[0].photo_paths.length, 2);
+  assert.equal(client.posts[0].photo_paths[0], client.posts[0].photo_path);
+  assert.notEqual(client.posts[0].photo_paths[0], client.posts[0].photo_paths[1]);
   for (const key of ['type', 'severity', 'location', 'student_id', 'notify_parent', 'date', 'time', 'created_at']) assert.equal(key in client.posts[0], false);
   assert.equal(await client.page.getByText('Private report from someone else', { exact: true }).count(), 0);
   assert.equal(await client.page.getByText('To review', { exact: true }).count(), 0);
@@ -141,7 +146,7 @@ try {
   const admin = await scenario('admin');
   await admin.page.getByRole('heading', { name: 'Incident Logging', exact: true }).waitFor();
   await admin.page.getByText('Private report from someone else', { exact: true }).waitFor();
-  assert.deepEqual(await admin.page.locator('table thead th').allTextContents(), ['Date / Time', 'Reporter', 'Description', 'Photo', 'Status', 'Action']);
+  assert.deepEqual(await admin.page.locator('table thead th').allTextContents(), ['Date / Time', 'Reporter', 'Description', 'Photos', 'Status', 'Action']);
   await admin.page.getByText('Oct 29, 2026', { exact: true }).waitFor();
   await admin.page.getByText('· 10:30 AM', { exact: true }).waitFor();
   assert.equal(await admin.page.getByRole('button', { name: 'Report Incident', exact: true }).count(), 0);
@@ -179,60 +184,6 @@ try {
   assert.deepEqual(empty.errors, []);
   await empty.context.close();
   console.log('Browser incidents OK: exact column order, Manila report timestamps, legacy timestamp fallback, status-only admin action, client privacy, multiple mandatory images, immutable reporter, server-owned timestamps, save/reload, empty state, failed save retry. All backend traffic intercepted.');
-} finally {
-  await browser.close();
-}
-));
-  assert.equal(client.storageUploads.length, 2);
-  assert.equal(client.posts[0].photo_paths.length, 2);
-  assert.equal(client.posts[0].photo_paths[0], client.posts[0].photo_path);
-  assert.notEqual(client.posts[0].photo_paths[0], client.posts[0].photo_paths[1]);
-  for (const key of ['type', 'severity', 'location', 'student_id', 'notify_parent', 'date', 'time', 'created_at']) assert.equal(key in client.posts[0], false);
-  assert.equal(await client.page.getByText('Private report from someone else', { exact: true }).count(), 0);
-  assert.equal(await client.page.getByText('To review', { exact: true }).count(), 0);
-  assert.deepEqual(client.errors, []);
-  await client.context.close();
-
-  const admin = await scenario('admin');
-  await admin.page.getByRole('heading', { name: 'Incident Logging', exact: true }).waitFor();
-  await admin.page.getByText('Private report from someone else', { exact: true }).waitFor();
-  assert.deepEqual(await admin.page.locator('table thead th').allTextContents(), ['Date / Time', 'Reporter', 'Description', 'Status', 'Action']);
-  await admin.page.getByText('Oct 29, 2026', { exact: true }).waitFor();
-  await admin.page.getByText('· 10:30 AM', { exact: true }).waitFor();
-  assert.equal(await admin.page.getByRole('button', { name: 'Report Incident', exact: true }).count(), 0);
-  assert.equal(admin.requests[0].query.has('submitted_by'), false);
-  await admin.page.getByRole('button', { name: 'Resolve incident: My original report', exact: true }).click();
-  const statusModal = admin.page.locator('.osas-modal-card');
-  await statusModal.getByRole('heading', { name: 'Update incident status', exact: true }).waitFor();
-  assert.deepEqual(await statusModal.locator('label').allTextContents(), ['Status']);
-  assert.equal(await statusModal.locator('input,textarea').count(), 0);
-  await statusModal.getByLabel('Status', { exact: true }).selectOption('resolved');
-  await statusModal.getByRole('button', { name: 'Save changes', exact: true }).click();
-  await admin.page.getByRole('button', { name: 'Reopen incident: My original report', exact: true }).waitFor();
-  assert.deepEqual(admin.patches, [{ status: 'resolved' }]);
-  await admin.page.getByText('Oct 30, 2026', { exact: true }).waitFor();
-  assert.deepEqual(admin.errors, []);
-  await admin.context.close();
-
-  const empty = await scenario('client', true);
-  await empty.page.getByText('No reports filed yet', { exact: true }).waitFor();
-  assert.equal(await empty.page.getByText('Session expired or not authorised', { exact: true }).count(), 0);
-  await empty.page.getByRole('button', { name: 'Report Incident', exact: true }).click();
-  await empty.page.locator('.osas-modal-loader').waitFor({ state: 'detached' });
-  empty.failSave();
-  await empty.page.getByLabel('Description').fill('Report to retry after service failure.');
-  await empty.page.getByRole('button', { name: 'Save Report', exact: true }).click();
-  await empty.page.getByText('Test save failed', { exact: true }).waitFor();
-  assert.equal(await empty.page.getByRole('button', { name: 'Save Report', exact: true }).isEnabled(), true);
-  assert.equal(await empty.page.getByLabel('Description').inputValue(), 'Report to retry after service failure.');
-  await empty.page.setViewportSize({ width: 390, height: 844 });
-  if (process.env.TEST_SCREENSHOT_DIR) {
-    await mkdir(process.env.TEST_SCREENSHOT_DIR, { recursive: true });
-    await empty.page.screenshot({ path: `${process.env.TEST_SCREENSHOT_DIR}/incident-form-mobile.png`, fullPage: true });
-  }
-  assert.deepEqual(empty.errors, []);
-  await empty.context.close();
-  console.log('Browser incidents OK: exact column order, Manila report timestamps, legacy timestamp fallback, status-only admin action, client privacy, two-field form, immutable reporter, server-owned timestamps, save/reload, empty state, failed save retry. All backend traffic intercepted.');
 } finally {
   await browser.close();
 }

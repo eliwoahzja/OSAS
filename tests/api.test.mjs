@@ -118,3 +118,52 @@ test('mock reports stamp submission time and preserve it during administrator re
   assert.equal(reviewed.time, report.time);
   assert.equal(reviewed.status, 'resolved');
 });
+
+test('students can read announcements but cannot publish, edit or delete them in live or demo mode', async () => {
+  for (const demo of [false, true]) {
+    const { api, calls } = await fixture({ demo, respond: () => [] });
+    assert.deepEqual(await api.listAnnouncements(), []);
+    const readCalls = calls.length;
+    await assert.rejects(api.insertRow('announcements', { title: 'Title', body: 'Message' }), /Only administrators/);
+    await assert.rejects(api.updateRow('announcements', 'id', { title: 'Title', body: 'Message' }), /Only administrators/);
+    await assert.rejects(api.deleteRow('announcements', 'id'), /Only administrators/);
+    assert.equal(calls.length, readCalls);
+  }
+});
+
+test('announcement reads require sign-in and use bounded pages in newest-first order', async () => {
+  const signedOut = await fixture({ signedIn: false });
+  await assert.rejects(signedOut.api.listAnnouncements(), /Sign in/);
+  assert.equal(signedOut.calls.length, 0);
+  const { api, calls } = await fixture({ respond: () => [] });
+  await api.listAnnouncements({ limit: 1000, offset: -10 });
+  assert.equal(calls[0].url.pathname, '/rest/v1/announcements');
+  assert.equal(calls[0].url.searchParams.get('limit'), '100');
+  assert.equal(calls[0].url.searchParams.get('offset'), '0');
+  assert.equal(calls[0].url.searchParams.get('order'), 'created_at.desc,id.desc');
+  assert.equal(calls[0].headers.Authorization, 'Bearer test-token');
+});
+
+test('administrator announcement writes trim text and cannot spoof author or posting date', async () => {
+  const { api, calls } = await fixture({ admin: true, respond: ({ body }) => [{ id: 'announcement', ...body }] });
+  await api.insertRow('announcements', { title: '  School update  ', body: '  Message  ', author_id: 'fake', author_name: 'Fake admin', created_at: '1900-01-01' });
+  assert.deepEqual(calls[0].body, { title: 'School update', body: 'Message' });
+  await api.updateRow('announcements', 'announcement', { title: 'Updated', body: 'Message', author_name: 'Fake admin' });
+  assert.deepEqual(calls[1].body, { title: 'Updated', body: 'Message' });
+  await assert.rejects(api.insertRow('announcements', { title: ' ', body: 'Message' }), /title/);
+  await assert.rejects(api.insertRow('announcements', { title: 'Title', body: 'x'.repeat(5001) }), /message/);
+  assert.equal(calls.length, 2);
+});
+
+test('demo announcements persist through create, edit and delete with original attribution', async () => {
+  const { api } = await fixture({ admin: true, demo: true });
+  const saved = await api.insertRow('announcements', { title: 'First', body: 'Message', author_name: 'Fake' });
+  assert.equal(saved.author_id, user.id);
+  assert.equal(saved.author_name, user.name);
+  const updated = await api.updateRow('announcements', saved.id, { title: 'Edited', body: 'Updated', created_at: '1900-01-01' });
+  assert.equal(updated.created_at, saved.created_at);
+  assert.equal(updated.author_name, saved.author_name);
+  assert.equal((await api.listAnnouncements())[0].title, 'Edited');
+  await api.deleteRow('announcements', saved.id);
+  assert.deepEqual(await api.listAnnouncements(), []);
+});

@@ -103,6 +103,12 @@ function recordMockActivity(table, action, oldValue, newValue) {
 
 function insertMock(table, payload) {
   const row = { id: mockNextId(table), ...payload };
+  if (table === 'announcements') {
+    const user = auth.currentUser();
+    row.author_id = user.id;
+    row.author_name = user.name || 'OSAS Administrator';
+    row.created_at = row.updated_at = new Date().toISOString();
+  }
   if (table === 'incidents') {
     const me = auth.currentUser();
     const reportedAt = new Date();
@@ -126,6 +132,7 @@ function updateMock(table, id, patch) {
   const i = rows.findIndex((r) => r.id === id);
   if (i < 0) throw new Error('Record not found');
   const previous = rows[i];
+  if (table === 'announcements') patch = { title: patch.title, body: patch.body, updated_at: new Date().toISOString() };
   if (table === 'incidents') {
     patch = { ...patch, created_at: previous.created_at, date: previous.date, time: previous.time, submitted_by: previous.submitted_by };
   }
@@ -177,6 +184,27 @@ const EMBEDS = {
   notifications: '*,students(name,grade)',
 };
 
+function announcementPayload(payload) {
+  if (!auth.isAdmin()) throw new Error('Only administrators may manage announcements.');
+  const title = String(payload.title || '').trim();
+  const body = String(payload.body || '').trim();
+  if (!title || title.length > 120) throw new Error('Enter an announcement title of up to 120 characters.');
+  if (!body || body.length > 5000) throw new Error('Enter an announcement message of up to 5000 characters.');
+  return { title, body };
+}
+
+export async function listAnnouncements({ limit = 11, offset = 0 } = {}) {
+  if (!auth.currentUser()?.id) throw new Error('Sign in to read announcements.');
+  const size = Math.max(1, Math.min(100, Math.trunc(Number(limit)) || 11));
+  const start = Math.max(0, Math.trunc(Number(offset)) || 0);
+  if (isDemoMode()) return snapshot('announcements')
+    .sort((a, b) => b.created_at.localeCompare(a.created_at) || String(b.id).localeCompare(String(a.id)))
+    .slice(start, start + size);
+  return await restFetch('GET', 'announcements', { query: {
+    select: 'id,title,body,author_name,created_at,updated_at', order: 'created_at.desc,id.desc', limit: size, offset: start,
+  } }) || [];
+}
+
 export async function listRows(table, filters = {}) {
   if (table === 'emergency_roles' && !auth.isAdmin()) throw new Error('Emergency roles are visible to administrators only.');
   if (isDemoMode()) return listMock(table, filters);
@@ -207,6 +235,7 @@ export async function listRows(table, filters = {}) {
 }
 
 export async function insertRow(table, payload) {
+  if (table === 'announcements') payload = announcementPayload(payload);
   if (table === 'incidents') {
     const user = auth.currentUser();
     if (!user?.id) throw new Error('Sign in to submit an incident report.');
@@ -236,6 +265,7 @@ export async function listActivity(table, { recordId = null, limit = 5 } = {}) {
 }
 
 export async function updateRow(table, id, patch) {
+  if (table === 'announcements') patch = announcementPayload(patch);
   if (table === 'incidents' && !auth.isAdmin()) throw new Error('Only administrators may review incident reports.');
   if (isDemoMode()) return updateMock(table, id, patch);
   const rows = await restFetch('PATCH', table, {
@@ -247,6 +277,7 @@ export async function updateRow(table, id, patch) {
 }
 
 export async function deleteRow(table, id) {
+  if (table === 'announcements' && !auth.isAdmin()) throw new Error('Only administrators may manage announcements.');
   if (table === 'incidents' && !auth.isAdmin()) throw new Error('Only administrators may delete incident reports.');
   if (isDemoMode()) {
     deleteMock(table, id);

@@ -12,6 +12,7 @@ import { showLogin } from './login.js';
 import { startDashboardUpdates } from './live-dashboard.js';
 import { createSafetyLanding, startLandingAnimations } from './landing.js';
 import { mountAgentChat, unmountAgentChat } from './agent.js';
+import { createAnnouncementBoard } from './modules/announcements.js';
 
 let closeLogin = null;
 let stopLandingAnimations = null;
@@ -583,6 +584,8 @@ async function renderDashboard(el) {
 
   const statsWrap = h('div', { class: 'space-y-8' });
   wrap.appendChild(statsWrap);
+  const announcementBoard = createAnnouncementBoard();
+  wrap.appendChild(announcementBoard.element);
 
   const skeletonBox = h('div', { class: 'space-y-8' });
   if (auth.isAdmin()) skeletonBox.appendChild(skeletonSupplyAlert());
@@ -611,6 +614,7 @@ async function renderDashboard(el) {
   statsWrap.appendChild(skeletonBox);
 
   const refresh = async (isInitial = false) => {
+    const announcementsLoaded = announcementBoard.refresh();
     try {
       const s = await api.getDashboardStats();
       if (!el.contains(wrap)) return;
@@ -657,6 +661,7 @@ async function renderDashboard(el) {
       }
       console.error(e);
     }
+    await announcementsLoaded;
   };
 
   await refresh(true);

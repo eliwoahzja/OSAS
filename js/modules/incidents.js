@@ -329,7 +329,7 @@ function incidentForm(el) {
     photoPreview.replaceChildren();
     photoPreview.classList.toggle('hidden', selectedImages.length === 0);
     if (!selectedImages.length) return;
-    photoPreview.appendChild(
+    photoPreview.append(
       h('p', { class: 'text-xs font-semibold text-gray-700' },
         selectedImages.length + ' of ' + MAX_INCIDENT_IMAGES + ' images attached'),
       h('div', { class: 'grid grid-cols-2 sm:grid-cols-3 gap-3' },
