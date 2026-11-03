@@ -26,3 +26,13 @@ jobs:
         run: npm test
       - name: Build application
         run: npm run build
+      - name: Verify static deployment output
+        run: |
+          test -f dist/index.html
+          test -f dist/js/app.js
+          test -f dist/js/config.js
+          test -f dist/css/osas.css
+          test -f dist/assets/logo.png
+          test ! -e dist/supabase
+          test ! -e dist/server.js
+          test ! -e dist/.env.example
