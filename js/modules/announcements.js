@@ -90,9 +90,9 @@ export function createAnnouncementBoard() {
       ]));
       navigation.hidden = page === 0 && rows.length <= PAGE_SIZE;
       navigation.replaceChildren(
-        h('button', { type: 'button', class: 'btn-ghost', disabled: page === 0, onclick: () => { if (!loading) { page -= 1; void refresh(); } } }, 'Previous'),
+        h('button', { type: 'button', class: 'btn-ghost', disabled: page === 0, onclick: async () => { if (!loading) { page -= 1; await refresh(); } } }, 'Previous'),
         h('span', { role: 'status' }, 'Page ' + (page + 1)),
-        h('button', { type: 'button', class: 'btn-ghost', disabled: rows.length <= PAGE_SIZE, onclick: () => { if (!loading) { page += 1; void refresh(); } } }, 'Next'),
+        h('button', { type: 'button', class: 'btn-ghost', disabled: rows.length <= PAGE_SIZE, onclick: async () => { if (!loading) { page += 1; await refresh(); } } }, 'Next'),
       );
     } catch (e) {
       if (current !== request) return;

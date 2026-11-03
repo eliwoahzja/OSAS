@@ -1,10 +1,14 @@
+import { loadingListener } from './loading.js';
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
     if (v === null || v === undefined) continue;
     if (k === 'class') el.className = v;
     else if (k === 'style' && typeof v === 'object') Object.assign(el.style, v);
-    else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2), v);
+    else if (k.startsWith('on') && typeof v === 'function') {
+      const type = k.slice(2);
+      el.addEventListener(type, ['click', 'submit'].includes(type) && v.constructor.name === 'AsyncFunction' ? loadingListener(el, type, v) : v);
+    }
     else if (k === 'value') el.value = v;
     else if (k === 'checked') el.checked = v;
     else if (k === 'selected') el.selected = !!v;

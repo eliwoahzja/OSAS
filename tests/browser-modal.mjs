@@ -17,7 +17,7 @@ try {
       return route.fulfill({ contentType: 'text/html', body: `<!doctype html><html><head>
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <link rel="stylesheet" href="/css/tailwind.css"><link rel="stylesheet" href="/css/osas.css">
-        <link rel="stylesheet" href="/css/hallmark/tokens.css"><link rel="stylesheet" href="/css/hallmark/surfaces.css"><link rel="stylesheet" href="/css/hallmark/motion.css">
+        <link rel="stylesheet" href="/css/hallmark/tokens.css"><link rel="stylesheet" href="/css/hallmark/surfaces.css"><link rel="stylesheet" href="/css/hallmark/motion.css"><link rel="stylesheet" href="/css/hallmark/loading.css">
         </head><body><aside id="sidebar" inert>Already unavailable</aside><main id="dashboard-shell"><button id="open">Open form</button></main>
         <script type="module">
           import {h, openModal, inputCls} from '/js/ui.js';
@@ -39,10 +39,13 @@ try {
     await page.goto(origin + '/__modal_test');
     await page.waitForFunction(() => window.modalReady);
     const trigger = page.getByRole('button', { name: 'Open form', exact: true });
+    const openedAt = Date.now();
     await trigger.click();
     const dialog = page.getByRole('dialog', { name: 'Example form', exact: true });
     await dialog.waitFor();
-    assert.equal(await page.locator('.osas-modal-loader').count(), 0, 'Ready forms should open without an artificial loading delay');
+    assert.equal(await page.locator('.osas-modal-loader').count(), 1, 'Popups must show the requested loading skeleton');
+    await page.locator('.osas-modal-loader').waitFor({state:'detached'});
+    assert.ok(Date.now()-openedAt >= 2900, 'Popup skeleton must last three seconds');
     assert.equal(await page.locator('#dashboard-shell').evaluate(el => el.inert), true);
     assert.equal(await dialog.evaluate(el => el.contains(document.activeElement)), true);
     await dialog.getByRole('button', { name: 'Save changes', exact: true }).focus();

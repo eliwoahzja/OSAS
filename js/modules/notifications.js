@@ -1,3 +1,4 @@
+import { coverLoading } from '../loading.js';
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
   toast, openModal, moduleShell, skeletonHeader, skeletonTableWithColumns,
@@ -288,6 +289,11 @@ function composer(el) {
     }, ...(secondary ? [] : [icon('send', 'text-base')]), label);
   }
 
+  async function switchForm() {
+    const loading = coverLoading(fields, { fields: 3, label: 'Loading notification form' });
+    if (await loading.ready && fields.isConnected) render();
+  }
+
   function render() {
     fields.replaceChildren();
     fields.appendChild(h('p', {
@@ -366,14 +372,14 @@ function composer(el) {
             btn.disabled = false;
           }
         }),
-        button('Edit Details', () => { reviewing = false; render(); }, true)));
+        button('Edit Details', () => { reviewing = false; void switchForm(); }, true)));
     } else {
       fields.appendChild(actions(
         button('Review Notification', () => {
           const error = validateEventNotice(f);
           if (error) return showError(error);
           reviewing = true;
-          render();
+          void switchForm();
         }),
         button('Cancel', () => closeModal(), true)));
     }

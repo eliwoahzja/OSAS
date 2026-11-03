@@ -1,5 +1,6 @@
 import { h } from './ui.js';
 import { movePresence, reducedMotion } from './motion.js';
+import { coverLoading } from './loading.js';
 
 const stack = [];
 let sequence = 0;
@@ -10,7 +11,11 @@ export function openModal(content, options = {}) {
   const previousFocus = document.activeElement;
   const overlay = h('div', { class: 'osas-modal-overlay' });
   const card = h('div', { class: 'osas-modal-card', tabindex: '-1' }, content);
-  const dialog = content.matches('[role="dialog"]') ? content : card;
+  const dialog = card;
+  if (content.matches('[role="dialog"]')) {
+    for (const name of ['aria-label','aria-labelledby']) if (content.hasAttribute(name)) card.setAttribute(name, content.getAttribute(name));
+    content.removeAttribute('role'); content.removeAttribute('aria-modal'); content.removeAttribute('aria-labelledby');
+  }
   dialog.setAttribute('role', 'dialog');
   dialog.setAttribute('aria-modal', 'true');
   dialog.setAttribute('tabindex', '-1');
@@ -31,6 +36,7 @@ export function openModal(content, options = {}) {
   let isClosing = false;
   let dirty = false;
   let confirmation = null;
+  const loading = coverLoading(card, { kind: 'popup', fields: content.querySelectorAll('input,select,textarea').length || 3, label: 'Loading dialog', until: options.ready });
   const changed = event => {
     if (event.target.matches('input, select, textarea') && options.confirmDiscard !== false) dirty = true;
   };
@@ -85,9 +91,15 @@ export function openModal(content, options = {}) {
     }
     const existingClose = content.querySelector('button:has(.fa-xmark), button:has(.fa-times)');
     if (existingClose) existingClose.setAttribute('aria-label', existingClose.getAttribute('aria-label') || 'Close dialog');
-    else if (dialog === card) card.appendChild(h('button', {
+    const dismiss = h('button', {
       type: 'button', class: 'osas-modal-dismiss', 'aria-label': 'Close dialog', onclick: () => requestClose(),
-    }, h('span', { 'aria-hidden': 'true' }, '×')));
+    }, h('span', { 'aria-hidden': 'true' }, '×'));
+    card.appendChild(dismiss);
+    loading.ready.then(ready => {
+      if (!ready || isClosing) return;
+      if (existingClose) dismiss.remove();
+      if (stack.at(-1) === instance) dialog.focus({ preventScroll: true });
+    });
     overlay.classList.add('active');
     void movePresence(card, true);
     if (stack.at(-1) === instance && !dialog.contains(document.activeElement)) dialog.focus({ preventScroll: true });
@@ -112,6 +124,7 @@ export function openModal(content, options = {}) {
     if (isClosing) return;
     isClosing = true;
     dirty = false;
+    loading.clear();
     confirmation?.close();
     window.removeEventListener('beforeunload', beforeUnload);
     document.removeEventListener('keydown', onKey);
@@ -134,5 +147,5 @@ export function openModal(content, options = {}) {
     else void movePresence(card, false).finally(() => overlay.remove());
   }
 
-  return { close, requestClose };
+  return { close, requestClose, ready: loading.ready };
 }

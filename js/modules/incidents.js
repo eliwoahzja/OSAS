@@ -1,3 +1,4 @@
+import { listenLoading } from '../loading.js';
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
   toast, openModal,
@@ -76,7 +77,7 @@ export async function emergencyContacts(el) {
         type: 'button', class: 'btn-ghost text-xs',
         title: r.active === false ? 'Activate contact' : 'Deactivate contact',
         'aria-label': r.active === false ? 'Activate contact' : 'Deactivate contact',
-        onclick: (e) => toggle(r, e.currentTarget),
+        onclick: async (e) => toggle(r, e.currentTarget),
       }, r.active === false ? 'Activate' : 'Deactivate') : null,
     ) },
   ];
@@ -133,7 +134,7 @@ function contactForm(el) {
   grid.appendChild(h('div', { class: 'sm:col-span-2 flex items-center gap-3 pt-1' },
     submit,
     h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
-  form.addEventListener('submit', async (event) => {
+  listenLoading(form, 'submit', async (event) => {
     event.preventDefault();
     if (!isAdmin()) return;
     const name = controls.name.value.trim();
@@ -181,7 +182,8 @@ async function openIncidentImages(record) {
   const paths = incidentImagePaths(record);
   if (!paths.length) return;
   const body = h('div', { class: 'incident-evidence-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'incident-evidence-title' });
-  const modal = openModal(body, { delay: 0 });
+  const imageResults = Promise.allSettled(paths.map((path) => api.getIncidentEvidenceUrl(path)));
+  const modal = openModal(body, { ready: imageResults });
   const header = h('header', { class: 'incident-evidence-header' },
     h('div', {},
       h('h3', { id: 'incident-evidence-title' }, 'Incident evidence (' + paths.length + ')'),
@@ -193,7 +195,7 @@ async function openIncidentImages(record) {
   const footer = h('footer', { class: 'incident-evidence-footer' },
     h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Close'));
   body.append(header, content, footer);
-  const results = await Promise.allSettled(paths.map((path) => api.getIncidentEvidenceUrl(path)));
+  const results = await imageResults;
   if (!body.isConnected) return;
   const gallery = h('div', { class: 'incident-evidence-gallery', 'aria-label': 'Attached incident images' },
     results.map((result, index) => result.status === 'fulfilled'
@@ -397,7 +399,7 @@ function incidentForm(el) {
       closeModal();
     } }, 'Cancel')));
 
-  form.addEventListener('submit', async (e) => {
+  listenLoading(form, 'submit', async (e) => {
     e.preventDefault();
     if (!f.description.trim()) {
       errBox.textContent = 'Describe what happened before submitting your report.';

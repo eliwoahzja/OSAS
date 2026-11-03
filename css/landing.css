@@ -233,17 +233,17 @@ body:not([data-session="active"]) > #sidebar-backdrop { display:none; }
 }
 
 /* Hero photo, school lockup, and contact row ------------------------------- */
-.safety-hero-media { position:absolute; inset:0 auto 0 0; z-index:0; width:64%; overflow:hidden; }
-.safety-hero-media img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
-.safety-hero-media::after { content:''; position:absolute; inset:0; background:linear-gradient(94deg,rgba(31,12,22,.9) 0%,rgba(40,12,24,.78) 40%,rgba(52,13,29,.48) 66%,rgba(48,12,27,.86) 88%,#34091C 100%); }
-.safety-hero-copy { position:relative; z-index:1; }
+.safety-hero-media { position:absolute; inset:0 auto 0 0; z-index:0; width:100%; overflow:hidden; }
+.safety-hero-media img { display:block; width:100%; height:100%; object-fit:cover; object-position:center 58%; filter:brightness(1.25); }
+.safety-hero-media::after { content:''; position:absolute; inset:0; background:linear-gradient(94deg,rgba(26,8,20,.45) 0%,rgba(40,12,24,.3) 40%,rgba(52,13,29,.2) 66%,rgba(48,12,27,.42) 100%); }
+.safety-hero-copy { position:relative; z-index:1; text-shadow:0 2px 8px #1b071e80; }
 @media(max-width:1100px) {
   .safety-hero-media { width:100%; }
-  .safety-hero-media::after { background:linear-gradient(96deg,rgba(31,12,22,.9) 0%,rgba(39,12,24,.84) 45%,rgba(50,13,29,.76) 70%,rgba(46,11,26,.92) 100%); }
+  .safety-hero-media::after { background:linear-gradient(96deg,rgba(31,12,22,.46),rgba(39,12,24,.3) 65%,rgba(46,11,26,.45)); }
 }
 @media(max-width:767px) {
   .safety-landing .safety-hero { min-height:0; }
-  .safety-hero-media::after { background:linear-gradient(180deg,rgba(31,12,22,.82) 0%,rgba(38,11,24,.87) 55%,rgba(41,10,25,.93) 100%); }
+  .safety-hero-media::after { background:linear-gradient(180deg,rgba(31,12,22,.4),rgba(38,11,24,.42) 55%,rgba(41,10,25,.62)); }
   .safety-hero-media img { object-position:38% center; }
 }
 

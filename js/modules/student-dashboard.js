@@ -1,3 +1,4 @@
+import { listenLoading } from '../loading.js';
 import { h, icon, openModal, inputCls, labelCls, toast } from '../ui.js';
 import { isAdmin } from '../auth.js';
 import * as api from '../api.js';
@@ -43,7 +44,7 @@ export function editStudentGrade(user) {
       select.disabled = false; save.disabled = false;
     } catch (e) { error.textContent = e.message; error.hidden = false; retry.hidden = false; }
   }
-  form.addEventListener('submit', async event => {
+  listenLoading(form, 'submit', async event => {
     event.preventDefault();
     save.disabled = true; error.hidden = true;
     try {

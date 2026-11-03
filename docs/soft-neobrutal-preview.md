@@ -6,7 +6,7 @@ The repo's Hallmark tokens supply the accent and motion timing. The Hallmark ski
 
 Cards, record tables, student details, announcements, sign-in, the assistant and the public guide use the shared treatment. Buttons have a short pressed movement; static information cards stay still. Motion is disabled for the reduced-motion preference, and decorative shadows are removed when printing.
 
-Shared popups open as soon as their content is ready, without the old artificial loading delay. They have accessible dialog names, a keyboard focus loop, Escape and backdrop dismissal, focus restoration, stacked-popup handling and an inert background. Long content scrolls within a viewport-bounded card. Incident evidence keeps its own gallery scroll and persistent footer.
+Shared popups use the current three-second minimum loading policy in `docs/preview-loading.md`, as explicitly requested for the preview. They have accessible dialog names, a keyboard focus loop, Escape and backdrop dismissal, focus restoration, stacked-popup handling and an inert background. Long content scrolls within a viewport-bounded card. Incident evidence keeps its own gallery scroll and persistent footer.
 
 Validation includes the production build, the 152 existing automated checks, student/admin workspace workflows on desktop and mobile, incident uploads/eight-image gallery, admin PIN flows, plus focused popup keyboard/stacking/scroll checks at 1440, 390 and 844 pixels.
 

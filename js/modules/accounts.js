@@ -223,7 +223,7 @@ function deleteRequest(request, reload) {
 
 function resetRequestQueue() {
   const rows = h('div', { class: 'mt-4' });
-  const refresh = h('button', { type: 'button', class: 'btn-ghost', onclick: () => load() }, 'Refresh requests');
+  const refresh = h('button', { type: 'button', class: 'btn-ghost', onclick: async () => load() }, 'Refresh requests');
   const section = h('section', { class: 'account-requests bg-white border border-gray-200 rounded-2xl p-5 mb-6', 'aria-label': 'Requests' },
     h('div', { class: 'flex flex-wrap items-center justify-between gap-3' },
       h('div', {}, h('h2', { class: 'text-lg font-bold text-gray-900' }, 'Requests'),

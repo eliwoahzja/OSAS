@@ -1,3 +1,4 @@
+import { coverLoading } from '../loading.js';
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
   toast, openModal,
@@ -390,7 +391,7 @@ function riskForm(el, initial = {}) {
   const saveBtn = h('button', {
     type: 'button',
     class: 'btn-primary flex items-center gap-2',
-    onclick: () => handleFinalSave(),
+    onclick: async () => handleFinalSave(),
   }, icon('security', 'text-sm'), 'Save Risk Assessment');
 
   const step2Footer = h('div', { class: 'flex items-center justify-between gap-3 pt-2 border-t border-gray-100' },
@@ -466,7 +467,7 @@ function riskForm(el, initial = {}) {
     customReasonTextarea.value = f.custom_reason || '';
   };
 
-  const goToStep = (step) => {
+  const goToStep = async (step) => {
     if (step === 2) {
       if (!f.hazard.trim()) {
         errBox1.textContent = 'Hazard description is required before proceeding to Step 2.';
@@ -479,6 +480,8 @@ function riskForm(el, initial = {}) {
         return;
       }
       errBox1.classList.add('hidden');
+      const loading = coverLoading(body, { fields: 3, label: 'Loading risk review form' });
+      if (!await loading.ready || !body.isConnected) return;
       currentStep = 2;
       headerSubtitle.textContent = 'Step 2 of 2: Document why this hazard is rated at this level and its root causes.';
       stepIndicator.replaceChildren(
@@ -495,6 +498,8 @@ function riskForm(el, initial = {}) {
       body.scrollTop = 0;
       setTimeout(() => customReasonTextarea.focus(), 50);
     } else {
+      const loading = coverLoading(body, { fields: 4, label: 'Loading risk factors form' });
+      if (!await loading.ready || !body.isConnected) return;
       currentStep = 1;
       headerSubtitle.textContent = 'Step 1 of 2: Quantitative risk factors & operational parameters.';
       stepIndicator.replaceChildren(

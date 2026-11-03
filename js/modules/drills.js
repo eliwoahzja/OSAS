@@ -1,3 +1,4 @@
+import { listenLoading } from '../loading.js';
 import {
   h, icon, pill, formatDate, inputCls, labelCls,
   toast, openModal, checkRow,
@@ -136,7 +137,7 @@ function drillForm(el) {
     h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel'));
   grid.appendChild(btnRow);
 
-  form.addEventListener('submit', async (e) => {
+  listenLoading(form, 'submit', async (e) => {
     e.preventDefault();
     if (!f.date || !f.building.trim() || !f.person_in_charge.trim()) {
       errBox.textContent = 'Date, building, and person in charge are required.';
@@ -299,7 +300,7 @@ function planUploadForm(el) {
     h('button', { type: 'submit', class: 'btn-primary' }, icon('upload', 'text-base'), 'Upload Plan'),
     h('button', { type: 'button', class: 'btn-ghost', onclick: () => closeModal() }, 'Cancel')));
 
-  form.addEventListener('submit', async (e) => {
+  listenLoading(form, 'submit', async (e) => {
     e.preventDefault();
     if (!f.building.trim() || !f.floor.trim()) {
       errBox.textContent = 'Building and floor are required.';

@@ -1,3 +1,4 @@
+import { listenLoading } from '../loading.js';
 import { h, icon, openModal, formatDate, inputCls, labelCls, toast } from '../ui.js';
 import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
@@ -81,7 +82,7 @@ export function recordForm({ title, table, record = null, fields, onSaved, valid
   const modal = openModal(form, { delay: 0 });
   cancel.addEventListener('click', () => modal.close());
 
-  form.addEventListener('submit', async (e) => {
+  listenLoading(form, 'submit', async (e) => {
     e.preventDefault();
     if (!isAdmin()) return;
     const payload = {};
@@ -136,7 +137,7 @@ export function confirmDelete({ title, table, record, onSaved, description, acti
     h('div', { class: 'flex gap-2 justify-end' },
       h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Cancel'), del),
   ), { delay: 0 });
-  del.addEventListener('click', async () => {
+  listenLoading(del, 'click', async () => {
     del.disabled = true;
     try {
       await api.deleteRow(table, record.id);

@@ -2,6 +2,8 @@
 
 Branch: `preview/soft-neobrutal-cards`. Frontend preview only; main and the hosted backend are unchanged.
 
+The current loading-duration policy is documented in [preview-loading.md](preview-loading.md) and supersedes the earlier immediate-transition timing below.
+
 The Apple Design skill informed immediate input feedback, short reversible motion, stable spatial relationships and accessible alternatives. `js/motion.js` centralizes content arrival and interruptible popup presence. `css/hallmark/motion.css` supplies the motion timings, reduced-motion/contrast/transparency alternatives and interaction refinements while preserving the soft neobrutalist surface layer.
 
 Routes render into separate page containers so delayed responses cannot overwrite newer pages. Actual completion controls indeterminate loading/busy status. Errors replace loading skeletons, requests have a timeout and ambiguous writes tell the user to refresh before retrying. Tables are keyboard-scrollable and have mobile scroll hints. The sidebar supports keyboard focus, Escape, current-page and expanded state; closed mobile items are inert.

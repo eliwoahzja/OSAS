@@ -1,3 +1,4 @@
+import { coverLoading } from './loading.js';
 // Administrator chat panel for the OSAS AI assistant.
 // The browser never talks to n8n directly: agent-chat verifies the admin JWT,
 // mints a short-lived tool token, and relays the conversation to n8n.
@@ -21,6 +22,8 @@ let panel = null;
 let listEl = null;
 let inputEl = null;
 let sendBtn = null;
+let panelLoading = null;
+let panelLoadingDismiss = null;
 let fab = null;
 let busy = false;
 let messages = [];
@@ -350,7 +353,7 @@ function selectSlashCommand(command) {
   inputEl.value = `/${command.name}${command.takesArgs ? ' ' : ''}`;
   hideCommandMenu();
   inputEl.focus();
-  if (!command.takesArgs) sendMessage();
+  if (!command.takesArgs) sendBtn?.click();
 }
 
 function localAction(parsed, rawMessage) {
@@ -462,13 +465,24 @@ function openPanel() {
     if (chatStore.list().length) showResumeChoice();
     else startNewConversation();
   }
-  if (screen === 'chat') inputEl?.focus();
-  else panel.querySelector('button')?.focus();
+  panelLoading?.clear();
+  panelLoading = coverLoading(panel, { fields: 2, label: 'Loading assistant' });
+  panelLoadingDismiss = h('button', { type: 'button', class: 'osas-modal-dismiss', 'aria-label': 'Close assistant', onclick: closePanel }, '×');
+  panel.appendChild(panelLoadingDismiss);
+  const loading = panelLoading, dismiss = panelLoadingDismiss;
+  loading.ready.then(ready => {
+    dismiss.remove();
+    if (panelLoading !== loading) return;
+    panelLoadingDismiss = null;
+    if (!ready || !panel?.classList.contains('is-open')) return;
+    if (screen === 'chat') inputEl?.focus(); else panel.querySelector('button')?.focus();
+  });
   scrollToEnd();
 }
 
 function closePanel() {
   if (!panel) return;
+  panelLoading?.clear(); panelLoadingDismiss?.remove(); panelLoadingDismiss = null;
   stopReplyReveal?.();
   stopReplyReveal = null;
   hideCommandMenu();
@@ -530,7 +544,7 @@ function build() {
     }
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      sendMessage();
+      sendBtn?.click();
     }
   });
 
@@ -617,6 +631,8 @@ export function unmountAgentChat() {
   stopReplyReveal?.(false);
   stopReplyReveal = null;
   if (!wrapper) return;
+  panelLoading?.clear(); panelLoading = null;
+  panelLoadingDismiss?.remove(); panelLoadingDismiss = null;
   if (wrapper.__agentKeyHandler) document.removeEventListener('keydown', wrapper.__agentKeyHandler);
   ++screenGeneration;
   clearAttachment();

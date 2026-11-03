@@ -15,6 +15,7 @@ import { mountAgentChat, unmountAgentChat } from './agent.js';
 import { createAnnouncementBoard } from './modules/announcements.js';
 import { studentOverview } from './modules/student-dashboard.js';
 import { revealContent } from './motion.js';
+import { loadingSkeleton, minimumLoading, listenLoading } from './loading.js';
 
 let closeLogin = null;
 let stopLandingAnimations = null;
@@ -195,20 +196,25 @@ async function route() {
   resetPageScroll();
   startProgress(title);
   const page = h('div', { class: 'route-content', 'aria-busy': 'true' });
+  const loading = loadingSkeleton(r === 'dashboard' ? (auth.isAdmin() ? 'admin-dashboard' : 'student-dashboard') : (auth.isAdmin() ? 'admin-table' : 'student-table'), { label: 'Loading ' + title });
+  loading.dataset.workspace = auth.isAdmin() ? 'admin' : 'student';
+  const result = h('div', { class: 'route-result', hidden: true, inert: '' });
+  page.append(loading, result);
   el.replaceChildren(page);
   el.scrollTop = 0;
 
   try {
-    const res = view(page);
-    if (res && typeof res.then === 'function') await res;
+    await minimumLoading(() => view(result));
   } catch (e) {
     console.error(e);
-    if (generation === routeGeneration) page.appendChild(errorBanner(e.message, () => route()));
+    if (generation === routeGeneration) result.appendChild(errorBanner(e.message, () => route()));
   }
 
   if (generation !== routeGeneration || !page.isConnected) return;
+  loading.remove();
+  result.hidden = false; result.inert = false;
   page.setAttribute('aria-busy', 'false');
-  revealContent(page.firstElementChild || page);
+  revealContent(result.firstElementChild || result);
   stopProgress(title);
   if (!document.querySelector('.osas-modal-overlay') && !page.contains(document.activeElement)) {
     titleEl().setAttribute('tabindex', '-1');
@@ -423,7 +429,7 @@ function wireShell() {
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); profile.click(); }
     });
   }
-  document.getElementById('logout-btn')?.addEventListener('click', logout);
+  listenLoading(document.getElementById('logout-btn'), 'click', logout);
   window.addEventListener('hashchange', route);
   const connection = h('div', { class: 'connection-notice', role: 'status', hidden: navigator.onLine !== false },
     icon('wifi'), 'You’re offline. Reconnect before saving or sending anything.');

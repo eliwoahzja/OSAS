@@ -1,0 +1,41 @@
+/* Shared three-second loading presentation for this preview. */
+.loading-skeleton { position:relative; display:flex; flex-direction:column; gap:16px; width:100%; max-width:1400px; margin-inline:auto; color:#7a1b38; }
+.loading-bone { display:block; width:100%; height:14px; flex-shrink:0; border-radius:7px; background:linear-gradient(100deg,#e7dcd3 20%,#f7f0e8 44%,#e7dcd3 68%); background-size:220% 100%; animation:skeleton-sweep 1.4s linear infinite; }
+.loading-title { height:26px; width:42%; max-width:300px; }
+.loading-subtitle { height:12px; width:68%; max-width:440px; margin-bottom:8px; }
+.loading-panel { min-width:0; padding:24px; display:flex; flex-direction:column; gap:16px; background:#fffdf8; border:1.5px solid #c4a8ad; border-radius:16px; box-shadow:3px 3px 0 #dac8c0; }
+.loading-profile { border-left:5px solid #7a1b38; }
+.loading-name { width:45%; height:22px; }
+.loading-detail { width:60%; height:12px; }
+.loading-feed { margin-top:12px; }
+.loading-poster { height:clamp(180px,26vw,330px); }
+.loading-date { width:32%; height:10px; }
+.loading-hero { height:180px; border-radius:20px; background:linear-gradient(100deg,#693347,#89485e,#693347); background-size:220% 100%; }
+.loading-stats { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:18px; margin-block:8px; }
+.loading-stats .loading-panel { padding:20px 16px; }
+.loading-number { width:55%; height:32px; }
+.loading-charts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px; }
+.loading-chart { height:140px; margin-top:16px; }
+.loading-table { display:grid; grid-template-columns:repeat(var(--loading-columns,4),minmax(0,1fr)); gap:28px 20px; padding:28px 24px; border:1px solid #c4a8ad; border-radius:16px; background:#fffdf8; }
+.loading-label { height:9px; width:28%; margin-top:6px; }
+.loading-field { height:42px; border:1px solid #dfcfc9; }
+.loading-submit { width:34%; height:40px; margin-top:10px; align-self:flex-end; }
+.loading-mark { display:flex; align-items:center; gap:9px; color:#765863; font-size:12px; line-height:1.5; }
+.loading-mark::before { content:''; width:16px; height:16px; border:2px solid #dac8c0; border-top-color:#7a1b38; border-radius:50%; animation:pending-spin .75s linear infinite; }
+.has-loading-cover { position:relative; min-height:260px; }
+.has-loading-cover > .loading-source { visibility:hidden !important; }
+.loading-cover { position:absolute; inset:0; z-index:3; padding:28px 32px; border-radius:inherit; background:#fffdf8; overflow:hidden; gap:12px; }
+.osas-modal-card.has-loading-cover { overflow:hidden !important; }
+.route-result[hidden] { display:none !important; }
+.is-pending-action { position:relative !important; color:transparent !important; text-shadow:none !important; cursor:wait !important; pointer-events:none; opacity:1 !important; }
+.is-pending-action > * { visibility:hidden !important; }
+.is-pending-action::after, .lg-btn.is-loading.is-pending-action::after { content:'' !important; display:block !important; position:absolute !important; top:50% !important; left:50% !important; width:19px !important; height:19px !important; padding:0 !important; margin:-9.5px 0 0 -9.5px !important; border:2px solid color-mix(in srgb,var(--pending-color,#7a1b38) 28%,transparent) !important; border-top-color:var(--pending-color,#7a1b38) !important; border-radius:50% !important; animation:pending-spin .7s linear infinite !important; }
+@keyframes pending-spin { to { transform:rotate(360deg); } }
+@keyframes skeleton-sweep { from { background-position:150% 0; } to { background-position:-80% 0; } }
+@media (max-width:1100px) { .loading-stats { grid-template-columns:repeat(3,minmax(0,1fr)); } .loading-charts { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:640px) { .loading-stats { grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; } .loading-charts { grid-template-columns:1fr; } .loading-cover { padding:24px; } .loading-panel { padding:20px; } .loading-title { width:64%; } .loading-table { gap:24px 12px; padding:24px 16px; } }
+@media (prefers-reduced-motion:reduce) { .loading-bone,.loading-mark::before,.is-pending-action::after,.lg-btn.is-loading.is-pending-action::after { animation:none !important; } }
+@media print { .loading-skeleton { display:none !important; } }
+
+.loading-cover.osas-modal-loader { align-items:stretch; justify-content:flex-start; color:#765863; background:#fffdf8; backdrop-filter:none; -webkit-backdrop-filter:none; }
+.has-loading-cover > .osas-modal-dismiss { z-index:4; }

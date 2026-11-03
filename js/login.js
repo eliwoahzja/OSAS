@@ -1,3 +1,4 @@
+import { listenLoading, coverLoading, minimumLoading } from './loading.js';
 import { h } from './ui.js';
 import { revealContent, movePresence } from './motion.js';
 import * as auth from './auth.js';
@@ -271,7 +272,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     };
     const startTicker = () => { stop(); tick(); if (!resendBtn.disabled) return; ticker = setInterval(tick, 1000); timers.add(ticker); };
 
-    resendBtn.addEventListener('click', async () => {
+    listenLoading(resendBtn, 'click', async () => {
       err.clear();
       resendBtn.disabled = true;
       resendBtn.textContent = 'Sending…';
@@ -343,19 +344,21 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     const modal = h('div', { class: 'lg-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Verify your email' }, close, otp.form);
     const backdrop = h('div', { class: 'lg-modal-backdrop' }, modal);
     backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop) closeModal(); });
-    modalEl = { backdrop, modal, otp };
+    const loading = coverLoading(modal, { fields: 1, label: 'Loading verification form' });
+    modalEl = { backdrop, modal, otp, loading };
     overlay.appendChild(backdrop);
     if (!reduceMotion()) {
       anim(backdrop, [{ opacity: 0 }, { opacity: 1 }], { duration: 300, easing: 'ease-out' });
       anim(modal, [{ opacity: 0, transform: 'translateY(24px) scale(.96)' }, { opacity: 1, transform: 'none' }], { duration: 520, easing: EASE_OUT });
     }
-    otp.focus();
+    loading.ready.then(ready => { if (ready && modal.isConnected) otp.focus(); });
   }
   async function closeModal(instant = false) {
     if (!modalEl) return;
-    const { backdrop, modal, otp } = modalEl;
+    const { backdrop, modal, otp, loading } = modalEl;
     modalEl = null;
     otp.stop();
+    loading?.clear();
     if (!instant && !reduceMotion()) {
       anim(modal, [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'translateY(12px) scale(.98)' }], { duration: 220, easing: 'ease-in' });
       await done(anim(backdrop, [{ opacity: 1 }, { opacity: 0 }], { duration: 240, easing: 'ease-in' }));
@@ -594,6 +597,9 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       try {
         if (setup && !firstPin) {
           firstPin = value;
+          const cover = coverLoading(card, { fields: 1, label: 'Loading PIN confirmation' });
+          await cover.ready;
+          if (!overlay.isConnected) return;
           value = '';
           paint();
           title.textContent = 'Confirm your PIN';
@@ -607,7 +613,10 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
           lead.textContent = 'Choose a 4-digit PIN and confirm it.';
           throw new Error('The PINs do not match. Choose your PIN again.');
         }
-        await auth.verifyPin(value);
+        scan.classList.add('is-pending-action');
+        scan.style.setProperty('--pending-color', '#7a1b38');
+        try { await minimumLoading(() => auth.verifyPin(value)); }
+        finally { scan.classList.remove('is-pending-action'); }
         dotRow.classList.add('is-ok');
         scan.classList.add('is-ok');
         scan.replaceChildren(fa('check'));
@@ -709,16 +718,21 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
     onSuccess();
   }
 
-  function stepTo(renderFn) {
-    // Commit the new step immediately; keyboard/touch never waits for a transition.
+  let stepGeneration = 0;
+  let stepLoading = null;
+  async function stepTo(renderFn) {
+    const generation = ++stepGeneration;
+    stepLoading?.clear();
+    stepLoading = coverLoading(card, { fields: 2, label: 'Loading sign-in form' });
+    const ready = await stepLoading.ready;
+    if (!ready || generation !== stepGeneration || !overlay.isConnected) return;
     const focus = renderFn();
     revealContent(card);
     focus?.();
-    return Promise.resolve();
   }
 
   const overlay = h('div', { id: 'login-overlay', class: `lg-root${onBack ? ' lg-with-return' : ''}` }, brand, side);
-  const close = () => { stopTimers(); closeModal(true); overlay.remove(); document.documentElement.classList.remove('lg-open'); };
+  const close = () => { ++stepGeneration; stepLoading?.clear(); stopTimers(); closeModal(true); overlay.remove(); document.documentElement.classList.remove('lg-open'); };
   if (onBack) overlay.append(h('button', { type: 'button', class: 'lg-public-return', onclick: () => { close(); onBack(); } }, fa('arrow-left'), 'Back to safety guide'));
   document.body.appendChild(overlay);
   document.documentElement.classList.add('lg-open');
@@ -729,6 +743,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
       : reset ? renderNewPassword(reset) : renderCredentials();
   void movePresence(card, true, { distance: 10 });
   revealContent(brandInner);
-  focusFirst();
+  stepLoading = coverLoading(card, { fields: 2, label: 'Loading sign-in form' });
+  stepLoading.ready.then(ready => { if (ready && overlay.isConnected) focusFirst(); });
   return close;
 }

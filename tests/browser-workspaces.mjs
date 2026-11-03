@@ -88,7 +88,14 @@ try {
         if (url.origin === origin) return route.continue();
         return route.abort('blockedbyclient');
       });
+      const openedAt = Date.now();
       await page.goto(`${origin}/#/dashboard`);
+      const loadingKind = role === 'admin' ? 'admin-dashboard' : 'student-dashboard';
+      await page.locator('.loading-skeleton-' + loadingKind).waitFor();
+      assert.equal(await page.locator('.loading-skeleton .loading-charts').count(), role === 'admin' ? 1 : 0);
+      assert.equal(await page.locator('.loading-skeleton .loading-profile').count(), role === 'client' ? 1 : 0);
+      await page.locator('#view .route-content[aria-busy="false"]').waitFor();
+      assert.ok(Date.now() - openedAt >= 2900, 'Dashboard loader must last three seconds');
       await page.waitForFunction(() => document.body.dataset.session === 'active');
       const routes = role === 'admin' ? [...publicRoutes, ...adminRoutes] : publicRoutes;
       assert.equal(await page.locator('#sidebar-nav a').count(), routes.length);
@@ -96,6 +103,7 @@ try {
         await page.evaluate(next => { location.hash = '#/' + next; }, route);
         await page.waitForFunction(expected => document.body.dataset.route === expected, route);
         await page.waitForLoadState('networkidle');
+        await page.locator('#view .route-content[aria-busy="false"]').waitFor();
         await page.waitForFunction(() => {
           const view = document.getElementById('view');
           return view.textContent.trim().length > 20 && !view.querySelector('.animate-pulse');
