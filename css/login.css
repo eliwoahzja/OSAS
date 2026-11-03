@@ -1,0 +1,159 @@
+/* Scoped login layout. Keep brochure hero styles out of the sign-in screen. */
+#login-overlay.lg-root {
+  display: grid;
+  grid-template-columns: minmax(0, 1.03fr) minmax(0, .97fr);
+  align-items: stretch;
+  width: 100%;
+  overflow-x: hidden;
+}
+#login-overlay .lg-brand {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(20px, 3vh, 34px);
+  padding: clamp(38px, 4.2vw, 76px);
+}
+#login-overlay .lg-brand-inner,
+#login-overlay .lg-brand-contacts {
+  width: min(100%, 570px);
+  max-width: 570px;
+  flex: none;
+}
+#login-overlay .lg-brand-wordmark {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  margin: 0;
+  color: #fff;
+  font-size: inherit;
+  line-height: 1.2;
+}
+#login-overlay .lg-brand-seal {
+  position: static;
+  display: block;
+  width: clamp(64px, 5.1vw, 86px);
+  height: clamp(64px, 5.1vw, 86px);
+  max-width: none;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 18px rgba(20, 9, 18, .25));
+}
+#login-overlay .lg-brand-wordmark-text { display: block; min-width: 0; }
+#login-overlay .lg-brand-name {
+  display: block;
+  font-size: clamp(21px, 2vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  line-height: 1.12;
+}
+#login-overlay .lg-brand-tagline {
+  display: block;
+  margin-top: 7px;
+  color: rgba(255,255,255,.78);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: .015em;
+  line-height: 1.5;
+}
+#login-overlay .lg-brand-sub {
+  margin-top: 22px;
+  font-size: clamp(15px, 1.3vw, 18px);
+  line-height: 1.4;
+}
+#login-overlay .lg-brand-text {
+  margin-top: 16px;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+#login-overlay .lg-glass {
+  margin-top: 26px;
+  max-width: 500px;
+}
+#login-overlay .lg-brand-contacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 14px 22px;
+}
+#login-overlay .lg-contact {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 0;
+  color: rgba(255, 255, 255, .88);
+  text-decoration: none;
+  line-height: 1.35;
+}
+#login-overlay .lg-contact:hover { color: #F8D98B; }
+#login-overlay .lg-contact-icon {
+  flex: 0 0 24px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: #F8D98B;
+  font-size: 13px;
+}
+#login-overlay .lg-contact-text { display: block; min-width: 0; }
+#login-overlay .lg-contact-text small {
+  display: block;
+  color: rgba(255, 255, 255, .65);
+  font-size: 11px;
+  line-height: 1.25;
+}
+#login-overlay .lg-contact-text strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+#login-overlay .lg-side {
+  min-width: 0;
+  padding: 40px clamp(20px, 3vw, 56px);
+}
+#login-overlay .lg-card { max-width: 480px; }
+@media (max-width: 1180px) {
+  #login-overlay .lg-brand { padding: 44px 36px; }
+  #login-overlay .lg-brand-contacts { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  #login-overlay .lg-brand-name { font-size: clamp(19px, 2.5vw, 26px); }
+}
+@media (max-width: 900px) {
+  #login-overlay.lg-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 100dvh;
+    height: auto;
+  }
+  #login-overlay .lg-brand {
+    flex: 0 0 auto;
+    padding: 30px 24px 26px;
+    gap: 14px;
+  }
+  #login-overlay .lg-brand-wordmark { gap: 14px; }
+  #login-overlay .lg-brand-seal { width: 60px; height: 60px; }
+  #login-overlay .lg-brand-name { font-size: 22px; }
+  #login-overlay .lg-brand-tagline { font-size: 11px; }
+  #login-overlay .lg-brand-sub { margin-top: 12px; }
+  #login-overlay .lg-brand-contacts,
+  #login-overlay .lg-glass,
+  #login-overlay .lg-brand-text { display: none; }
+  #login-overlay .lg-side { padding: 28px 20px 48px; align-items: flex-start; }
+  #login-overlay .lg-card { max-width: 535px; margin: 0 auto; }
+  #login-overlay.lg-with-return .lg-brand { padding-top: 74px; }
+  #login-overlay.lg-with-return .lg-side { padding-top: 24px; }
+}
+@media (max-width: 480px) {
+  #login-overlay .lg-brand { padding: 24px 18px; }
+  #login-overlay .lg-brand-name { font-size: 20px; }
+  #login-overlay .lg-side { padding: 20px 14px 36px; }
+  #login-overlay .lg-card { border-radius: 20px; }
+  #login-overlay.lg-with-return .lg-brand { padding-top: 75px; }
+}
