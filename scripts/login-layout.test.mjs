@@ -27,6 +27,18 @@ test('login overrides load after landing and preserve mobile layout', () => {
   assert.ok(style.includes('overflow-wrap: anywhere;'));
 });
 
+test('school photo spans the left login panel with branding at top and contacts at bottom', () => {
+  const login = read('js/login.js');
+  const style = read('css/login.css');
+  assert.match(style, /url\(['"]\/assets\/login-brand-photo\.jpg['"]\)/);
+  assert.match(style, /#login-overlay \.lg-brand\s*\{[^}]*min-height:\s*100dvh;/);
+  assert.match(style, /#login-overlay \.lg-brand\s*\{[^}]*justify-content:\s*space-between;/);
+  assert.match(style, /#login-overlay \.lg-brand-contacts\s*\{[^}]*margin-top:\s*auto;/);
+  assert.ok(login.includes("const brand = h('section', { class: 'lg-brand' }, brandInner, brandContacts);"));
+  assert.match(style, /#login-overlay \.lg-brand-contacts\s*\{[^}]*repeat\(3, minmax\(0, 1fr\)\)/);
+  assert.match(style, /#login-overlay \.lg-brand-contacts\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/);
+});
+
 test('decorative hero stripes are scoped and reversed without affecting login', () => {
   const landing = read('css/landing.css');
   assert.match(landing, /\.safety-landing \.safety-hero-art::before\s*\{[^}]*linear-gradient\(70deg/);
