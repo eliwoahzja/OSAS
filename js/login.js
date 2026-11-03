@@ -215,7 +215,7 @@ export function showLogin({ onSuccess, onBack, recovery = auth.passwordRecovery(
         h('span', { class: 'lg-contact-icon' }, fa('mobile-screen')),
         h('span', { class: 'lg-contact-text' }, h('small', {}, 'Mobile'), h('strong', {}, '0995-779-3280'))),
       h('a', { class: 'lg-contact', href: 'https://www.facebook.com/StAgnesAcademyOfCaloocanInc', target: '_blank', rel: 'noopener noreferrer' },
-        h('span', { class: 'lg-contact-icon' }, fa('facebook-f')),
+        h('span', { class: 'lg-contact-icon', html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" width="1em" height="1em" fill="currentColor" aria-hidden="true" focusable="false"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc. --><path d="M80 299.3V512H196V299.3h86.5l18-97.8H196V166.9c0-51.7 20.3-71.5 72.7-71.5c16.3 0 29.4 .4 37 1.2V7.9C291.4 4 256.4 0 236.2 0C129.3 0 80 50.5 80 159.4v42.1H14v97.8H80z"/></svg>' }),
         h('span', { class: 'lg-contact-text' }, h('small', {}, 'FB Official Page'), h('strong', {}, 'StAgnesAcademyOfCaloocanInc'))),
     );
   const brandInner = h('div', { class: 'lg-brand-inner' },
