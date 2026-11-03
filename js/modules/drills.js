@@ -79,7 +79,6 @@ export async function drillScheduling(el) {
     searchPlaceholder: 'Search by type, building, or person in charge…',
     empty: { title: 'No drills scheduled yet', text: 'Schedule the first drill — parent notices can be sent straight from the form.' },
     onAction: () => drillForm(el),
-    onRowClick: (record) => view(record),
   });
 }
 
