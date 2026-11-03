@@ -203,8 +203,8 @@ try {
   await empty.context.close();
   for (const role of ['client', 'admin']) {
     const gallery = await scenario(role, false, true);
-    await gallery.page.getByRole('button', { name: 'View 8 attached incident images', exact: true }).click();
-    const dialog = gallery.page.getByRole('dialog', { name: 'Incident evidence (8)', exact: true });
+    await gallery.page.getByRole('button', { name: 'View 8 incident images', exact: true }).click();
+    const dialog = gallery.page.getByRole('dialog', { name: 'Incident images (8)', exact: true });
     await dialog.getByRole('link', { name: 'Open incident image 8', exact: true }).waitFor();
     await gallery.page.waitForFunction(() => [...document.querySelectorAll('.incident-evidence-frame img')].every(img => img.complete && img.naturalWidth));
     const dimensions = await dialog.locator('.incident-evidence-frame').evaluateAll(frames => frames.map(frame => frame.getBoundingClientRect().height));
@@ -232,7 +232,7 @@ try {
     await gallery.page.getByRole('button', { name: 'Close', exact: true }).click();
     await dialog.waitFor({ state: 'detached' });
     gallery.failImageSign();
-    await gallery.page.getByRole('button', { name: 'View 8 attached incident images', exact: true }).click();
+    await gallery.page.getByRole('button', { name: 'View 8 incident images', exact: true }).click();
     await dialog.getByRole('alert').filter({ hasText: 'Image 8 could not be opened.' }).waitFor();
     assert.equal(await dialog.getByRole('link').count(), 7);
     await dialog.getByRole('button', { name: 'Close incident evidence', exact: true }).click();

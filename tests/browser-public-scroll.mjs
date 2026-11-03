@@ -8,6 +8,18 @@ const browser = await chromium.launch({
   args: ['--no-sandbox'], headless: true,
 });
 
+// Native wheel/PageDown animation can continue after the input event completes.
+// Finish each scroll before checking the next navigation interaction.
+const settleScroll = page => page.evaluate(() => new Promise(resolve => {
+  let previous = scrollY, stableFrames = 0;
+  const frame = () => {
+    stableFrames = Math.abs(scrollY - previous) < 1 ? stableFrames + 1 : 0;
+    previous = scrollY;
+    if (stableFrames >= 4) resolve(); else requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}));
+
 try {
   for (const viewport of [{ width: 1440, height: 900 }, { width: 1366, height: 768 }, { width: 390, height: 844 }]) {
     const context = await browser.newContext({ viewport, reducedMotion: 'reduce' });
@@ -21,9 +33,11 @@ try {
     await page.mouse.move(viewport.width / 2, viewport.height / 2);
     await page.mouse.wheel(0, 650);
     await page.waitForFunction(() => window.scrollY > 200);
+    await settleScroll(page);
     const first = await page.evaluate(() => scrollY);
     await page.keyboard.press('PageDown');
     await page.waitForFunction((previous) => scrollY > previous + 100, first);
+    await settleScroll(page);
     if (viewport.width > 900) {
       await page.getByRole('navigation', { name: 'Safety brochure' }).getByRole('link', { name: 'Drills', exact: true }).click();
       await page.waitForFunction(() => document.activeElement?.id === 'safety-drills');
