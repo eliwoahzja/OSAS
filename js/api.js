@@ -382,3 +382,91 @@ export async function uploadFile(bucket, file, path) {
     url: `${SUPABASE_URL}/storage/v1/object/public/${bucket}/${name}`,
   };
 }
+
+
+const INCIDENT_EVIDENCE_BUCKET = 'incident-evidence';
+const INCIDENT_IMAGE_LIMIT = 5 * 1024 * 1024;
+const INCIDENT_IMAGE_EXTENSIONS = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
+const INCIDENT_EVIDENCE_PATH = /^[0-9a-f-]{36}\/[0-9a-f-]{36}\.(jpg|png|webp)$/i;
+
+function incidentEvidenceUrl(path, operation = 'object') {
+  return `${SUPABASE_URL}/storage/v1/${operation}/${INCIDENT_EVIDENCE_BUCKET}/${path.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+export function validateIncidentImage(file) {
+  if (!file) return 'Select an image to attach.';
+  if (!(file.type in INCIDENT_IMAGE_EXTENSIONS)) return 'Select a JPG, PNG, or WebP image.';
+  if (!Number.isFinite(file.size) || file.size <= 0 || file.size > INCIDENT_IMAGE_LIMIT) {
+    return 'The image must be smaller than 5 MB.';
+  }
+  return '';
+}
+
+export async function uploadIncidentEvidence(file) {
+  const error = validateIncidentImage(file);
+  if (error) throw new Error(error);
+  if (isDemoMode()) throw new Error('Incident image uploads require a connected OSAS database.');
+  const actor = auth.currentUser();
+  const token = await auth.currentAccessToken();
+  if (!actor?.id || !token) throw new Error('Sign in to attach an incident image.');
+  if (!crypto?.randomUUID) throw new Error('Your browser does not support secure image identifiers.');
+  const path = `${actor.id}/${crypto.randomUUID()}.${INCIDENT_IMAGE_EXTENSIONS[file.type]}`;
+  const response = await fetch(incidentEvidenceUrl(path), {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      'Content-Type': file.type,
+      'x-upsert': 'false',
+    },
+    body: file,
+  });
+  if (!response.ok) {
+    const errorResult = await response.json().catch(() => ({}));
+    throw new Error(errorResult.message || errorResult.error || `Image upload failed (${response.status}).`);
+  }
+  return path;
+}
+
+export async function removeUnlinkedIncidentEvidence(path) {
+  if (!INCIDENT_EVIDENCE_PATH.test(String(path || '')) || isDemoMode()) return false;
+  const token = await auth.currentAccessToken();
+  if (!token) return false;
+  const response = await fetch(incidentEvidenceUrl(path), {
+    method: 'DELETE',
+    headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` },
+  });
+  return response.ok;
+}
+
+export async function getIncidentEvidenceUrl(path) {
+  if (!INCIDENT_EVIDENCE_PATH.test(String(path || ''))) throw new Error('The incident image path is invalid.');
+  if (isDemoMode()) throw new Error('Incident images are unavailable in demo mode.');
+  const token = await auth.currentAccessToken();
+  if (!token) throw new Error('Sign in to view the incident image.');
+  const response = await fetch(incidentEvidenceUrl(path, 'object/sign'), {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ expiresIn: 120 }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.message || result.error || 'You do not have permission to view this image.');
+  const signed = result.signedURL || result.signedUrl;
+  if (typeof signed !== 'string' || !signed) throw new Error('The image service returned no accessible URL.');
+  const root = new URL(SUPABASE_URL);
+  const pathWithToken = signed.startsWith('/storage/v1/')
+    ? signed : '/storage/v1/' + signed.replace(/^\/+/, '');
+  const url = new URL(/^https?:\/\//i.test(signed) ? signed : pathWithToken, root.origin);
+  if (url.origin !== root.origin || !url.pathname.startsWith('/storage/v1/object/sign/incident-evidence/')) {
+    throw new Error('The image service returned an invalid URL.');
+  }
+  return url.href;
+}
