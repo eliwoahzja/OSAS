@@ -7,19 +7,35 @@
   overflow-x: hidden;
 }
 #login-overlay .lg-brand {
+  position: relative;
   min-width: 0;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  gap: clamp(20px, 3vh, 34px);
-  padding: clamp(38px, 4.2vw, 76px);
+  justify-content: space-between;
+  gap: 30px;
+  padding: clamp(36px, 3vw, 54px) clamp(28px, 4.2vw, 76px) clamp(28px, 3vw, 48px);
+  background-color: #4c0d2b;
+  background-image:
+    linear-gradient(100deg, rgba(70, 3, 34, .39) 0%, rgba(63, 3, 32, .55) 46%, rgba(47, 2, 26, .87) 100%),
+    url('/assets/login-brand-photo.jpg');
+  background-position: center, 48% center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
-#login-overlay .lg-brand-inner,
+#login-overlay .lg-brand-inner {
+  width: min(100%, 590px);
+  max-width: 590px;
+  flex: 0 0 auto;
+  margin: 0;
+}
 #login-overlay .lg-brand-contacts {
-  width: min(100%, 570px);
-  max-width: 570px;
-  flex: none;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 100%;
+  margin-top: auto;
+  margin-bottom: 0;
 }
 #login-overlay .lg-brand-wordmark {
   display: flex;
@@ -76,9 +92,9 @@
 }
 #login-overlay .lg-brand-contacts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
-  gap: 14px 22px;
+  gap: 16px 15px;
 }
 #login-overlay .lg-contact {
   display: flex;
@@ -114,6 +130,7 @@
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  word-break: normal;
 }
 #login-overlay .lg-side {
   min-width: 0;
@@ -121,7 +138,7 @@
 }
 #login-overlay .lg-card { max-width: 480px; }
 @media (max-width: 1180px) {
-  #login-overlay .lg-brand { padding: 44px 36px; }
+  #login-overlay .lg-brand { padding: 40px 34px 30px; }
   #login-overlay .lg-brand-contacts { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   #login-overlay .lg-brand-name { font-size: clamp(19px, 2.5vw, 26px); }
 }
@@ -134,26 +151,37 @@
   }
   #login-overlay .lg-brand {
     flex: 0 0 auto;
-    padding: 30px 24px 26px;
-    gap: 14px;
+    min-height: 460px;
+    padding: 34px 24px 24px;
+    gap: 24px;
+    background-position: center, 42% center;
   }
   #login-overlay .lg-brand-wordmark { gap: 14px; }
   #login-overlay .lg-brand-seal { width: 60px; height: 60px; }
   #login-overlay .lg-brand-name { font-size: 22px; }
   #login-overlay .lg-brand-tagline { font-size: 11px; }
   #login-overlay .lg-brand-sub { margin-top: 12px; }
-  #login-overlay .lg-brand-contacts,
   #login-overlay .lg-glass,
   #login-overlay .lg-brand-text { display: none; }
+  #login-overlay .lg-brand-contacts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px 14px;
+  }
+  #login-overlay .lg-contact:last-child { grid-column: 1 / -1; }
+  #login-overlay .lg-contact-text strong { font-size: 11px; }
   #login-overlay .lg-side { padding: 28px 20px 48px; align-items: flex-start; }
   #login-overlay .lg-card { max-width: 535px; margin: 0 auto; }
   #login-overlay.lg-with-return .lg-brand { padding-top: 74px; }
   #login-overlay.lg-with-return .lg-side { padding-top: 24px; }
 }
 @media (max-width: 480px) {
-  #login-overlay .lg-brand { padding: 24px 18px; }
+  #login-overlay .lg-brand { min-height: 450px; padding: 26px 18px 22px; }
   #login-overlay .lg-brand-name { font-size: 20px; }
   #login-overlay .lg-side { padding: 20px 14px 36px; }
   #login-overlay .lg-card { border-radius: 20px; }
   #login-overlay.lg-with-return .lg-brand { padding-top: 75px; }
+  #login-overlay .lg-brand-contacts { gap: 9px 10px; }
+  #login-overlay .lg-contact { gap: 6px; }
+  #login-overlay .lg-contact-icon { flex-basis: 20px; width: 20px; }
 }
