@@ -74,8 +74,8 @@ Students sign in with their **student ID (or saved email) and password**, then e
 
 | | Administrator | Student |
 |---|---|---|
-| Dashboard, Emergency Contacts, Drill Scheduling, Evacuation Plans, Incident Logging, Safety Inspections, Parent Notifications, First Aid Supplies | yes | yes |
-| Risk Assessment, Safety Reports, **Accounts** (create/delete users) | yes | no |
+| Dashboard, Emergency Contacts, Evacuation Map & Plans, Incident Reporting | yes | yes |
+| Drill Scheduling, Safety Inspections, Parent Notifications, First Aid Supplies, Risk Assessment, Safety Reports, **Accounts** (create/delete users) | yes | no |
 
 Admin tabs sit under their own *Administrator* heading in the sidebar and are not shown (or reachable) for students. The stored role value stays `client` (Supabase `app_metadata.role` and `users.role`); the UI maps it to the label **Student** through `js/labels.js`. In the Student workspace the incident page is worded *Report Incident* / *Save Report*, and the two supply charts on the dashboard are administrators-only.
 
