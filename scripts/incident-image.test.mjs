@@ -4,9 +4,13 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 
-test('incident report offers an optional image picker with validation and preview', () => {
+test('incident reports require a valid image and display a bounded preview', () => {
   const src = read('js/modules/incidents.js');
-  assert.ok(src.includes('Attach image (optional)'));
+  assert.ok(src.includes('Attach incident image (required)'));
+  assert.ok(src.includes('Attach an image before submitting your incident report.'));
+  assert.ok(src.includes('required: true'));
+  assert.ok(src.includes('api.validateIncidentImage(f.image)'));
+  assert.ok(src.includes("maxHeight: '210px'"));
   assert.ok(src.includes("accept: 'image/jpeg,image/png,image/webp'"));
   assert.ok(src.includes('URL.createObjectURL(file)'));
   assert.ok(src.includes('URL.revokeObjectURL(previewUrl)'));
@@ -51,4 +55,15 @@ test('migration limits deletion to admins and incident images to private signed-
   assert.ok(src.includes('incident_evidence_delete_unlinked'));
   assert.ok(src.includes('incident_photo_path_insert_owner'));
   assert.ok(src.includes('AS RESTRICTIVE FOR INSERT TO authenticated'));
+});
+
+test('timestamp migration fixes the null date failure without trusting client clocks', () => {
+  const src = read('supabase/migrations/20261103113000_restore_incident_timestamps_require_student_image.sql');
+  assert.ok(src.includes('reported_at := statement_timestamp()'));
+  assert.ok(src.includes("NEW.date := (reported_at AT TIME ZONE 'Asia/Manila')::date"));
+  assert.ok(src.includes("NEW.time := to_char(reported_at AT TIME ZONE 'Asia/Manila'"));
+  assert.ok(src.includes("NEW.date := OLD.date"));
+  assert.ok(src.includes('incident_image_required_for_students'));
+  assert.ok(src.includes('AS RESTRICTIVE FOR INSERT TO authenticated'));
+  assert.ok(src.includes('OR photo_path IS NOT NULL'));
 });
