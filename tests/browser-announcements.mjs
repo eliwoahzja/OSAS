@@ -69,7 +69,7 @@ async function scenario(role) {
     return route.abort('blockedbyclient');
   });
   await page.goto(`${origin}/#/dashboard`);
-  await page.getByRole('heading', { name: 'Announcement board', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Announcements', exact: true }).waitFor();
   const board = page.locator('.announcement-board');
   await board.scrollIntoViewIfNeeded();
   return { page, context, board, errors };
@@ -139,17 +139,28 @@ try {
   // Multiple pages, stable refresh and mobile layout.
   rows = Array.from({ length: 3 }, (_, i) => ({ id: 'page-' + i, title: 'School update ' + (i + 1), body: 'Updates and reminders for students.\nPlease follow school staff instructions.', image_path: ['assets/announcements/long-spookend.jpg', 'assets/announcements/teachers-day.jpg', 'assets/announcements/dance-troupe-auditions.jpg'][i], author_name: 'OSAS Administrator', created_at: '2026-11-03T05:00:00Z', updated_at: '2026-11-03T05:00:00Z' }));
   await student.page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await student.board.getByRole('heading', { name: 'School update 1', exact: true }).waitFor();
+  await student.board.getByRole('article', { name: 'School update 1', exact: true }).waitFor();
   assert.equal(await student.board.locator('article').count(), 2);
-  await student.board.locator('.announcement-poster img').last().waitFor();
+  for (const image of await student.board.locator('.announcement-poster img').all()) await image.scrollIntoViewIfNeeded();
+  await student.page.waitForFunction(() => [...document.querySelectorAll('.announcement-poster img')].every(img => img.complete && img.naturalWidth > 0));
+  assert.equal(await student.board.locator('.announcement-author,.announcement-avatar').count(), 0);
+  assert.equal(await student.board.locator('h4').count(), 0);
+  const posterLayout = await student.board.locator('article').first().evaluate(article => {
+    const image = article.querySelector('img').getBoundingClientRect();
+    const footer = article.querySelector('.announcement-footer').getBoundingClientRect();
+    const link = article.querySelector('.announcement-poster').getBoundingClientRect();
+    return { fullWidth: Math.abs(image.width - link.width) < 1, dateBelow: footer.top >= image.bottom };
+  });
+  assert.deepEqual(posterLayout, { fullWidth: true, dateBelow: true });
   assert.equal(await student.board.locator('.announcement-poster img').evaluateAll(images => images.every(img => img.complete && img.naturalWidth > 0)), true);
   await student.board.getByRole('button', { name: 'Next', exact: true }).click();
-  await student.board.getByRole('heading', { name: 'School update 3', exact: true }).waitFor();
+  await student.board.getByRole('article', { name: 'School update 3', exact: true }).waitFor();
   assert.equal(await student.board.locator('article').count(), 1);
   assert.equal(await student.board.getByRole('button', { name: 'Next', exact: true }).isEnabled(), false);
   await student.board.getByRole('button', { name: 'Previous', exact: true }).click();
-  await student.board.getByRole('heading', { name: 'School update 1', exact: true }).waitFor();
+  await student.board.getByRole('article', { name: 'School update 1', exact: true }).waitFor();
   await mkdir('/tmp/osas-announcements', { recursive: true });
+  await student.board.locator('.announcement-heading').scrollIntoViewIfNeeded();
   await student.page.screenshot({ path: '/tmp/osas-announcements/student-desktop.png', fullPage: true });
   await student.page.setViewportSize({ width: 390, height: 844 });
   await student.page.waitForFunction(() => document.getElementById('sidebar').getBoundingClientRect().right <= 1);

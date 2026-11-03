@@ -20,11 +20,7 @@ export function createAnnouncementBoard() {
   const navigation = h('nav', { class: 'announcement-pagination', 'aria-label': 'Announcement pages', hidden: true });
   const element = h('section', { class: 'announcement-board', 'aria-labelledby': 'announcement-board-title' },
     h('header', { class: 'announcement-heading' },
-      h('div', {},
-        h('p', { class: 'osas-section-label' }, 'From the school'),
-        h('h3', { id: 'announcement-board-title', class: 'osas-h3' }, 'Announcement board'),
-        h('p', { class: 'osas-sub' }, admin ? 'Post updates for all students to see on their dashboard.' : 'The latest updates and reminders from OSAS.'),
-      ),
+      h('h3', { id: 'announcement-board-title' }, icon('bullhorn'), 'Announcements'),
       admin && h('button', { type: 'button', class: 'btn-primary', onclick: () => edit() }, icon('add'), 'Post announcement'),
     ),
     error, list, navigation,
@@ -44,17 +40,19 @@ export function createAnnouncementBoard() {
   function card(row) {
     const imagePath = /^assets\/announcements\/[a-z0-9-]+\.jpg$/.test(row.image_path || '') ? '/' + row.image_path : null;
     const date = new Date(row.created_at);
-    const dateLabel = Number.isNaN(date.getTime()) ? 'Recently posted' : new Intl.DateTimeFormat('en-PH', {
-      timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
-    }).format(date);
+    const dateLabel = Number.isNaN(date.getTime()) ? 'Recently posted'
+      : new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', month: 'long', day: '2-digit', year: 'numeric' }).format(date)
+        + ' ' + new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit', second: '2-digit' }).format(date);
     return h('article', { class: 'announcement-card', 'aria-label': row.title },
-      h('div', { class: 'announcement-card-top' },
-        h('div', { class: 'announcement-byline' },
-          h('span', { class: 'announcement-avatar' }, icon('bullhorn')),
-          h('div', {},
-            h('p', { class: 'announcement-author' }, row.author_name || 'OSAS Administrator'),
-            h('p', { class: 'announcement-date' }, h('time', { datetime: row.created_at }, dateLabel), row.updated_at !== row.created_at ? ' · Edited' : ''),
-          ),
+      imagePath ? h('a', { class: 'announcement-poster', href: imagePath, target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Open full poster: ' + row.title },
+        h('img', { src: imagePath, alt: row.title + '. ' + row.body, loading: 'lazy', decoding: 'async' }),
+      ) : h('div', { class: 'announcement-text' },
+        h('h4', { class: 'announcement-title' }, row.title),
+        h('p', { class: 'announcement-body' }, row.body),
+      ),
+      h('div', { class: 'announcement-footer' },
+        h('p', { class: 'announcement-date' },
+          h('time', { datetime: row.created_at }, dateLabel), row.updated_at !== row.created_at ? ' · Edited' : '',
         ),
         admin && h('div', { class: 'announcement-actions' },
           h('button', { type: 'button', class: 'btn-ghost', 'aria-label': 'Edit announcement: ' + row.title, onclick: () => edit(row) }, icon('pen'), 'Edit'),
@@ -63,16 +61,6 @@ export function createAnnouncementBoard() {
             description: 'This removes the announcement from every student’s board. This cannot be undone.',
             actionLabel: 'Delete announcement', successMessage: 'Announcement deleted.',
           }) }, icon('trash-can'), 'Delete'),
-        ),
-      ),
-      h('div', { class: 'announcement-content' + (imagePath ? ' has-poster' : '') },
-        h('div', {},
-          h('h4', { class: 'announcement-title' }, row.title),
-          h('p', { class: 'announcement-body' }, row.body),
-        ),
-        imagePath && h('a', { class: 'announcement-poster', href: imagePath, target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Open full poster: ' + row.title },
-          h('img', { src: imagePath, alt: row.title + ' poster', loading: 'lazy', decoding: 'async' }),
-          h('span', {}, icon('expand'), 'View full poster'),
         ),
       ),
     );

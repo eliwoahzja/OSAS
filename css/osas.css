@@ -114,38 +114,35 @@ pre::-webkit-scrollbar-thumb:hover,
 }
 
 /* School announcements sit below dashboard analytics in both workspaces. */
-.announcement-board { min-width: 0; }
-.announcement-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
-.announcement-heading .osas-sub { margin-top: 4px; }
+.announcement-board { min-width: 0; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; }
+.announcement-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 28px 28px; }
+.announcement-heading h3 { display: flex; align-items: center; gap: 9px; color: #303a42; font-size: 17px; font-weight: 650; }
+.announcement-heading h3 i { color: #7c8790; }
 .announcement-heading > button { flex-shrink: 0; }
-.announcement-list { display: grid; gap: 16px; }
-.announcement-card { background: #fff; border: 1px solid #ede7e9; border-radius: 24px; padding: 24px; box-shadow: 0 1px 2px #241a2205; min-width: 0; }
-.announcement-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
-.announcement-byline { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.announcement-avatar { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #9b2452; background: #fdf0f5; flex-shrink: 0; }
-.announcement-author { font-size: 13px; font-weight: 700; color: #3e3039; overflow-wrap: anywhere; }
-.announcement-date { margin-top: 3px; font-size: 12px; color: #79707a; }
+.announcement-list { padding: 0 48px; }
+.announcement-card { border-top: 1px solid #e5e7eb; padding: 14px 20px 16px; min-width: 0; }
+.announcement-poster { display: block; width: 100%; }
+.announcement-poster img { display: block; width: 100%; height: auto; }
+.announcement-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; }
+.announcement-date { font-size: 11px; font-weight: 500; color: #7c8790; }
 .announcement-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
-.announcement-actions .btn-ghost { padding: 8px 12px; font-size: 12px; }
+.announcement-actions .btn-ghost { padding: 6px 10px; font-size: 12px; }
 .announcement-title { font-size: 19px; font-weight: 750; letter-spacing: -.025em; color: #241a22; overflow-wrap: anywhere; }
 .announcement-body { margin-top: 8px; font-size: 14px; line-height: 1.8; color: #605761; white-space: pre-wrap; overflow-wrap: anywhere; }
-.announcement-content.has-poster { display: grid; grid-template-columns: minmax(0,1fr) 180px; align-items: start; gap: 20px; }
-.announcement-poster { display: flex; align-items: center; flex-direction: column; gap: 8px; color: #9b2452; font-size: 12px; font-weight: 600; }
-.announcement-poster img { width: auto; max-width: 100%; height: auto; max-height: 220px; object-fit: contain; border-radius: 12px; }
-.announcement-poster span { display: inline-flex; align-items: center; gap: 6px; }
-.announcement-state { padding: 36px 24px; text-align: center; background: #ffffffa8; border: 1px dashed #ddd2d8; border-radius: 24px; color: #79707a; font-size: 14px; }
+.announcement-text { padding: 12px 0; }
+.announcement-state { padding: 36px 16px; text-align: center; color: #79707a; font-size: 14px; border-top: 1px solid #e5e7eb; }
 .announcement-state h4 { margin: 12px 0 4px; font-weight: 700; color: #3e3039; }
-.announcement-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 16px; padding: 16px; margin-bottom: 16px; color: #9f1239; font-size: 14px; }
-.announcement-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin-top: 20px; font-size: 13px; color: #79707a; }
+.announcement-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff1f2; border: 1px solid #fecdd3; padding: 16px; margin: 0 24px 16px; color: #9f1239; font-size: 14px; }
+.announcement-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 16px; padding: 16px 28px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #79707a; }
 .announcement-board [hidden] { display: none; }
 .announcement-board button:disabled { opacity: .45; cursor: default; }
 @media (max-width: 640px) {
-  .announcement-heading { align-items: flex-start; flex-direction: column; gap: 16px; }
-  .announcement-card { padding: 20px; }
-  .announcement-card-top { flex-direction: column; }
-  .announcement-actions { align-self: flex-end; }
-  .announcement-error { align-items: flex-start; flex-direction: column; }
-  .announcement-content.has-poster { grid-template-columns: minmax(0,1fr); }
+  .announcement-heading { padding: 16px; flex-wrap: wrap; }
+  .announcement-list { padding: 0 12px; }
+  .announcement-card { padding: 12px 0; }
+  .announcement-footer { align-items: flex-start; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+  .announcement-error { align-items: flex-start; flex-direction: column; margin: 0 12px 12px; }
+  .announcement-pagination { padding: 12px; gap: 12px; }
 }
 .yearly-chart-plot { display: flex; justify-content: space-around; gap: 20px; overflow-x: auto; padding: 12px 8px 0; margin-top: 8px; }
 .yearly-chart-column { flex: 1 0 44px; max-width: 96px; display: flex; flex-direction: column; align-items: center; }
