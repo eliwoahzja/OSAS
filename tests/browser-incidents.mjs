@@ -14,13 +14,14 @@ const browser = await chromium.launch({
 });
 const ownId = '11111111-1111-4111-8111-111111111111';
 const otherId = '22222222-2222-4222-8222-222222222222';
+const evidencePaths = Array.from({ length: 8 }, (_, index) => `${ownId}/00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}.png`);
 const incident = (id, reporterId, description, createdAt = '2026-10-29T16:30:00Z') => ({
   id, submitted_by: reporterId, reporter: reporterId === ownId ? 'Student One' : 'Student Two',
   description, date: '2026-10-29', time: '10:30 AM', status: 'open',
   type: null, severity: null, location: null, created_at: createdAt,
 });
 
-async function scenario(role, empty = false) {
+async function scenario(role, empty = false, evidence = false) {
   const context = await browser.newContext({ viewport: { width: 1200, height: 900 }, timezoneId: 'America/Los_Angeles' });
   const page = await context.newPage();
   const errors = [];
@@ -29,6 +30,8 @@ async function scenario(role, empty = false) {
   const patches = [];
   const storageUploads = [];
   let rows = empty ? [] : [incident('own-report', ownId, 'My original report'), incident('other-report', otherId, 'Private report from someone else', null)];
+  if (evidence) Object.assign(rows[0], { photo_path: evidencePaths[0], photo_paths: evidencePaths });
+  let failImageSign = false;
   let rejectSave = false;
   page.on('pageerror', (error) => errors.push(error.message));
   await page.route('**/*', async (route) => {
@@ -52,6 +55,21 @@ async function scenario(role, empty = false) {
       ` });
     }
     if (url.origin === 'https://unit-test.supabase.co') {
+      if (url.pathname.startsWith('/storage/v1/object/sign/incident-evidence/')) {
+        const path = url.pathname.split('/incident-evidence/')[1];
+        const index = evidencePaths.indexOf(path);
+        assert.ok(index >= 0);
+        if (request.method() === 'POST') {
+          assert.equal(request.headers().authorization, 'Bearer test-access-token');
+          if (failImageSign && index === 7) return route.fulfill({ status: 403, contentType: 'application/json', body: '{"message":"Image unavailable in test"}' });
+          return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ signedURL: '/object/sign/incident-evidence/' + path + '?token=test' }) });
+        }
+        assert.equal(request.method(), 'GET');
+        // Deliberately mix a very wide banner and tall portraits.
+        const width = index % 2 ? 300 : 1000;
+        const height = index % 2 ? 900 : 250;
+        return route.fulfill({ contentType: 'image/svg+xml', body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="${index % 2 ? '#81254d' : '#e6bd79'}"/><text x="20" y="70" font-size="40">Image ${index + 1}</text></svg>` });
+      }
       if (url.pathname.startsWith('/storage/v1/object/incident-evidence/')) {
         if (request.method() === 'POST') {
           storageUploads.push(url.pathname);
@@ -89,7 +107,7 @@ async function scenario(role, empty = false) {
   });
   await page.goto(`${origin}/__incident_test`);
   await page.getByRole('heading', { name: role === 'admin' ? 'Incident Logging' : 'Report Incident', exact: true }).waitFor();
-  return { page, context, requests, posts, patches, storageUploads, errors, failSave: () => { rejectSave = true; } };
+  return { page, context, requests, posts, patches, storageUploads, errors, failSave: () => { rejectSave = true; }, failImageSign: () => { failImageSign = true; } };
 }
 
 try {
@@ -183,7 +201,46 @@ try {
   }
   assert.deepEqual(empty.errors, []);
   await empty.context.close();
-  console.log('Browser incidents OK: exact column order, Manila report timestamps, legacy timestamp fallback, status-only admin action, client privacy, multiple mandatory images, immutable reporter, server-owned timestamps, save/reload, empty state, failed save retry. All backend traffic intercepted.');
+  for (const role of ['client', 'admin']) {
+    const gallery = await scenario(role, false, true);
+    await gallery.page.getByRole('button', { name: 'View 8 attached incident images', exact: true }).click();
+    const dialog = gallery.page.getByRole('dialog', { name: 'Incident evidence (8)', exact: true });
+    await dialog.getByRole('link', { name: 'Open incident image 8', exact: true }).waitFor();
+    await gallery.page.waitForFunction(() => [...document.querySelectorAll('.incident-evidence-frame img')].every(img => img.complete && img.naturalWidth));
+    const dimensions = await dialog.locator('.incident-evidence-frame').evaluateAll(frames => frames.map(frame => frame.getBoundingClientRect().height));
+    assert.equal(dimensions.length, 8);
+    assert.ok(Math.max(...dimensions) - Math.min(...dimensions) <= 1, 'Wide and portrait evidence must use equal-sized frames');
+    assert.ok(await dialog.locator('img').evaluateAll(images => images.every(img => getComputedStyle(img).objectFit === 'contain')), 'Evidence must not be cropped');
+    assert.equal(new URL(await dialog.getByRole('link', { name: 'Open incident image 1', exact: true }).getAttribute('href')).origin, 'https://unit-test.supabase.co');
+    for (const viewport of [{ width: 390, height: 600 }, { width: 844, height: 390 }]) {
+      await gallery.page.setViewportSize(viewport);
+      await dialog.locator('.incident-evidence-gallery').evaluate(el => { el.scrollTop = el.scrollHeight; });
+      const layout = await dialog.evaluate(el => {
+        const box = el.getBoundingClientRect();
+        const close = el.querySelector('footer button').getBoundingClientRect();
+        const grid = el.querySelector('.incident-evidence-gallery');
+        return { fits: box.top >= 0 && box.bottom <= window.innerHeight, closeVisible: close.top >= 0 && close.bottom <= window.innerHeight,
+          noHorizontalOverflow: el.scrollWidth <= el.clientWidth, scrollable: grid.scrollHeight > grid.clientHeight };
+      });
+      assert.deepEqual(layout, { fits: true, closeVisible: true, noHorizontalOverflow: true, scrollable: true });
+      if (process.env.TEST_SCREENSHOT_DIR) {
+        await mkdir(process.env.TEST_SCREENSHOT_DIR, { recursive: true });
+        await dialog.locator('.incident-evidence-gallery').evaluate(el => { el.scrollTop = 0; });
+        await gallery.page.screenshot({ path: `${process.env.TEST_SCREENSHOT_DIR}/evidence-${role}-${viewport.width}.png` });
+      }
+    }
+    await gallery.page.getByRole('button', { name: 'Close', exact: true }).click();
+    await dialog.waitFor({ state: 'detached' });
+    gallery.failImageSign();
+    await gallery.page.getByRole('button', { name: 'View 8 attached incident images', exact: true }).click();
+    await dialog.getByRole('alert').filter({ hasText: 'Image 8 could not be opened.' }).waitFor();
+    assert.equal(await dialog.getByRole('link').count(), 7);
+    await dialog.getByRole('button', { name: 'Close incident evidence', exact: true }).click();
+    await dialog.waitFor({ state: 'detached' });
+    assert.deepEqual(gallery.errors, []);
+    await gallery.context.close();
+  }
+  console.log('Browser incidents OK: report privacy, timestamps, uploads and retries; eight-image gallery with uniform uncropped previews, mobile/landscape scrolling, visible Close controls, and unavailable-image handling for students and admins. All backend traffic intercepted.');
 } finally {
   await browser.close();
 }

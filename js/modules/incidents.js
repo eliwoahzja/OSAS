@@ -180,29 +180,34 @@ function incidentImagePaths(record) {
 async function openIncidentImages(record) {
   const paths = incidentImagePaths(record);
   if (!paths.length) return;
-  const body = h('div', { class: 'p-5 sm:p-7 space-y-4 w-full max-w-3xl' },
-    h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Incident evidence (' + paths.length + ')'),
-    h('p', { class: 'text-xs text-gray-500' }, 'Only the reporting student and authorized administrators may access these images.'),
-    h('div', { class: 'text-sm text-gray-500', role: 'status' }, 'Loading images…'));
+  const body = h('div', { class: 'incident-evidence-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'incident-evidence-title' });
   const modal = openModal(body, { delay: 0 });
+  const header = h('header', { class: 'incident-evidence-header' },
+    h('div', {},
+      h('h3', { id: 'incident-evidence-title' }, 'Incident evidence (' + paths.length + ')'),
+      h('p', {}, 'Select an image to open the full size.'),
+    ),
+    h('button', { type: 'button', class: 'btn-ghost', 'aria-label': 'Close incident evidence', onclick: () => modal.close() }, icon('close')),
+  );
+  const content = h('div', { class: 'incident-evidence-content', role: 'status' }, 'Loading images…');
+  const footer = h('footer', { class: 'incident-evidence-footer' },
+    h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Close'));
+  body.append(header, content, footer);
   const results = await Promise.allSettled(paths.map((path) => api.getIncidentEvidenceUrl(path)));
-  const gallery = h('div', { class: 'grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[65vh] overflow-y-auto' },
+  if (!body.isConnected) return;
+  const gallery = h('div', { class: 'incident-evidence-gallery', 'aria-label': 'Attached incident images' },
     results.map((result, index) => result.status === 'fulfilled'
       ? h('a', { href: result.value, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer',
-          class: 'block rounded-xl border border-gray-200 bg-gray-50 p-2 text-center',
+          class: 'incident-evidence-tile',
           'aria-label': 'Open incident image ' + (index + 1) },
-          h('img', { src: result.value, alt: 'Incident evidence image ' + (index + 1),
-            referrerpolicy: 'no-referrer',
-            class: 'block w-full max-h-[260px] object-contain rounded-lg' }),
-          h('span', { class: 'block mt-2 text-xs text-gray-600' }, 'Image ' + (index + 1) + ' of ' + paths.length))
-      : h('div', { class: 'p-4 rounded-lg border border-red-200 text-sm text-red-700', role: 'alert' },
-          'Image ' + (index + 1) + ' could not be opened.')));
-  body.replaceChildren(
-    h('h3', { class: 'text-lg font-bold text-gray-900' }, 'Incident evidence (' + paths.length + ')'),
-    h('p', { class: 'text-xs text-gray-500' }, 'Select an image to open a larger view.'),
-    gallery,
-    h('div', { class: 'flex justify-end' },
-      h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Close')));
+          h('span', { class: 'incident-evidence-frame' },
+            h('img', { src: result.value, alt: 'Incident evidence image ' + (index + 1), referrerpolicy: 'no-referrer' })),
+          h('span', { class: 'incident-evidence-caption' }, 'Image ' + (index + 1) + ' of ' + paths.length))
+      : h('div', { class: 'incident-evidence-tile incident-evidence-unavailable', role: 'alert' },
+          h('span', { class: 'incident-evidence-frame' }, 'Image ' + (index + 1) + ' could not be opened.'),
+          h('span', { class: 'incident-evidence-caption' }, 'Image ' + (index + 1) + ' of ' + paths.length))));
+  content.removeAttribute('role');
+  content.replaceWith(gallery);
 }
 
 function reportDateTime(record) {
