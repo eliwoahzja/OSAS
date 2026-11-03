@@ -3,7 +3,7 @@ import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { recordForm, confirmDelete } from './record-actions.js';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 2;
 const fields = [
   { key: 'title', label: 'Title', required: true, maxLength: 120, wide: true, placeholder: 'What should students know?' },
   { key: 'body', label: 'Message', type: 'textarea', required: true, maxLength: 5000, wide: true, placeholder: 'Write your announcement…' },
@@ -42,6 +42,7 @@ export function createAnnouncementBoard() {
   }
 
   function card(row) {
+    const imagePath = /^assets\/announcements\/[a-z0-9-]+\.jpg$/.test(row.image_path || '') ? '/' + row.image_path : null;
     const date = new Date(row.created_at);
     const dateLabel = Number.isNaN(date.getTime()) ? 'Recently posted' : new Intl.DateTimeFormat('en-PH', {
       timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
@@ -64,8 +65,16 @@ export function createAnnouncementBoard() {
           }) }, icon('trash-can'), 'Delete'),
         ),
       ),
-      h('h4', { class: 'announcement-title' }, row.title),
-      h('p', { class: 'announcement-body' }, row.body),
+      h('div', { class: 'announcement-content' + (imagePath ? ' has-poster' : '') },
+        h('div', {},
+          h('h4', { class: 'announcement-title' }, row.title),
+          h('p', { class: 'announcement-body' }, row.body),
+        ),
+        imagePath && h('a', { class: 'announcement-poster', href: imagePath, target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Open full poster: ' + row.title },
+          h('img', { src: imagePath, alt: row.title + ' poster', loading: 'lazy', decoding: 'async' }),
+          h('span', {}, icon('expand'), 'View full poster'),
+        ),
+      ),
     );
   }
 

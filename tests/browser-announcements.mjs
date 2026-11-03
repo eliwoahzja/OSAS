@@ -36,6 +36,10 @@ async function scenario(role) {
       export const subscribeIncidentChanges=async()=>()=>{};
     ` });
     if (url.origin === backend) {
+      if (url.pathname === '/rest/v1/incidents') return route.fulfill({ contentType: 'application/json', body: JSON.stringify([
+        { id: 'incident-1', submitted_by: '11111111-1111-4111-8111-111111111111', date: '2026-11-03', created_at: '2026-11-03T05:00:00Z', status: 'open', type: null },
+        { id: 'incident-2', submitted_by: '11111111-1111-4111-8111-111111111111', date: '2026-11-03', created_at: '2026-11-03T06:00:00Z', status: 'resolved', type: null },
+      ]) });
       if (url.pathname !== '/rest/v1/announcements') return route.fulfill({ contentType: 'application/json', body: '[]' });
       requests.push({ role, method: req.method() });
       assert.equal(req.headers().authorization, 'Bearer test-token');
@@ -96,6 +100,11 @@ try {
     const board = document.querySelector('.announcement-board');
     return !!charts && Boolean(charts.compareDocumentPosition(board) & Node.DOCUMENT_POSITION_FOLLOWING);
   }), true, 'The board must follow the student graphs');
+  await student.page.getByRole('heading', { name: 'Incidents by Status', exact: true }).waitFor();
+  assert.equal(await student.page.getByRole('heading', { name: 'Incidents by Type', exact: true }).count(), 0);
+  const yearBar = student.page.locator('.yearly-chart-bar');
+  assert.equal(await yearBar.locator('.yearly-chart-value').textContent(), '2');
+  assert.ok(await yearBar.evaluate(el => el.getBoundingClientRect().height) > 50, 'A single year must show a visible bar');
 
   await admin.board.getByRole('button', { name: 'Edit announcement: Campus safety reminder', exact: true }).click();
   form = admin.page.locator('.osas-modal-card form');
@@ -128,13 +137,16 @@ try {
   await admin.board.getByText('No announcements yet', { exact: true }).waitFor();
 
   // Multiple pages, stable refresh and mobile layout.
-  rows = Array.from({ length: 12 }, (_, i) => ({ id: 'page-' + i, title: 'School update ' + (i + 1), body: 'Updates and reminders for students.\nPlease follow school staff instructions.', author_name: 'OSAS Administrator', created_at: '2026-11-03T05:00:00Z', updated_at: '2026-11-03T05:00:00Z' }));
+  rows = Array.from({ length: 3 }, (_, i) => ({ id: 'page-' + i, title: 'School update ' + (i + 1), body: 'Updates and reminders for students.\nPlease follow school staff instructions.', image_path: ['assets/announcements/long-spookend.jpg', 'assets/announcements/teachers-day.jpg', 'assets/announcements/dance-troupe-auditions.jpg'][i], author_name: 'OSAS Administrator', created_at: '2026-11-03T05:00:00Z', updated_at: '2026-11-03T05:00:00Z' }));
   await student.page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await student.board.getByRole('heading', { name: 'School update 1', exact: true }).waitFor();
-  assert.equal(await student.board.locator('article').count(), 10);
-  await student.board.getByRole('button', { name: 'Next', exact: true }).click();
-  await student.board.getByRole('heading', { name: 'School update 11', exact: true }).waitFor();
   assert.equal(await student.board.locator('article').count(), 2);
+  await student.board.locator('.announcement-poster img').last().waitFor();
+  assert.equal(await student.board.locator('.announcement-poster img').evaluateAll(images => images.every(img => img.complete && img.naturalWidth > 0)), true);
+  await student.board.getByRole('button', { name: 'Next', exact: true }).click();
+  await student.board.getByRole('heading', { name: 'School update 3', exact: true }).waitFor();
+  assert.equal(await student.board.locator('article').count(), 1);
+  assert.equal(await student.board.getByRole('button', { name: 'Next', exact: true }).isEnabled(), false);
   await student.board.getByRole('button', { name: 'Previous', exact: true }).click();
   await student.board.getByRole('heading', { name: 'School update 1', exact: true }).waitFor();
   await mkdir('/tmp/osas-announcements', { recursive: true });
@@ -149,5 +161,5 @@ try {
   assert.ok(requests.filter(r => r.role === 'client').every(r => r.method === 'GET'));
   await admin.context.close();
   await student.context.close();
-  console.log('Announcements browser OK: below student graphs, admin publish/edit/delete, save retry, read-only students, refresh/retry, text safety, pagination and mobile layout.');
+  console.log('Announcements browser OK: status counts, single-year bars, admin publish/edit/delete, save retry, read-only students, refresh/retry, text safety, two-post pages, posters and mobile layout.');
 } finally { await browser.close(); }

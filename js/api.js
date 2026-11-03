@@ -201,7 +201,7 @@ export async function listAnnouncements({ limit = 11, offset = 0 } = {}) {
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || String(b.id).localeCompare(String(a.id)))
     .slice(start, start + size);
   return await restFetch('GET', 'announcements', { query: {
-    select: 'id,title,body,author_name,created_at,updated_at', order: 'created_at.desc,id.desc', limit: size, offset: start,
+    select: 'id,title,body,image_path,author_name,created_at,updated_at', order: 'created_at.desc,id.desc', limit: size, offset: start,
   } }) || [];
 }
 
@@ -377,7 +377,7 @@ export async function getDashboardStats() {
     );
   }
   const [incidents, inspections, drills, supplies, contacts] = await Promise.all([
-    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,type,status,submitted_by', order: 'id.asc', offset, limit, ...(!auth.isAdmin() ? { submitted_by: `eq.${auth.currentUser()?.id}` } : {}) } })),
+    fetchEveryPage((offset, limit) => restFetch('GET', 'incidents', { query: { select: 'id,date,created_at,type,status,submitted_by', order: 'id.asc', offset, limit, ...(!auth.isAdmin() ? { submitted_by: `eq.${auth.currentUser()?.id}` } : {}) } })),
     includeSupplies ? restFetch('GET', 'inspections', { query: { select: '*' } }) : [],
     includeSupplies ? restFetch('GET', 'drills', { query: { select: '*' } }) : [],
     includeSupplies ? restFetch('GET', 'supplies', { query: { select: '*' } }) : [],

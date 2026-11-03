@@ -1,14 +1,18 @@
 export function computeStats(incidents, inspections, drills, supplies, contacts) {
   const typeCount = {};
   incidents.forEach((i) => { const type = i.type || 'Unclassified'; typeCount[type] = (typeCount[type] || 0) + 1; });
+  const reportStatuses = {};
+  incidents.forEach((i) => { const status = i.status || 'open'; reportStatuses[status] = (reportStatuses[status] || 0) + 1; });
   const statusCount = {};
   inspections.forEach((i) => { statusCount[i.status] = (statusCount[i.status] || 0) + 1; });
   const total = inspections.length || 1;
 
   const yearMap = {};
   incidents.forEach((i) => {
-    const d = String(i.date || '');
-    const year = parseInt(d.slice(0, 4), 10);
+    const timestamp = i.created_at ? new Date(i.created_at) : null;
+    const year = timestamp && !Number.isNaN(timestamp.getTime())
+      ? Number(new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Manila', year: 'numeric' }).format(timestamp))
+      : parseInt(String(i.date || '').slice(0, 4), 10);
     if (!year) return;
     if (!yearMap[year]) yearMap[year] = { year, incidents: 0, byType: {} };
     yearMap[year].incidents++;
@@ -61,6 +65,7 @@ export function computeStats(incidents, inspections, drills, supplies, contacts)
     emergency_contacts_total: contacts.filter((r) => r.category === undefined || r.category === 'school').length,
     compliance_score: Math.round((inspections_passed / total) * 100),
     incident_breakdown: Object.entries(typeCount).map(([label, value]) => ({ label, value })),
+    incident_status: Object.entries(reportStatuses).map(([status, value]) => ({ label: status.charAt(0).toUpperCase() + status.slice(1), value })),
     inspection_status: Object.entries(statusCount).map(([label, value]) => ({ label, value })),
     years_by_year,
   };

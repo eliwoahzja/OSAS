@@ -20,6 +20,15 @@ test('reports awaiting admin classification are counted without invented types',
   assert.deepEqual(result.incident_breakdown, [{label:'Unclassified',value:1}]);
   assert.deepEqual(result.years_by_year[0].byType, {Unclassified:1});
 });
+test('student status counts remain useful without incident types and yearly counts use Philippine submission time', () => {
+  const stats = computeStats([
+    { type: null, status: 'open', created_at: '2026-12-31T16:30:00Z', date: '2026-12-31' },
+    { type: null, status: 'resolved', created_at: '2026-01-10T00:00:00Z' },
+    { type: null, status: 'open', created_at: 'invalid', date: '2025-11-03' },
+  ], [], [], [], []);
+  assert.deepEqual(stats.incident_status, [{ label: 'Open', value: 2 }, { label: 'Resolved', value: 1 }]);
+  assert.deepEqual(stats.years_by_year.map(row => [row.year, row.incidents]), [[2025, 1], [2026, 1], [2027, 1]]);
+});
 test('all incident pages are fetched beyond the API row limit', async () => {
   const dataset = Array.from({ length: 2005 }, (_, id) => ({ id })); const offsets = [];
   const rows = await fetchEveryPage(async (offset, limit) => { offsets.push(offset); return dataset.slice(offset, offset + limit); });

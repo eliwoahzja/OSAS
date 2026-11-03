@@ -542,7 +542,7 @@ function drawStats(box, s) {
   // First-aid stock is school-confidential: only the Administrator workspace
   // renders these two charts, and only the admin dashboard fetches the rows.
   const analyticsCharts = [
-    barChart(s.incident_breakdown || [], { title: 'Incidents by Type' }),
+    barChart(admin ? s.incident_breakdown || [] : s.incident_status || [], { title: admin ? 'Incidents by Type' : 'Incidents by Status' }),
     ...(admin ? [pieChart(s.inspection_status || [], { title: 'Inspection Status', centerLabel: 'Inspections' })] : []),
   ];
   if (admin) {
@@ -557,7 +557,7 @@ function drawStats(box, s) {
       h('h3', { class: 'text-[28px] font-extrabold text-gray-900 tracking-tight' }, admin ? 'Incident, Inspection & Supplies Health' : 'Incident Reports'),
       h('p', { class: 'text-[15px] text-gray-500 mt-1' }, admin
         ? 'Live breakdown of supplies inventory, incidents, and inspection status.'
-        : 'Live breakdown of reported incidents.'),
+        : 'Only reports submitted from your account.'),
     ),
     h('div', { class: `dashboard-analytics-grid grid md:grid-cols-2 ${admin ? 'xl:grid-cols-3' : ''} gap-5` }, ...analyticsCharts),
   ));

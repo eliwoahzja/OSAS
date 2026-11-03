@@ -204,140 +204,29 @@ export function donutChart(items, { centerLabel = 'Total', size = 200, stroke = 
 }
 
 export function yearBarChart(items, { title = 'Incidents by Year', subtitle = '' } = {}) {
-  if (!items || !items.length) {
-    return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center' },
-      h('div', { class: 'w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mb-4' }, icon('chart-column', 'text-2xl')),
-      h('p', { class: 'text-sm font-bold text-gray-800' }, 'No incident reports yet'),
+  const rows = (items || []).filter((item) => Number.isFinite(Number(item.year)) && Number(item.incidents) > 0);
+  if (!rows.length) {
+    return h('div', { class: 'trend-chart-shell yearly-chart-empty bg-white rounded-3xl shadow-sm border border-gray-100 p-6' },
+      h('h3', { class: 'text-base font-bold text-gray-900' }, title),
+      h('p', { class: 'text-sm text-gray-500 mt-4' }, 'No incident reports yet'),
       h('p', { class: 'text-[13px] text-gray-500 mt-1' }, 'Saved incident reports will appear here as they are logged.'),
     );
   }
-
-  const currentYear = new Date().getFullYear();
-  const maxVal = Math.max(...items.map((d) => d.incidents), 1);
-  const scaleMax = Math.max(maxVal * 1.2, maxVal + 1);
-
-  const chartWidth = 640;
-  const chartHeight = 160;
-  const padTop = 28;
-  const padBottom = 28;
-  const padLeft = 20;
-  const padRight = 20;
-  const plotW = chartWidth - padLeft - padRight;
-  const plotH = chartHeight - padTop - padBottom;
-
-  const points = items.map((d, i) => ({
-    ...d,
-    x: items.length > 1 ? padLeft + (i * plotW) / (items.length - 1) : padLeft + plotW / 2,
-    y: padTop + plotH - (d.incidents / scaleMax) * plotH,
-  }));
-
-  let pathLen = 0;
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    d += ` L ${points[i].x} ${points[i].y}`;
-    pathLen += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y);
-  }
-  if (points.length === 1) pathLen = 1;
-
-  const areaD = `${d} L ${points[points.length - 1].x} ${padTop + plotH} L ${points[0].x} ${padTop + plotH} Z`;
-
-  const svg = svgEl('svg', { viewBox: `0 0 ${chartWidth} ${chartHeight}`, class: 'w-full h-auto block', role: 'img' });
-
-  const gradId = `trendFill-${Math.random().toString(36).slice(2, 9)}`;
-  const defs = svgEl('defs');
-  const grad = svgEl('linearGradient', { id: gradId, x1: 0, y1: 0, x2: 0, y2: 1 });
-  grad.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#DB2777', 'stop-opacity': 0.22 }));
-  grad.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#DB2777', 'stop-opacity': 0 }));
-  defs.appendChild(grad);
-  svg.appendChild(defs);
-
-  svg.appendChild(svgEl('line', {
-    x1: padLeft, y1: padTop + plotH, x2: chartWidth - padRight, y2: padTop + plotH,
-    stroke: '#F3F4F6', 'stroke-width': 1,
-  }));
-
-  const area = svgEl('path', { d: areaD, fill: `url(#${gradId})`, class: 'trend-fill', style: { opacity: 0 } });
-  svg.appendChild(area);
-
-  const linePath = svgEl('path', {
-    d, fill: 'none', stroke: '#DB2777', 'stroke-width': 3,
-    'stroke-linecap': 'round', 'stroke-linejoin': 'round',
-    class: 'trend-line-path',
-    style: { strokeDasharray: `${pathLen}`, strokeDashoffset: `${pathLen}` },
-  });
-  svg.appendChild(linePath);
-
-  const pointEls = [];
-  points.forEach((p, i) => {
-    const isCurrent = p.year === currentYear;
-
-    const dot = svgEl('circle', {
-      cx: p.x, cy: p.y, r: 0,
-      fill: '#ffffff', stroke: '#DB2777', 'stroke-width': isCurrent ? 3 : 2.5,
-      class: 'trend-point',
-      style: { opacity: 0, '--pt-delay': `${0.5 + i * 0.08}s` },
-    });
-    const titleEl = svgEl('title');
-    titleEl.textContent = `${p.year}: ${p.incidents} incident${p.incidents === 1 ? '' : 's'}`;
-    dot.appendChild(titleEl);
-    svg.appendChild(dot);
-    pointEls.push(dot);
-
-    const valueLabel = svgEl('text', {
-      x: p.x, y: p.y - 12, 'text-anchor': 'middle',
-      class: 'fill-gray-900',
-      style: { fontSize: 11, fontWeight: 800 },
-    });
-    valueLabel.textContent = String(p.incidents);
-    svg.appendChild(valueLabel);
-
-    const yearLabel = svgEl('text', {
-      x: p.x, y: chartHeight - 10, 'text-anchor': 'middle',
-      class: isCurrent ? 'fill-gray-900' : 'fill-gray-500',
-      style: { fontSize: 11, fontWeight: isCurrent ? 800 : 600 },
-    });
-    yearLabel.textContent = String(p.year);
-    svg.appendChild(yearLabel);
-
-    if (isCurrent) {
-      const badge = svgEl('text', {
-        x: p.x, y: p.y - 24, 'text-anchor': 'middle',
-        class: 'fill-pink-600',
-        style: { fontSize: 7, fontWeight: 700, letterSpacing: '.08em' },
-      });
-      badge.textContent = 'CURRENT';
-      svg.appendChild(badge);
-    }
-  });
-
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    linePath.style.strokeDashoffset = '0';
-    area.style.opacity = '1';
-    pointEls.forEach((el, i) => {
-      el.setAttribute('r', points[i].year === currentYear ? 5 : 4);
-      el.style.opacity = '1';
-    });
-  }));
-
-  let changeText = '';
-  if (items.length >= 2) {
-    const prev = items[items.length - 2];
-    const curr = items[items.length - 1];
-    const diff = curr.incidents - prev.incidents;
-    const pct = prev.incidents ? Math.round(Math.abs(diff) / prev.incidents * 100) : 0;
-    changeText = diff > 0 ? `↑ ${pct}% from ${prev.year}` : diff < 0 ? `↓ ${pct}% from ${prev.year}` : `Same as ${prev.year}`;
-  }
-
-  return h('div', { class: 'trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-4' },
-    h('div', { class: 'flex items-center justify-between mb-3' },
-      h('div', {},
-        h('p', { class: 'text-[10px] font-bold text-pink-600 uppercase tracking-widest mb-0.5' }, 'Year-over-Year'),
-        h('h3', { class: 'text-base font-bold text-gray-900' }, title),
-        subtitle ? h('p', { class: 'text-[12px] text-gray-500 mt-0.5' }, subtitle) : null,
+  const maximum = Math.max(...rows.map((item) => Number(item.incidents)), 1);
+  const bars = h('div', { class: 'yearly-chart-plot', role: 'img',
+    'aria-label': title + ': ' + rows.map((row) => row.year + ': ' + row.incidents + ' reports').join(', '),
+  }, rows.map((row) => h('div', { class: 'yearly-chart-column' },
+    h('div', { class: 'yearly-chart-track' },
+      h('div', { class: 'yearly-chart-bar', style: { height: Math.max(2, Number(row.incidents) / maximum * 80) + '%' } },
+        h('span', { class: 'yearly-chart-value' }, String(row.incidents)),
       ),
-      changeText ? h('span', { class: 'px-3 py-1.5 bg-pink-50 text-pink-700 rounded-full text-[11px] font-bold border border-pink-200/70' }, changeText) : null,
     ),
-    svg,
+    h('span', { class: 'yearly-chart-year' }, String(row.year)),
+  )));
+  return h('div', { class: 'trend-chart-shell yearly-chart bg-white rounded-3xl shadow-sm border border-gray-100 p-6' },
+    h('h3', { class: 'text-base font-bold text-gray-900' }, title),
+    subtitle ? h('p', { class: 'text-[12px] text-gray-500 mt-1' }, subtitle) : null,
+    bars,
   );
 }
 
@@ -382,7 +271,7 @@ export function barChart(items, { title = '', subtitle = '' } = {}) {
   }));
 
   return h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between hover:shadow-md transition-shadow',
+    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 hover:shadow-md transition-shadow',
   },
     title
       ? h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-2' },

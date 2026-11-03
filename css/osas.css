@@ -129,6 +129,10 @@ pre::-webkit-scrollbar-thumb:hover,
 .announcement-actions .btn-ghost { padding: 8px 12px; font-size: 12px; }
 .announcement-title { font-size: 19px; font-weight: 750; letter-spacing: -.025em; color: #241a22; overflow-wrap: anywhere; }
 .announcement-body { margin-top: 8px; font-size: 14px; line-height: 1.8; color: #605761; white-space: pre-wrap; overflow-wrap: anywhere; }
+.announcement-content.has-poster { display: grid; grid-template-columns: minmax(0,1fr) 180px; align-items: start; gap: 20px; }
+.announcement-poster { display: flex; align-items: center; flex-direction: column; gap: 8px; color: #9b2452; font-size: 12px; font-weight: 600; }
+.announcement-poster img { width: auto; max-width: 100%; height: auto; max-height: 220px; object-fit: contain; border-radius: 12px; }
+.announcement-poster span { display: inline-flex; align-items: center; gap: 6px; }
 .announcement-state { padding: 36px 24px; text-align: center; background: #ffffffa8; border: 1px dashed #ddd2d8; border-radius: 24px; color: #79707a; font-size: 14px; }
 .announcement-state h4 { margin: 12px 0 4px; font-weight: 700; color: #3e3039; }
 .announcement-error { display: flex; align-items: center; justify-content: space-between; gap: 16px; background: #fff1f2; border: 1px solid #fecdd3; border-radius: 16px; padding: 16px; margin-bottom: 16px; color: #9f1239; font-size: 14px; }
@@ -141,7 +145,14 @@ pre::-webkit-scrollbar-thumb:hover,
   .announcement-card-top { flex-direction: column; }
   .announcement-actions { align-self: flex-end; }
   .announcement-error { align-items: flex-start; flex-direction: column; }
+  .announcement-content.has-poster { grid-template-columns: minmax(0,1fr); }
 }
+.yearly-chart-plot { display: flex; justify-content: space-around; gap: 20px; overflow-x: auto; padding: 12px 8px 0; margin-top: 8px; }
+.yearly-chart-column { flex: 1 0 44px; max-width: 96px; display: flex; flex-direction: column; align-items: center; }
+.yearly-chart-track { height: 156px; width: 100%; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid #e5e7eb; }
+.yearly-chart-bar { position: relative; width: 70%; max-width: 52px; min-height: 3px; border-radius: 8px 8px 0 0; background: linear-gradient(#db2777,#9b2452); }
+.yearly-chart-value { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); color: #241a22; font-size: 13px; font-weight: 800; }
+.yearly-chart-year { color: #605761; font-size: 12px; font-weight: 650; margin-top: 10px; }
 .osas-section-label {
   font-size: 10px;
   font-weight: 700;
