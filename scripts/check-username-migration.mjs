@@ -1,5 +1,5 @@
-// Optional isolated PostgreSQL check. Point PGLITE_MODULE at an installed
-// @electric-sql/pglite/dist/index.js; this never contacts the live project.
+
+
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');

@@ -1,4 +1,4 @@
--- Transactional checks: no accounts, credentials, or profiles are retained.
+
 BEGIN;
 DO $$
 DECLARE

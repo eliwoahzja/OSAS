@@ -1,5 +1,5 @@
--- Run as postgres in a disposable database after the incident migrations.
--- All fixtures roll back; this does not rewrite historical incident timestamps.
+
+
 BEGIN;
 SET LOCAL TIME ZONE 'Pacific/Honolulu';
 
@@ -18,7 +18,7 @@ DECLARE
   minimal public.incidents%ROWTYPE;
   changed integer;
 BEGIN
-  -- The database overrides a forged clock and attribution from an old client.
+  
   INSERT INTO public.incidents (id, description, reporter, status, date, time, created_at, submitted_by)
   VALUES ('97100000-0000-4000-8000-000000000001', '__qa_timestamp_forged__', 'Another reporter', 'resolved', '1900-01-01', '12:00 AM', '1900-01-01 00:00:00+00', '97000000-0000-4000-8000-000000000002')
   RETURNING * INTO reported;
@@ -31,7 +31,7 @@ BEGIN
     RAISE EXCEPTION 'Automatic timestamps must preserve account attribution and student status rules';
   END IF;
 
-  -- A report requires no date or time fields from its browser.
+  
   INSERT INTO public.incidents (id, description, reporter, status)
   VALUES ('97100000-0000-4000-8000-000000000002', '__qa_timestamp_minimal__', 'Timestamp Student', 'open')
   RETURNING * INTO minimal;
@@ -39,13 +39,13 @@ BEGIN
     RAISE EXCEPTION 'Minimal report submission did not receive an automatic date and time';
   END IF;
 
-  -- Another student cannot see the timestamped reports.
+  
   PERFORM set_config('request.jwt.claims', '{"sub":"97000000-0000-4000-8000-000000000002","app_metadata":{"role":"client"}}', true);
   IF EXISTS (SELECT 1 FROM public.incidents WHERE id IN (reported.id, minimal.id)) THEN
     RAISE EXCEPTION 'Automatic timestamp change opened another student''s reports';
   END IF;
 
-  -- Admin status review must not alter the original submission timestamp.
+  
   PERFORM set_config('request.jwt.claims', '{"sub":"97000000-0000-4000-8000-000000000003","app_metadata":{"role":"admin"}}', true);
   UPDATE public.incidents
     SET status = 'resolved', created_at = '2099-12-31 23:59:59+00', date = '2099-12-31', time = '11:59 PM', submitted_by = '97000000-0000-4000-8000-000000000002'

@@ -7,7 +7,7 @@ import * as api from '../api.js';
 import { isAdmin } from '../auth.js';
 import { EVENT_NOTICE_CATEGORIES, EVENT_NOTICE_AUDIENCES, eventNoticePayload, validateEventNotice } from './event-notice.js';
 
-// The school covers Grade 7 to Grade 10.
+
 export const GRADE_OPTIONS = [7, 8, 9, 10];
 
 function normalizeGrade(value) {
@@ -16,8 +16,8 @@ function normalizeGrade(value) {
   return m ? Number(m[0]) : null;
 }
 
-// Grades an audience_group string targets. `null` = every grade
-// (campus-wide groups such as "All Parents & Guardians").
+
+
 export function gradesFromAudience(audience) {
   const a = String(audience || '').toLowerCase();
   if (!a) return null;
@@ -34,8 +34,8 @@ export function gradesFromAudience(audience) {
   return null;
 }
 
-// Grades a notification reaches. Prefers the real student grade field; falls
-// back to the stored audience_group for event notices (never display text).
+
+
 export function notificationGrades(row) {
   const s = Array.isArray(row.students) ? row.students[0] : row.students;
   const fromStudent = normalizeGrade(s && s.grade);
@@ -126,7 +126,7 @@ async function renderNotifications(el, currentType = 'all', currentGrade = 'all'
         return true;
       });
 
-    // Grade filter (administrators): combines with the type tabs — both match.
+    
     const gradeNum = currentGrade === 'all' ? null : Number(currentGrade);
     const filteredRows = gradeNum === null ? typeRows : typeRows.filter((r) => {
       const grades = notificationGrades(r);

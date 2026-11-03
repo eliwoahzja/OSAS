@@ -1,4 +1,4 @@
-// Runs the real app/auth/login modules with intercepted Auth, PIN, and REST traffic.
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');

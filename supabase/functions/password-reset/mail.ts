@@ -1,4 +1,4 @@
-// Reuses the existing Maileroo / SMTP secrets. Server-side only.
+
 const MAILEROO_API_KEY = Deno.env.get('MAILEROO_API_KEY') || '';
 const MAILEROO_FROM = Deno.env.get('MAILEROO_FROM') || 'Saint Agnes Academy OSAS <osas@stagnesacdmy.maileroo.app>';
 const SMTP_HOST = Deno.env.get('SMTP_HOST') || '';

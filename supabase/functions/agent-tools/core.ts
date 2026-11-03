@@ -1,9 +1,9 @@
-// OSAS administrative agent tool gateway.
-//
-// n8n never receives a Supabase service-role key. It relays a short-lived token
-// minted by agent-chat after verifying the administrator's Supabase session.
-// This module re-verifies the token, re-checks the administrator role, validates
-// every field, writes an audit row, and only then touches the database.
+
+
+
+
+
+
 
 import { verifyAgentToken } from '../_shared/agent-token.ts';
 
@@ -205,7 +205,7 @@ async function audit(svc: any, payload: Record<string, any>): Promise<void> {
   try {
     await svc.from('agent_audit_log').insert(payload);
   } catch {
-    // Auditing must not turn a successful write into a failed request.
+    
   }
 }
 

@@ -637,9 +637,9 @@ function svgNode(tag, attrs = {}) {
   return el;
 }
 
-// One styled checkbox / radio for the whole app.
-// A real <input> stays in the DOM (visually hidden, still focusable and
-// announced by screen readers); the visible box is drawn next to it.
+
+
+
 export function checkbox({
   id, name, value, checked = false, indeterminate = false, disabled = false,
   type = 'checkbox', tone = 'pink', onDark = false, ariaLabel = null, onChange,
@@ -663,8 +663,8 @@ export function checkbox({
       h('span', { class: 'lg-check-dash', 'aria-hidden': 'true' })));
 }
 
-// Checklist-row variant: the whole row is the tap target (min 44px tall), with
-// a soft pink tint while selected. `done` mutes + strikes the label.
+
+
 export function checkRow({
   id, name, value, label, hint, checked = false, indeterminate = false, disabled = false,
   type = 'checkbox', tone = 'pink', onDark = false, done = false, class: extraClass = '', onChange,

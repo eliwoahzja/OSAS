@@ -1,4 +1,4 @@
-// Run against a local dev server. All Auth/REST traffic is intercepted.
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');

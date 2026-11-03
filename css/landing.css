@@ -1,8 +1,8 @@
-/* Brochure appearance restored from 7994451; updated safety content and account flows preserved. */
+ 
 @font-face { font-family:'Inter'; src:url('../assets/fonts/landing/inter.woff2') format('woff2'); font-style:normal; font-weight:100 900; font-display:swap; }
 html,body { overflow-x:clip; }
-/* Let the document own public-page scrolling. An auto-height body with overflow:auto
-   traps desktop wheel input because the app disables scroll chaining. */
+ 
+
 body[data-session='public'],body:has(> noscript .safety-landing) { display:block; height:auto; min-height:100dvh; overflow:visible; }
 body:not([data-session="active"]) > #sidebar,
 body:not([data-session="active"]) > #dashboard-shell,
@@ -232,7 +232,7 @@ body:not([data-session="active"]) > #sidebar-backdrop { display:none; }
   .safety-reminders li { font-size:14px; }
 }
 
-/* Hero photo, school lockup, and contact row ------------------------------- */
+ 
 .safety-hero-media { position:absolute; inset:0 auto 0 0; z-index:0; width:64%; overflow:hidden; }
 .safety-hero-media img { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
 .safety-hero-media::after { content:''; position:absolute; inset:0; background:linear-gradient(94deg,rgba(31,12,22,.9) 0%,rgba(40,12,24,.78) 40%,rgba(52,13,29,.48) 66%,rgba(48,12,27,.86) 88%,#34091C 100%); }
@@ -247,9 +247,9 @@ body:not([data-session="active"]) > #sidebar-backdrop { display:none; }
   .safety-hero-media img { object-position:38% center; }
 }
 
-/* Diagonal banner rebuilt in CSS: photo, two white slashes, burgundy panel, seal */
+ 
 .safety-hero-art { position: absolute; inset: 0 0 0 auto; z-index: 1; width: min(48%, 620px); pointer-events: none; }
-/* Use the intended opposing diagonal direction, with the burgundy panel on the right. */
+ 
 .safety-landing .safety-hero-art::before { content: ''; position: absolute; inset: 0; background: #7A1B38; clip-path: polygon(0 0,100% 0,100% 100%,36% 100%); }
 .safety-landing .safety-hero-art::after { content: ''; position: absolute; inset: 0; background: #fff; clip-path: polygon(0 0,1.4% 0,37.4% 100%,36% 100%); }
 .safety-hero-stripe { position: absolute; inset: 0; background: #fff; clip-path: polygon(8% 0,12.4% 0,48.4% 100%,44% 100%); }

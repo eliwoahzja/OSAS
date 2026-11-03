@@ -1,4 +1,4 @@
-// Calendar dates use the school's timezone, including expiry-day boundaries.
+
 export function schoolToday(now = new Date()) {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',

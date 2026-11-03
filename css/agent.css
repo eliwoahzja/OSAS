@@ -1,5 +1,5 @@
-/* OSAS administrator assistant. Scoped to the floating panel so it cannot
-   affect the dashboard layout or the sign-in screen. */
+ 
+
 
 .agent-root {
   position: fixed;
@@ -607,7 +607,7 @@
   .agent-root { display: none !important; }
 }
 
-/* Conversation overlay, saved-session history, media composer */
+ 
 .agent-panel.is-open {
   animation: agent-enter .26s cubic-bezier(.2,.8,.2,1) both;
 }
@@ -667,7 +667,7 @@
   .agent-panel.is-open, .agent-loader, .agent-skeleton-line { animation: none; }
 }
 
-/* Session choice and history show before the message composer. */
+ 
 .agent-panel[data-chat-screen="startup"] .agent-composer,
 .agent-panel[data-chat-screen="startup"] .agent-footnote,
 .agent-panel[data-chat-screen="resume"] .agent-composer,

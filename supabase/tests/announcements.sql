@@ -1,4 +1,4 @@
--- Run after the announcement-board migration. Fixtures are rolled back.
+
 BEGIN;
 SELECT set_config('osas.test_admin_id', (SELECT id::text FROM public.users WHERE role = 'admin' LIMIT 1), true);
 SELECT set_config('osas.test_student_id', (SELECT id::text FROM public.users WHERE role <> 'admin' LIMIT 1), true);
@@ -31,7 +31,7 @@ BEGIN
 END;
 $$;
 RESET ROLE;
--- User-editable metadata must not turn a student into an administrator.
+
 SELECT set_config('request.jwt.claims', jsonb_build_object('sub', current_setting('osas.test_student_id'), 'role', 'authenticated', 'app_metadata', jsonb_build_object('role', 'client'), 'user_metadata', jsonb_build_object('role', 'admin'))::text, true);
 SET LOCAL ROLE authenticated;
 DO $$

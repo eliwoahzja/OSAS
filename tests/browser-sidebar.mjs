@@ -1,5 +1,5 @@
-// Real app/sidebar and route CSS; Auth and backend traffic are mocked.
-// Run against a local server with Playwright and optionally CHROMIUM_PATH.
+
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -60,7 +60,7 @@ try {
       if (viewport.width < 1024) await page.getByRole('button', { name: 'Open menu', exact: true }).click();
       await page.locator(`#sidebar-nav a[href="#/${route}"]`).click();
       await page.waitForFunction((expected) => document.body.dataset.route === expected, route);
-      // Highlight transitions change color/weight only, not the sidebar geometry.
+      
       assert.deepEqual(await measure(), baseline, `Sidebar geometry changed on ${route} at ${viewport.width}px`);
     }
     assert.deepEqual(errors, []);

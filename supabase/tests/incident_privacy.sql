@@ -7,7 +7,7 @@ DO $$ DECLARE ids uuid[]; admin_id uuid; BEGIN
  PERFORM set_config('request.jwt.claims', json_build_object('sub',ids[1], 'email','qa-a@example.invalid','app_metadata',json_build_object('role','client'),'user_metadata',json_build_object('name','QA Student A','role','admin'))::text,true);
 END $$;
 SET LOCAL ROLE authenticated;
--- Older or forged clients cannot override submitter, reporter, status or classifications.
+
 INSERT INTO public.incidents(date, description, reporter, status, type, severity, location, submitted_by, photo_path, photo_paths)
 VALUES (current_date,'__qa_incident_privacy_a__','Forged reporter','resolved','medical','high','Forged room',current_setting('qa.student_b')::uuid,
         current_setting('qa.student_a') || '/11111111-1111-4111-8111-111111111111.jpg',

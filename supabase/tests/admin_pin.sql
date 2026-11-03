@@ -1,11 +1,11 @@
--- Run in a disposable database after the administrator PIN migration.
--- All synthetic Auth/profile/PIN rows are rolled back.
+
+
 BEGIN;
 INSERT INTO auth.users (id, email, raw_app_meta_data)
 VALUES
   ('95000000-0000-4000-8000-000000000001', 'pin-admin@example.invalid', '{"role":"admin"}'),
   ('95000000-0000-4000-8000-000000000002', 'pin-student@example.invalid', '{"role":"client"}');
--- An upgraded project's profile-sync trigger already creates these rows.
+
 INSERT INTO public.users (id,email,full_name,role)
 VALUES
   ('95000000-0000-4000-8000-000000000001','pin-admin@example.invalid','PIN Admin','admin'),

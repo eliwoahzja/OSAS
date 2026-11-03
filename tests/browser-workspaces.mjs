@@ -1,5 +1,5 @@
-// Every workspace route, main form, role boundary and assistant entry point.
-// All Auth/REST/Edge traffic is intercepted; no live users, data or messages change.
+
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { MOCK } from '../js/mock.js';

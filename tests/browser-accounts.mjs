@@ -1,4 +1,4 @@
-// Real account UI, mocked auth/Edge Functions. No live accounts are changed.
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');

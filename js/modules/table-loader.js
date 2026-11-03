@@ -109,7 +109,7 @@ export async function loadTable(el, {
   realShell.appendChild(realHolder);
 
   if (!rows.length) {
-    // A successful empty query is not evidence of missing permissions.
+    
     realHolder.replaceChildren(emptyBanner({ icon: empty?.icon || iconName, title: empty?.title || 'No records yet', text: empty?.text }));
     return [];
   }

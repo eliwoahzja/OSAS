@@ -1,6 +1,6 @@
-// Run with a local server: PORT=3000 npm run dev
-// Install Playwright separately, then set PLAYWRIGHT_MODULE to its index.mjs if needed.
-// All authentication and REST traffic is intercepted; this test never contacts a live project.
+
+
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -65,7 +65,7 @@ async function scenario(role, empty = false, evidence = false) {
           return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ signedURL: '/object/sign/incident-evidence/' + path + '?token=test' }) });
         }
         assert.equal(request.method(), 'GET');
-        // Deliberately mix a very wide banner and tall portraits.
+        
         const width = index % 2 ? 300 : 1000;
         const height = index % 2 ? 900 : 250;
         return route.fulfill({ contentType: 'image/svg+xml', body: `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="${index % 2 ? '#81254d' : '#e6bd79'}"/><text x="20" y="70" font-size="40">Image ${index + 1}</text></svg>` });
@@ -99,7 +99,7 @@ async function scenario(role, empty = false, evidence = false) {
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify([existing]) });
       }
       assert.equal(request.method(), 'GET');
-      // Return every row deliberately: the real API adapter must still hide other owners.
+      
       return route.fulfill({ contentType: 'application/json', body: JSON.stringify(rows) });
     }
     if (url.origin === origin) return route.continue();

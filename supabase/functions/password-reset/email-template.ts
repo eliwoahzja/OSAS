@@ -1,5 +1,5 @@
-// Same colors, typography, logo and card structure as templates/magic_link.html.
-// bodyHtml is assembled from escaped values in core.ts, never raw user HTML.
+
+
 export function accountEmail(bodyHtml: string, appUrl: string) {
   const logo = new URL('assets/logo.png', appUrl).href.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
   const content = bodyHtml

@@ -1,4 +1,4 @@
-// Fetch every page so charts do not stop at the Data API's row limit.
+
 export async function fetchEveryPage(fetchPage, pageSize = 1000) {
   const rows = [];
   for (let offset = 0; ; offset += pageSize) {
@@ -8,7 +8,7 @@ export async function fetchEveryPage(fetchPage, pageSize = 1000) {
   }
 }
 
-// Realtime is an enhancement. Polling and focus refresh keep working without it.
+
 export function startDashboardUpdates(refresh, subscribe, {
   win = window, doc = document, interval = 15000,
 } = {}) {

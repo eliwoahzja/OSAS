@@ -1,9 +1,9 @@
--- Run against a database with the migrations applied. All test rows roll back.
+
 BEGIN;
 DO $$
 DECLARE test_id uuid; managed_role text; rejected boolean;
 BEGIN
-  -- Reproduce Supabase Auth's Admin API: insert first, attach app role later.
+  
   FOREACH managed_role IN ARRAY ARRAY['client', 'admin'] LOOP
     test_id := gen_random_uuid();
     INSERT INTO auth.users (id, email, raw_app_meta_data, raw_user_meta_data)
@@ -14,7 +14,7 @@ BEGIN
     DELETE FROM auth.users WHERE id=test_id;
     SET CONSTRAINTS auth.osas_managed_accounts_only DEFERRED;
   END LOOP;
-  -- Public signup and editable metadata must not bypass the guard.
+  
   FOREACH managed_role IN ARRAY ARRAY['', 'untrusted'] LOOP
     rejected := false;
     BEGIN
@@ -28,7 +28,7 @@ BEGIN
     IF NOT rejected THEN RAISE EXCEPTION 'Unmanaged account was accepted'; END IF;
     SET CONSTRAINTS auth.osas_managed_accounts_only DEFERRED;
   END LOOP;
-  -- A role present only in the original insert must not pass.
+  
   rejected := false;
   BEGIN
     test_id := gen_random_uuid();

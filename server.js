@@ -68,7 +68,7 @@ if (LIVE_RELOAD) {
     try {
       watch(join(__dirname, entry), { recursive: true }, notify);
     } catch {
-      // Missing optional directories are fine.
+      
     }
   }
 

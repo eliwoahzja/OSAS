@@ -46,7 +46,7 @@ export function createSessionStore(storage, scope, legacyStorage = null) {
   };
   const write = (sessions) => {
     const cleaned = sessions.map(cleanSession).filter(Boolean).sort((a,b) => b.updatedAt - a.updatedAt).slice(0, LIMIT);
-    try { storage.setItem(key, JSON.stringify(cleaned)); } catch { /* Private mode or quota exceeded */ }
+    try { storage.setItem(key, JSON.stringify(cleaned)); } catch {   }
     return cleaned;
   };
   const migrate = () => {

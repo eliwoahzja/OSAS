@@ -36,9 +36,9 @@ Deno.serve(async (req) => {
   let actor: any = null;
   const agentKey = req.headers.get('x-agent-key') || '';
   if (AGENT_GATEWAY_KEY && safeEqual(agentKey, AGENT_GATEWAY_KEY)) {
-    // Trusted server-to-server call from the OSAS agent gateway. The gateway
-    // verified the administrator and passed the actor id; re-check the role so
-    // a leaked header pair cannot promote an ordinary account.
+    
+    
+    
     const actorId = req.headers.get('x-agent-actor') || '';
     if (!UUID_RE.test(actorId)) return json({ error: 'Sign-in required.' }, 401);
     const { data: found, error } = await svc.auth.admin.getUserById(actorId);
@@ -72,9 +72,9 @@ Deno.serve(async (req) => {
   try {
   if (body.action === 'list') {
     const accounts = await allUsers();
-    // The Data API has a row limit independent of Auth pagination. Read the
-    // matching profiles in bounded batches so IDs remain available after the
-    // directory grows beyond that limit.
+    
+    
+    
     const studentIds = new Map<string, string>();
     for (let offset = 0; offset < accounts.length; offset += 200) {
       const ids = accounts.slice(offset, offset + 200).map((u: any) => u.id);
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       const msg = error?.message || 'Could not create the account.';
       return json({ error: /already|registered|exists/i.test(msg) ? 'An account with that email already exists.' : msg }, 400);
     }
-    // The Auth trigger writes the public profile in the same transaction.
+    
     const { data: profile, error: profileError } = await svc.from('users').select('student_id').eq('id', data.user.id).single();
     if (profileError) throw profileError;
     return json({ user: { id: data.user.id, email, student_id: profile.student_id, name, role } }, 201);

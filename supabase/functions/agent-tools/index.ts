@@ -4,7 +4,7 @@ import { runAgentRequest } from './core.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const AGENT_GATEWAY_KEY = Deno.env.get('AGENT_GATEWAY_KEY') || '';
-// Empty falls back to the core module's current public site URL.
+
 const SITE_URL = Deno.env.get('SITE_URL') || '';
 const ALLOWED_ORIGIN = Deno.env.get('ALLOWED_ORIGIN') || '*';
 

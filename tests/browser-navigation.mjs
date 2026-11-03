@@ -1,4 +1,4 @@
-// Run against a local server. All Auth and school-data requests are intercepted.
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 

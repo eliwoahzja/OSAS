@@ -113,7 +113,7 @@ pre::-webkit-scrollbar-thumb:hover,
   border: 1px solid #f1f1ef;
 }
 
-/* High-school student details precede the announcement feed. */
+ 
 .student-info-grid { display: grid; grid-template-columns: minmax(0,1fr); }
 .student-info-card { min-width: 0; padding: 22px 24px; border: 1px solid #e5e7eb; border-radius: 12px; background: #fff; color: #4b5563; }
 .student-info-card h2 { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; color: #303a42; font-size: 15px; font-weight: 650; }
@@ -124,7 +124,7 @@ pre::-webkit-scrollbar-thumb:hover,
 .student-info-card dd { overflow-wrap: anywhere; color: #303a42; }
 @media (max-width: 640px) { .student-info-grid { grid-template-columns: minmax(0,1fr); gap: 14px; } .student-info-card { padding: 18px; } }
 
-/* School announcements follow student details or administrator analytics. */
+ 
 .announcement-board { min-width: 0; background: #fff; border: 1px solid #e5e7eb; border-radius: 4px; }
 .announcement-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 28px 28px; }
 .announcement-heading h3 { display: flex; align-items: center; gap: 9px; color: #303a42; font-size: 17px; font-weight: 650; }
@@ -219,7 +219,7 @@ pre::-webkit-scrollbar-thumb:hover,
   opacity: 1;
 }
 
-/* Evidence has its own scroll area so mixed image sizes cannot hide Close. */
+ 
 .incident-evidence-dialog { display: flex; flex-direction: column; max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); width: 100%; overflow: hidden; }
 .incident-evidence-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-shrink: 0; padding: 20px 24px 16px; border-bottom: 1px solid #e5e7eb; }
 .incident-evidence-header h3 { color: #111827; font-size: 17px; font-weight: 700; }
@@ -475,7 +475,7 @@ html { -webkit-tap-highlight-color: transparent; }
 
 .lg-key { touch-action: manipulation; -webkit-user-select: none; user-select: none; transition: background .08s, transform .08s, border-color .08s; }
 
-/* ---- Styled checkbox / radio (see checkbox() + checkRow() in js/ui.js) ---- */
+ 
 .lg-check { position: relative; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .lg-check-input {
   position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; border: 0;
@@ -542,7 +542,7 @@ html, body { overscroll-behavior: none; }
 body.h-screen { height: 100vh; height: 100dvh; }
 #view { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 
-/* Inspection reference: checklist, schedule and activity. */
+ 
 .inspection-workspace { display:grid; grid-template-columns:minmax(0,1fr); gap:16px; }
 .inspection-workspace > :first-child { grid-column:1/-1; }
 .inspection-main { min-width:0; margin-top:0 !important; }
@@ -624,7 +624,7 @@ body[data-route="first-aid-supplies"] > main > header,
 body[data-route="emergency-contacts"] > main > header,
 body[data-route="emergency-roles"] > main > header { padding-bottom:8px; }
 
-/* Scope the supplied desktop proportions to these two workspaces. */
+ 
 body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) > main > header,
 body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #view,
 body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) > main > footer { padding-left:24px; padding-right:24px; }
@@ -727,7 +727,7 @@ body:is([data-route="safety-inspections"],[data-route="first-aid-supplies"]) #vi
 .inspection-safety-note { padding-top:8px; padding-bottom:8px; }
 .inspection-safety-note img { width:140px; height:46px; }
 
-/* The student profile and announcement feed scroll as one page. */
+ 
 body[data-route="dashboard"]:has(.student-dashboard) > main { overflow-y:auto; }
 body[data-route="dashboard"]:has(.student-dashboard) #view { flex:0 0 auto; overflow:visible; }
 

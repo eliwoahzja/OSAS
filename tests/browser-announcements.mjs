@@ -1,4 +1,4 @@
-// Real dashboard/modules with intercepted Auth and REST; no live school posts.
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -142,7 +142,7 @@ try {
   assert.equal(await student.page.evaluate(() => window.announcementXss), undefined);
   await student.board.getByText('· Edited', { exact: false }).waitFor();
 
-  // Refresh failure leaves the previously loaded post readable and offers retry.
+  
   failRead = true;
   await student.page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await student.board.getByRole('alert').filter({ hasText: 'unavailable' }).waitFor();
@@ -160,7 +160,7 @@ try {
   await admin.page.locator('.osas-modal-card').getByRole('button', { name: 'Delete announcement', exact: true }).click();
   await admin.board.getByText('No announcements yet', { exact: true }).waitFor();
 
-  // Multiple pages, stable refresh and mobile layout.
+  
   rows = Array.from({ length: 3 }, (_, i) => ({ id: 'page-' + i, title: 'School update ' + (i + 1), body: 'Updates and reminders for students.\nPlease follow school staff instructions.', image_path: ['assets/announcements/long-spookend.jpg', 'assets/announcements/teachers-day.jpg', 'assets/announcements/dance-troupe-auditions.jpg'][i], author_name: 'OSAS Administrator', created_at: '2026-11-03T05:00:00Z', updated_at: '2026-11-03T05:00:00Z' }));
   await student.page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await student.board.getByRole('article', { name: 'School update 1', exact: true }).waitFor();

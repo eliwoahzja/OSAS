@@ -164,6 +164,6 @@ export function rowActions(onView, onEdit, { compact = false, onMore, onDelete }
     title: onMore ? 'More actions' : 'Delete record',
     'aria-label': onMore ? 'More actions' : 'Delete record', onclick: onMore || onDelete,
   }, icon(onMore ? 'ellipsis' : 'trash-can', 'text-xs')));
-  // 8px between adjacent action buttons (icon/label spacing lives in .btn-ghost).
+  
   return h('div', { class: 'flex items-center gap-2' }, buttons);
 }

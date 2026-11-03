@@ -1,9 +1,9 @@
-// Central user-facing wording.
-//
-// The stored role value stays `client` in the database and auth metadata (the
-// manage-accounts function and js/auth.js keep reading/writing it), so nothing
-// technical has to change — only the label people see. Map the value to a
-// display name through roleLabel() instead of hard-coding strings.
+
+
+
+
+
+
 export const ROLE_LABELS = {
   admin: 'Administrator',
   client: 'Student',
@@ -13,8 +13,8 @@ export function roleLabel(role) {
   return ROLE_LABELS[role] || ROLE_LABELS.client;
 }
 
-// "Incident Logging" is the administrator wording. Students file reports, so
-// the same component renders with the wording below under the Student role.
+
+
 export const INCIDENT_LABELS = {
   admin: {
     nav: 'Incident Logging',

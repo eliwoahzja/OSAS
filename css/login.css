@@ -1,4 +1,4 @@
-/* Scoped login layout. Keep brochure hero styles out of the sign-in screen. */
+ 
 #login-overlay.lg-root {
   display: grid;
   grid-template-columns: minmax(0, 1.03fr) minmax(0, .97fr);

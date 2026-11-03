@@ -5,7 +5,7 @@ type Dependencies = {
   pinAction: (userId: string, action: string, pin: string | null) => Promise<PinResult>;
 };
 
-// Decode only after Auth has validated this exact JWT with getUser().
+
 export function hasPasswordAuthentication(jwt: string): boolean {
   try {
     const claims = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));

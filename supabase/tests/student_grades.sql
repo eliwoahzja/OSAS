@@ -1,4 +1,4 @@
--- Run against a database with two student accounts and an admin. Changes roll back.
+
 BEGIN;
 SELECT set_config('osas.grade_admin', (SELECT id::text FROM public.users WHERE role = 'admin' LIMIT 1), true);
 SELECT set_config('osas.grade_student', (SELECT id::text FROM public.users WHERE role <> 'admin' LIMIT 1), true);

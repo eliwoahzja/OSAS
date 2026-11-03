@@ -1,6 +1,6 @@
-// Short-lived, HMAC-signed proof that an administrator was authenticated by
-// agent-chat. n8n only relays this token; it cannot mint a new one or change
-// the actor id without invalidating the signature.
+
+
+
 
 export type AgentTokenPayload = {
   sub: string;

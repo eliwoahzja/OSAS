@@ -1,5 +1,5 @@
-// Isolated PostgreSQL regression for the agent gateway migration.
-// Run with PGLITE_MODULE pointing at an installed @electric-sql/pglite build.
+
+
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 
@@ -59,23 +59,23 @@ try {
   const policy = (await db.query(`SELECT policyname FROM pg_policies WHERE tablename = 'agent_audit_log'`)).rows;
   assert.ok(policy.some((row) => row.policyname === 'read_admin'));
 
-  // The production database already has this trigger from the earlier
-  // stakeholder migration; recreate it here so the attribution behavior is
-  // exercised against the updated function.
+  
+  
+  
   await db.exec(`CREATE TRIGGER osas_incident_submitter
     BEFORE INSERT OR UPDATE ON public.incidents
     FOR EACH ROW EXECUTE FUNCTION public.osas_attribute_incident_submitter();`);
 
-  // A service-role insert may attribute the incident to the administrator who
-  // approved it, because auth.uid() is null for the gateway.
+  
+  
   await db.exec(`SELECT set_config('test.uid', '', false);
     INSERT INTO public.incidents (date, description, submitted_by)
     VALUES ('2026-10-30', 'gateway-created', '11000000-0000-4000-8000-000000000001');`);
   const preserved = (await db.query(`SELECT submitted_by FROM public.incidents WHERE description = 'gateway-created'`)).rows[0];
   assert.equal(preserved.submitted_by, '11000000-0000-4000-8000-000000000001');
 
-  // A browser insert is still attributed to the signed-in user and cannot
-  // spoof another submitter, classification, location or status.
+  
+  
   await db.exec(`SELECT set_config('test.uid', '11000000-0000-4000-8000-000000000002', false);
     SELECT set_config('test.jwt', '{"email":"staff@example.test","user_metadata":{"name":"Staff Two"}}', false);
     INSERT INTO public.incidents (date, description, reporter, type, severity, location, status, submitted_by)
@@ -88,7 +88,7 @@ try {
   assert.equal(overridden.location, null);
   assert.equal(overridden.status, 'open');
 
-  // Updates must not move attribution between accounts.
+  
   await db.exec(`UPDATE public.incidents SET submitted_by = '11000000-0000-4000-8000-000000000001' WHERE description = 'browser-created';`);
   const unchanged = (await db.query(`SELECT submitted_by FROM public.incidents WHERE description = 'browser-created'`)).rows[0];
   assert.equal(unchanged.submitted_by, '11000000-0000-4000-8000-000000000002');

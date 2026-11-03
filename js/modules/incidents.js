@@ -17,7 +17,7 @@ const CONTACT_FIELDS = [
   { key: 'address', label: 'Address / location', type: 'textarea', wide: true },
 ];
 
-// Present a service category even for older contacts stored with a staff-role label.
+
 const contactEmergencyType = (role) => {
   const value = String(role || '').trim();
   if (/nurs|physician|clinic|hospital|medical|health|doctor/i.test(value)) return 'Medical';
@@ -70,7 +70,7 @@ export async function emergencyContacts(el) {
     { key: 'phone', label: 'Contact number', render: (r) => h('span', { class: 'font-mono text-sm whitespace-nowrap' }, r.phone) },
     { key: 'status', label: 'Status', render: (r) => pill(r.active === false ? 'Inactive' : 'Active') },
     { key: 'actions', label: 'Actions', cls: 'text-right', render: (r) => h('div', { class: 'flex flex-wrap gap-2 items-center justify-end' },
-      // Students always receive a read-only View action.
+      
       rowActions(() => show(r), admin ? () => edit(r) : null),
       admin ? h('button', {
         type: 'button', class: 'btn-ghost text-xs',
@@ -281,7 +281,7 @@ export async function incidentLogging(el) {
   return rows;
 }
 
-// The reporter is always the signed-in account — nobody types it.
+
 function reporterName() {
   const me = currentUser() || {};
   const name = String(me.name || '').trim();

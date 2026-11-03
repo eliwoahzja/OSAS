@@ -1,5 +1,5 @@
 import { accountEmail } from './email-template.ts';
-// Dependency injection keeps security and delivery behavior testable without email or live accounts.
+
 export const REQUEST_MESSAGE = 'Your details have been submitted for administrator review. If the request is eligible and approved, you will receive an email with a link to set your password.';
 export const PUBLIC_APP_URL = 'https://osas.stagnesacademy-sms.com/';
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -60,7 +60,7 @@ export function createResetHandler({ store, sendMail, appUrl = PUBLIC_APP_URL, n
             await store.patch(id, { notification_error: 'Administrator email delivery failed. Review this request in Accounts.' });
           }
         }
-        // Existing, unknown, duplicate and throttled accounts receive the same response.
+        
         return response({ message: REQUEST_MESSAGE });
       }
       if (body.action === 'complete') {
@@ -88,11 +88,11 @@ export function createResetHandler({ store, sendMail, appUrl = PUBLIC_APP_URL, n
         }
         await store.patch(id, { status: 'completed', user_id: record.user_id, token_hash: null, completed_at: new Date(now()).toISOString() }, 'resetting');
         if (record.request_kind === 'registration') {
-          // A mail outage must not undo successful account creation or hide the ID.
+          
           try {
             await deliver([record.email], '[SAAC OSAS] Your student ID',
               `<h2>Your student account is ready</h2><p>Your student ID is <strong>${escapeHtml(studentId)}</strong>.</p><p>Sign in with this ID and the password you just set. Verification codes will continue to go to this email address.</p><p><a href="${escapeHtml(link('/sign-in'))}">Sign in to OSAS</a></p>`);
-          } catch { /* The ID is also returned on screen and shown in Accounts. */ }
+          } catch {   }
           return response({ student_id: studentId, message: `Account created. Your student ID is ${studentId}. Sign in with this ID and your new password.` });
         }
         return response({ message: 'Password updated. Sign in with your new password.' });

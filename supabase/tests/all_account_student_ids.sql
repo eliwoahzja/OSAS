@@ -1,5 +1,5 @@
--- Run after all_account_student_ids in a disposable database as postgres.
--- Account/profile fixtures roll back. Sequence gaps are expected and never reused.
+
+
 BEGIN;
 DO $$
 DECLARE

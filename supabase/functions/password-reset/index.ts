@@ -57,13 +57,13 @@ const store = {
     return checked(await svc.rpc('account_request_email_exists', { p_email: email }));
   },
   async createAccount(record: any, password: string) {
-    // Never reuse an existing account or accept a role supplied by the requester.
+    
     const { data, error } = await svc.auth.admin.createUser({
       email: record.email, password, email_confirm: true,
       app_metadata: { role: 'client' }, user_metadata: { name: record.submitted_name || record.name },
     });
     if (error || !data.user) throw new Error('Could not create the account. The email may already be registered or the password may not meet account policy.');
-    // The Auth trigger creates the profile and student ID atomically.
+    
     const profile = checked(await svc.from('users').select('student_id').eq('id', data.user.id).single());
     return { ...data.user, student_id: profile.student_id };
   },

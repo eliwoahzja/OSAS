@@ -46,8 +46,8 @@ export function createStudentAuthHandler({ lookup, signIn, recover }: Dependenci
     }
     try {
       const account = await lookup(studentId);
-      // No public ID-to-email lookup. Auth receives unknown identifiers too,
-      // and a correct password is required before returning an email/session.
+      
+      
       const email = account?.email || UNKNOWN_EMAIL;
       if (body.action === 'recover') {
         const { error } = await recover(email, redirectTo);
@@ -60,7 +60,7 @@ export function createStudentAuthHandler({ lookup, signIn, recover }: Dependenci
       const failure = authServiceFailure(error);
       if (failure) return json(failure.body, failure.status);
       if (!account || error || !data?.session || data.session.user?.id !== account.id) return json({ error: INVALID_LOGIN }, 400);
-      // The browser retains the existing email OTP step before dashboard entry.
+      
       return json({ session: data.session });
     } catch {
       return json({ error: 'The sign-in service is unavailable. Please try again shortly.' }, 503);

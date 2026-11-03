@@ -1,4 +1,4 @@
-// Retired endpoint. Do not silently turn an old username into a student ID.
+
 Deno.serve((req: Request) => {
   const headers = {
     'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') || '*',

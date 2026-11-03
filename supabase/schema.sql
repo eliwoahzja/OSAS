@@ -45,7 +45,7 @@ CREATE TABLE emergency_contacts (
     role VARCHAR(100),
     phone VARCHAR(50) NOT NULL,
     email VARCHAR(255),
-    student_id UUID REFERENCES students(id),  -- for category = 'student': which student this guardian belongs to
+    student_id UUID REFERENCES students(id),  
     priority INT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );

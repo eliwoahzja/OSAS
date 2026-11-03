@@ -5,7 +5,7 @@ const LIST = /^ {0,3}([-+*]|\d+[.)])\s+(.+)$/;
 const QUOTE = /^ {0,3}>\s?(.*)$/;
 const RULE = /^ {0,3}(?:(?:-\s*){3,}|(?:\*\s*){3,}|(?:_\s*){3,})$/;
 
-// Recognize OSAS record details without depending on model-written Markdown.
+
 const SECTION_LINE = /^ {0,3}(?:\*\*([^*\n]{2,70})\*\*|__([^_\n]{2,70})__)\s*:?[ \t]*$/;
 const PLAIN_SECTION = /^ {0,3}([A-Za-z][A-Za-z0-9 &/().-]{2,64}):\s*$/;
 const KEY_VALUE = /^ {0,3}([A-Za-z][A-Za-z0-9 _()/.-]{1,35}):[ \t]+(.+)$/;

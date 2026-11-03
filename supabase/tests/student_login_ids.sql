@@ -1,5 +1,5 @@
--- Fixture changes are fully rolled back. Sequence gaps after rollback are
--- expected: issued IDs must never be reused.
+
+
 BEGIN;
 DO $$
 DECLARE
@@ -39,7 +39,7 @@ BEGIN
     VALUES (admin_id, 'osas-id-admin@example.invalid', '{"role":"admin"}');
   IF (SELECT student_id FROM public.users WHERE id = admin_id) IS NULL THEN RAISE EXCEPTION 'Administrator did not receive a login ID'; END IF;
 
-  -- Mirrors GoTrue creating the Auth row before applying admin app_metadata.
+  
   INSERT INTO auth.users (id, email, raw_app_meta_data)
     VALUES (delayed_id, 'osas-id-delayed@example.invalid', '{}');
   SELECT student_id INTO saved_id FROM public.users WHERE id = delayed_id;

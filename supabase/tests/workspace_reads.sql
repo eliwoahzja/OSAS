@@ -1,4 +1,4 @@
--- Read-only role checks; JWT claims and role changes are rolled back.
+
 BEGIN;
 SELECT set_config('qa.read_student', (SELECT id::text FROM public.users WHERE role <> 'admin' LIMIT 1), true);
 SELECT set_config('qa.read_admin', (SELECT id::text FROM public.users WHERE role = 'admin' LIMIT 1), true);

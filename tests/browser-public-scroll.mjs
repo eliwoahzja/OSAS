@@ -1,4 +1,4 @@
-// Requires a running local server and Playwright. All external requests are blocked.
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -85,7 +85,7 @@ try {
   await page.locator('.safety-fallback').waitFor();
   await page.mouse.move(700, 500);
   await page.mouse.wheel(0, 650);
-  // Use a keyboard action to flush wheel rendering without relying on page JavaScript.
+  
   await page.keyboard.press('PageDown');
   await page.waitForFunction(() => scrollY > 200);
   await fallback.close();

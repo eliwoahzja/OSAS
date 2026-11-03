@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { stripTypeScriptTypes } from 'node:module';
 
-// Run the actual Edge Function with injected Deno/Supabase adapters; no network.
+
 const source = stripTypeScriptTypes((await readFile(new URL('../supabase/functions/manage-accounts/index.ts', import.meta.url), 'utf8'))
   .replace(/^import .+\r?\n/, ''));
 const adminId = '11000000-0000-4000-8000-000000000001';

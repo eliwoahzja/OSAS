@@ -297,7 +297,7 @@ const supplyFields = [
   { key: 'last_restocked', label: 'Last restocked', type: 'date' },
 ];
 
-// Preserve the existing exported status shape for callers of this module.
+
 export function supplyStatus(record, now = new Date()) {
   const label = inventoryStatus(record, schoolToday(now));
   return { label, tone: supplyTone(record, schoolToday(now)) };

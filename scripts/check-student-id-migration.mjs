@@ -1,4 +1,4 @@
-// Isolated PostgreSQL regression; PGLITE_MODULE may point to a separate install.
+
 import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 const { PGlite } = await import(process.env.PGLITE_MODULE || '@electric-sql/pglite');
@@ -20,13 +20,13 @@ try {
   }
   const initial = (await db.query('SELECT id, student_id, email, username, full_name, role FROM public.users ORDER BY id')).rows;
   assert.equal(initial.filter((row) => row.student_id).length, 2);
-  // Reproduce a legacy account whose public profile was manually removed.
+  
   await db.exec(`INSERT INTO auth.users(id,email,raw_app_meta_data)
     VALUES ('11000000-0000-4000-8000-000000000004','legacy@example.invalid','{"role":"legacy"}');
     DELETE FROM public.users WHERE email='legacy@example.invalid';
     SELECT setval('public.osas_student_id_sequence',1,false);`);
-  // The sequence rewind above is confined to this disposable database and
-  // verifies that restored sequences cannot collide with already issued IDs.
+  
+  
   await db.exec(await sql(finalMigration));
   const migrated = (await db.query('SELECT id, student_id, email, username, full_name, role FROM public.users ORDER BY id')).rows;
   assert.equal(migrated.length, 4);
@@ -43,7 +43,7 @@ try {
   await db.exec(await sql('tests/student_login_ids.sql'));
   await db.exec(await sql('tests/all_account_student_ids.sql'));
   assert.equal((await db.query('SELECT count(*)::int AS n FROM public.users')).rows[0].n, 4);
-  // Assign a mixed-role batch; IDs must also be unique within one statement.
+  
   await db.exec(`INSERT INTO auth.users(id,email,raw_app_meta_data)
     SELECT gen_random_uuid(), 'batch-'||n||'@example.invalid',
       jsonb_build_object('role', CASE WHEN n % 2 = 0 THEN 'admin' ELSE 'client' END)

@@ -1,5 +1,5 @@
-// Reveal text inside an already-formatted response without rebuilding or trusting HTML.
-// Formatting elements, links and code blocks remain intact while text becomes visible.
+
+
 export function revealDuration(characterCount) {
   return Math.max(140, Math.min(1450, Math.round(characterCount * 3.2)));
 }
@@ -64,8 +64,8 @@ export function animateFormattedReply(root, options = {}) {
   };
   frame = requestAnimationFrame(step);
 
-  // Unmounting should cancel the animation rather than modifying a detached tree.
-  // Closing the panel can finish it immediately so reopening shows the whole reply.
+  
+  
   return (finish = true) => {
     if (finished) return;
     finished = true;

@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
   if (message.length > 4000) return json({ error: 'Keep each message under 4,000 characters.' }, 400);
   const sessionId = text(body.sessionId).slice(0, 100) || crypto.randomUUID();
 
-  // Content-free throttling. The table stores only the actor and timestamp.
+  
   const since = new Date(Date.now() - 60000).toISOString();
   try {
     const { count } = await svc.from('agent_chat_log').select('id', { count: 'exact', head: true })
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     }
     await svc.from('agent_chat_log').insert({ actor_id: user.id });
   } catch {
-    // A logging outage should not block an otherwise authenticated request.
+    
   }
 
   const requestId = crypto.randomUUID();

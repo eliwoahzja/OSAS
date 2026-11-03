@@ -1,5 +1,5 @@
-// Run against the local dev server; authentication SDK and API traffic are intercepted.
-// PLAYWRIGHT_MODULE can point to a separately installed playwright/index.mjs.
+
+
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 
@@ -12,8 +12,8 @@ const browser = await chromium.launch({
   args: ['--no-sandbox'],
 });
 
-// Keep SDK behavior small and explicit while running the actual app, auth, and login modules.
-// In particular, each createClient uses its configured storage and emits auth callbacks.
+
+
 const sdk = `
   export function createClient(url, key, options = {}) {
     const storage = options.auth?.storage || localStorage;
@@ -105,7 +105,7 @@ async function scenario() {
         return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ data: { user: {} }, error: null }) });
       }
       if (url.pathname === '/auth/v1/logout') return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ error: null }) });
-      // Record and contain any unexpected attempt to enter the dashboard.
+      
       return route.fulfill({ contentType: 'application/json', body: '[]' });
     }
     if (url.origin === origin) return route.continue();
@@ -181,7 +181,7 @@ try {
   await recovery.page.getByRole('heading', { name: 'Choose a New Password', exact: true }).waitFor();
   assert.equal(recovery.requests.filter((r) => r.path === '/auth/v1/token').length, 1, 'Refresh restores the tab recovery session without reusing URL tokens');
 
-  // A separate tab sharing localStorage must not inherit a recovery login session.
+  
   const anotherTab = await recovery.context.newPage();
   await anotherTab.goto(`${origin}/#/sign-in`);
   await anotherTab.getByRole('heading', { name: 'Welcome Back', exact: true }).waitFor();

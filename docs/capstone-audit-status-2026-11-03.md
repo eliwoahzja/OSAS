@@ -46,7 +46,7 @@
 - [ ] **Review public file access and retention.** Live `incident-evidence` is private. `evacuation-maps` and `inspection-photos` are public-read. Classify stored content and make sensitive evidence private with short-lived links; document access and deletion requirements.
 - [ ] **Document emergency outage procedures.** Explain how reports, evacuation plans, and notifications are handled without internet or a working Supabase service. Test recovery and reconciliation without exposing personal data.
 - [ ] **Make role terminology consistent** across the README, user-facing screens, capstone documentation and actual permission tests. The README table was corrected in this update; review remaining text and diagrams.
-- [ ] **Review risky legacy SQL scripts.** `supabase/open_access.sql` creates permissive policies. It is not evidence the current database is exposed, but it should be clearly archived or labeled never to run on production. Fresh-setup and migration instructions must be reproducible and safe.
+- [x] **Remove risky legacy one-off SQL scripts.** Deprecated permissive policy, lock-down and manual repair scripts were removed from the repository without applying their SQL. The applied timestamped migration history remains intact. New-project migration instructions still require separate reproducibility testing.
 
 ### P2: Operations and performance
 
@@ -73,3 +73,11 @@
 - [November 3 verification report](verification-2026-11-03.md) describes its own simulation boundaries. It captured the hosted sign-up setting **before** the owner-reported change; it is intentionally preserved as historical evidence rather than edited to imply a re-test.
 - Supabase advisor findings were read from the connected project on November 3. Some warnings about RLS-enabled tables with no policies are consistent with intentionally private service-role-only tables; audit those per table instead of declaring all of them vulnerable.
 - This document is an assessment and work queue. It does **not** assert the open items have been fixed or that real external delivery was tested.
+
+## Follow-up repository cleanup (November 4, 2026)
+
+- Deleted obsolete one-off SQL, contact fixtures, a Git-history rewriting script, generated design metadata, unreferenced CSS/design files, and unused illustrations. No live database rows were deleted.
+- Removed developer comments from application JavaScript/TypeScript/CSS, ancillary source and tests; preserved historical applied migration files, vendor attribution, and required no-JavaScript fallback markers.
+- Preserved operational documentation, test fixtures, npm lockfiles, and deployed service source. Comment-only edits are not evidence of changed service behavior.
+- Independent live public-path testing found the frontend returns the HTML document with HTTP 200 for unknown `.js` asset paths. This is tracked as an outstanding HTTP response semantics issue in the panelist report.
+- Browser-authenticated workflows and live outbound notifications were not retested as part of this source cleanup. Review [panelist findings](panelist-live-audit-2026-11-04.md).

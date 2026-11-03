@@ -1,9 +1,9 @@
--- Reference inventory requested by the stakeholder, including In Stock items.
--- Run once on the existing OSAS project after the inventory migrations.
--- Safe to re-run: insert missing items only, fill blank descriptions/categories,
--- and preserve existing quantities, locations, dates, IDs and restock history.
--- Status is calculated by the app from quantity and expiry, never hardcoded.
--- The CPR mask quantity is indistinct in the image; 5 pcs is the sample value.
+
+
+
+
+
+
 WITH reference_stock (item, description, category, quantity, unit, location, expiry, reorder_threshold) AS (
   VALUES
   ('Adhesive bandages', 'Box of 100 pcs', 'Wound Care', 12, 'boxes', 'Clinic Cabinet A', '2027-06-10', 5),
