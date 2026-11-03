@@ -249,8 +249,9 @@ body:not([data-session="active"]) > #sidebar-backdrop { display:none; }
 
 /* Diagonal banner rebuilt in CSS: photo, two white slashes, burgundy panel, seal */
 .safety-hero-art { position: absolute; inset: 0 0 0 auto; z-index: 1; width: min(48%, 620px); pointer-events: none; }
-.safety-hero-art::before { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, rgba(0,0,0,0) 0 21.5%, #FFFFFF 21.5% 23.1%, #7A1B38 23.1% 29.5%, #FFFFFF 29.5% 33.9%, #7A1B38 33.9% 100%); }
-.safety-hero-seal { position: absolute; top: 4%; right: 11%; width: min(42%, 240px); height: auto; filter: drop-shadow(0 22px 42px rgba(10,2,7,.55)); }
+/* Use the intended opposing diagonal direction, with the burgundy panel on the right. */
+.safety-landing .safety-hero-art::before { content: ''; position: absolute; inset: 0; background: linear-gradient(70deg, rgba(0,0,0,0) 0 21.5%, #FFFFFF 21.5% 23.1%, #7A1B38 23.1% 29.5%, #FFFFFF 29.5% 33.9%, #7A1B38 33.9% 100%); }
+.safety-landing .safety-hero-art > .safety-hero-seal { position: absolute; top: 4%; right: 11%; width: min(42%, 240px); height: auto; max-height: 48%; object-fit: contain; filter: drop-shadow(0 22px 42px rgba(10,2,7,.55)); }
 .safety-hero-copy { z-index: 2; }
-@media(max-width:1200px) { .safety-hero-art { width: min(44%, 460px); } .safety-hero-seal { width: min(46%, 200px); } }
+@media(max-width:1200px) { .safety-hero-art { width: min(44%, 460px); } .safety-landing .safety-hero-art > .safety-hero-seal { width: min(46%, 200px); } }
 @media(max-width:767px) { .safety-hero-art { display: none; } }
