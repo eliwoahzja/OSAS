@@ -193,6 +193,39 @@ function incidentReferenceImages(record) {
   }).slice(0, 2);
 }
 
+function incidentReferenceTile(entry, index, total) {
+  const frame = h('span', { class: 'incident-evidence-frame' });
+  const baseUrl = entry.url.split('?')[0];
+  const image = h('img', {
+    src: entry.url,
+    alt: entry.alt || 'Illustrative incident image',
+    loading: 'lazy',
+    referrerpolicy: 'no-referrer',
+    onerror: () => {
+      if (image.dataset.retried !== 'true' && baseUrl !== entry.url) {
+        image.dataset.retried = 'true';
+        image.src = baseUrl;
+      } else {
+        frame.replaceChildren(h('span', { class: 'incident-evidence-error' },
+          'Image unavailable. Open the source to view it.'));
+      }
+    },
+  });
+  frame.append(image);
+  return h('a', {
+    href: entry.source,
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    referrerpolicy: 'no-referrer',
+    class: 'incident-evidence-tile',
+    'aria-label': 'View source of illustrative image ' + (index + 1),
+  },
+  frame,
+  h('span', { class: 'incident-evidence-caption' },
+    'Image ' + (index + 1) + ' of ' + total + ' · Illustration, not original evidence'),
+  h('span', { class: 'incident-evidence-source' }, 'Source: Wikimedia Commons'));
+}
+
 async function openIncidentImages(record) {
   const paths = incidentImagePaths(record);
   const references = incidentReferenceImages(record);
@@ -227,16 +260,7 @@ async function openIncidentImages(record) {
       : h('div', { class: 'incident-evidence-tile incident-evidence-unavailable', role: 'alert' },
           h('span', { class: 'incident-evidence-frame' }, 'Image ' + (index + 1) + ' could not be opened.'),
           h('span', { class: 'incident-evidence-caption' }, 'Image ' + (index + 1) + ' of ' + paths.length))),
-    references.map((entry, index) => h('a', {
-      href: entry.source, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer',
-      class: 'incident-evidence-tile',
-      'aria-label': 'View source of illustrative reference image ' + (index + 1),
-    },
-    h('span', { class: 'incident-evidence-frame' },
-      h('img', { src: entry.url, alt: entry.alt || 'Illustrative reference image',
-        loading: 'lazy', referrerpolicy: 'no-referrer' })),
-    h('span', { class: 'incident-evidence-caption' },
-      'Illustrative reference ' + (index + 1) + ' of ' + references.length + ' · CC0 · Wikimedia Commons'))));
+    references.map((entry, index) => incidentReferenceTile(entry, index, references.length)));
   content.removeAttribute('role');
   content.replaceWith(gallery);
 }
@@ -268,14 +292,10 @@ export async function incidentLogging(el) {
       const references = incidentReferenceImages(r);
       const total = paths.length + references.length;
       return total
-        ? h('button', { type: 'button', class: 'btn-ghost text-xs',
-            'aria-label': references.length && !paths.length
-              ? 'View ' + references.length + ' illustrative reference photo' + (references.length === 1 ? '' : 's')
-              : 'View ' + total + ' incident image' + (total === 1 ? '' : 's'),
+        ? h('button', { type: 'button', class: 'btn-ghost text-xs whitespace-nowrap',
+            'aria-label': 'View ' + total + ' image' + (total === 1 ? '' : 's'),
             onclick: () => openIncidentImages(r) }, icon('image', 'text-sm'),
-            paths.length
-              ? paths.length + ' image' + (paths.length === 1 ? '' : 's')
-              : references.length + ' reference photo' + (references.length === 1 ? '' : 's'))
+            total + ' image' + (total === 1 ? '' : 's'))
         : h('span', { class: 'text-gray-300' }, '—');
     } },
     { key: 'status', label: 'Status', render: (r) => h('span', { 'data-incident-status': r.id }, pill(r.status)) },
