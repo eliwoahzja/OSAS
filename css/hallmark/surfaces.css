@@ -1,0 +1,161 @@
+/* Preview: Hallmark tokens, warm paper and soft offset shadows. */
+:root {
+  --neo-paper: #fffdf8;
+  --neo-paper-muted: #f6eee3;
+  --neo-ink: #472d37;
+  --neo-accent: var(--color-accent, #7a1b38);
+  --neo-rule: #aa8a90;
+  --neo-rule-soft: #dfcfc9;
+  --neo-shadow: #dac8c0;
+  --neo-shadow-deep: #ad8390;
+  --neo-radius: 16px;
+  --neo-card-shadow: 4px 4px 0 var(--neo-shadow);
+  --neo-dialog-shadow: 8px 8px 0 var(--neo-shadow-deep), 0 24px 64px #36122226;
+}
+
+/* One surface language across dashboard cards, records and school updates. */
+#view :is(.neo-surface, .osas-card, .card-lift, .student-info-card, .announcement-board, .inspection-panel, .inspection-stats) {
+  background: var(--neo-paper);
+  border: 1.5px solid var(--neo-rule);
+  border-radius: var(--neo-radius);
+  box-shadow: var(--neo-card-shadow);
+}
+#view :is(.neo-surface, .osas-card, .card-lift, .inspection-panel) {
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+#view .card-lift { transform: none; }
+#view a.card-lift { transition: transform 160ms ease, box-shadow 160ms ease; }
+#view .reference-stat { background: var(--neo-paper); border-color: var(--neo-rule-soft); border-radius: 10px; }
+#view .reference-stat-icon { border: 1px solid currentColor; border-radius: 10px; }
+#view .bg-maroon-gradient { border: 1.5px solid #4e1730; border-radius: 20px; box-shadow: 5px 5px 0 #c9a8af; }
+#view .data-table-frame { overflow: hidden; }
+#view .data-table-frame thead { background: var(--neo-paper-muted); }
+#view .data-table-frame th { color: #70515b; border-bottom-color: #d9c5bf; }
+#view .data-table-frame td { border-color: #ede2db; }
+#view .status-pill { border-radius: 7px; }
+#view .osas-section-label { color: var(--neo-accent); }
+
+/* Student details read like a compact school record, above the original posters. */
+#view .student-info-card { border-left: 5px solid var(--neo-accent); }
+#view .student-info-card h2 { color: var(--neo-ink); font-size: 18px; }
+#view .student-info-card h2 i { color: var(--neo-accent); }
+#view .student-info-card dl { display: flex; flex-wrap: wrap; gap: 12px 32px; }
+#view .student-info-card dl > div { align-items: baseline; gap: 10px; }
+#view .student-info-card dt { color: #7c636b; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+#view .student-info-card dt::after { content: none; }
+#view .student-info-card dd { color: var(--neo-ink); font-size: 13px; font-weight: 650; }
+#view .announcement-heading { padding: 20px 28px; background: var(--neo-paper-muted); border-bottom: 1px solid var(--neo-rule-soft); border-radius: 14px 14px 0 0; }
+#view .announcement-heading h3, #view .announcement-heading h3 i { color: var(--neo-ink); }
+#view .announcement-card:first-child { border-top: 0; }
+#view .announcement-list { padding-top: 8px; }
+#view .announcement-card { border-color: var(--neo-rule-soft); }
+#view .announcement-pagination { border-color: var(--neo-rule-soft); }
+
+/* Tactile controls. Color stays meaningful; destructive actions stay red. */
+:is(.btn-primary, .btn-ghost) {
+  min-height: 40px;
+  border: 1.5px solid var(--neo-rule);
+  border-radius: 9px;
+  box-shadow: 2px 2px 0 var(--neo-shadow);
+  transition: background-color 150ms ease, transform 120ms ease, box-shadow 120ms ease;
+  touch-action: manipulation;
+}
+.btn-primary { background: var(--neo-accent); border-color: #591a33; box-shadow: 3px 3px 0 #c59ca8; }
+.btn-primary:hover { background: #63152f; }
+.btn-ghost { background: var(--neo-paper); color: #604651; }
+.btn-ghost:hover { background: #f3e8e1; }
+:is(.btn-primary, .btn-ghost):active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 0 0 0 transparent; }
+:is(.btn-primary, .btn-ghost):disabled { cursor: not-allowed; box-shadow: none; opacity: .55; }
+:is(.btn-primary, .btn-ghost):focus-visible { outline: 3px solid #ae7440; outline-offset: 4px; }
+#view .record-action-icon { min-height: 36px; }
+
+/* Dialogs are framed paper, with an offset edge and a quiet backdrop. */
+.osas-modal-overlay { padding: 24px; background: #2c17265c; backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); overscroll-behavior: contain; transition: opacity 180ms ease; }
+.osas-modal-overlay.is-closing { pointer-events: none; }
+.osas-modal-overlay .osas-modal-card {
+  background: var(--neo-paper);
+  border: 1.5px solid var(--neo-ink) !important;
+  border-radius: 20px;
+  box-shadow: var(--neo-dialog-shadow);
+  max-height: calc(100dvh - 56px);
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  transform: translateY(12px) scale(.985);
+  transition: transform 220ms var(--ease-out, ease-out), opacity 180ms ease;
+}
+.osas-modal-overlay.active .osas-modal-card { transform: none; }
+.osas-modal-card:focus, .osas-modal-content:focus { outline: none; }
+.osas-modal-card > .osas-modal-content { border-radius: 0; background: var(--neo-paper); }
+.osas-modal-card h3 { color: var(--neo-ink); font-size: 20px; font-weight: 750; letter-spacing: -.035em; line-height: 1.3; }
+.osas-modal-card .osas-modal-content > :is(h2, h3) { padding-bottom: 18px; border-bottom: 1px solid var(--neo-rule-soft); }
+.osas-modal-card .osas-modal-content > [class~="border-b"] { background: var(--neo-paper-muted); border-color: var(--neo-rule-soft); }
+.osas-modal-card .osas-modal-content > div:has(> h3) { border-color: var(--neo-rule-soft); }
+.osas-modal-card .osas-modal-content > div:last-child:has(> button) { padding-top: 18px; border-top: 1px solid var(--neo-rule-soft); flex-wrap: wrap; }
+.osas-modal-card :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea) {
+  background: #fffefa;
+  border: 1.5px solid #c6aeb0;
+  border-radius: 9px;
+  box-shadow: inset 0 2px 0 #f3eae1;
+  color: var(--neo-ink);
+}
+.osas-modal-card :is(input, select, textarea):focus-visible { outline: 2px solid var(--neo-accent); outline-offset: 3px; box-shadow: none; }
+.osas-modal-card input[readonly] { background: var(--neo-paper-muted); color: #806b72; box-shadow: none; }
+.osas-modal-card label { color: #765863; }
+.osas-modal-card input[type="file"] { border-color: var(--neo-rule-soft); border-radius: 9px; background: #fffefa; }
+.osas-modal-card input[type="file"]::file-selector-button { background: #f0e2dc; color: var(--neo-ink); border: 0; border-right: 1px solid #c6aeb0; padding: 10px 14px; margin-right: 12px; font: inherit; font-weight: 600; cursor: pointer; }
+html.osas-dialog-open { overflow: hidden !important; }
+html.osas-dialog-open #dashboard-shell, html.osas-dialog-open #view { overflow: hidden !important; }
+.incident-evidence-header { background: var(--neo-paper-muted); border-color: var(--neo-rule-soft); }
+.incident-evidence-footer { background: var(--neo-paper); border-color: var(--neo-rule-soft); }
+.incident-evidence-tile { background: #f7f0e7; border: 1px solid #c6aeb0; border-radius: 10px; box-shadow: 2px 2px 0 #e2d3cb; }
+.incident-evidence-frame { background: #eee5dc; border-radius: 6px; }
+.incident-evidence-dialog { max-height: calc(100dvh - 60px); }
+
+/* Sign-in and the floating assistant use the same edge treatment. */
+#login-overlay .lg-card, #login-overlay .lg-modal {
+  background: var(--neo-paper); border: 1.5px solid var(--neo-rule); border-radius: 20px; box-shadow: var(--neo-dialog-shadow);
+}
+#login-overlay .lg-card { box-shadow: 6px 6px 0 var(--neo-shadow), 0 16px 48px #4623340c; }
+#login-overlay .lg-input { border-color: #c6aeb0; border-radius: 9px; background: #fffefa; }
+#login-overlay .lg-btn { border: 1.5px solid #591a33; border-radius: 9px; box-shadow: 3px 3px 0 #c59ca8; }
+#login-overlay .lg-btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 #c59ca8; }
+#login-overlay .lg-btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
+#login-overlay .lg-btn::before { display: none; }
+#login-overlay .lg-key:not(.lg-key-ghost) { border-color: #c6aeb0; border-radius: 10px; box-shadow: 2px 2px 0 #e0d0c7; }
+#login-overlay .lg-key:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: none; }
+.agent-panel { background: var(--neo-paper); border: 1.5px solid var(--neo-ink); border-radius: 18px; box-shadow: 6px 6px 0 var(--neo-shadow-deep), 0 16px 40px #3612221a; }
+.agent-fab { border: 1.5px solid #3f1528; border-radius: 16px; box-shadow: 3px 3px 0 #c59ca8; }
+.agent-fab:hover { box-shadow: 4px 4px 0 #c59ca8; }
+#toast-root > div { border: 1.5px solid #341d2a; border-radius: 10px; box-shadow: 3px 3px 0 #b28c97; }
+
+/* Bring the public guide into the same family; preserve its hero artwork. */
+.safety-landing .safety-guide-panel { border: 1.5px solid var(--neo-rule); border-radius: var(--neo-radius); box-shadow: var(--neo-card-shadow); }
+.safety-landing .safety-tabs button { border-radius: 8px; }
+.safety-landing .safety-reminder-sheet { border: 1.5px solid var(--neo-rule); border-radius: var(--neo-radius); box-shadow: var(--neo-card-shadow); }
+
+@media (hover: hover) and (pointer: fine) {
+  #view a.card-lift:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--neo-shadow); }
+  #view .neo-surface:hover { box-shadow: var(--neo-card-shadow); }
+  .incident-evidence-tile:hover { border-color: var(--neo-accent); box-shadow: 3px 3px 0 #d1b7bd; }
+}
+@media (max-width: 640px) {
+  :root { --neo-card-shadow: 3px 3px 0 var(--neo-shadow); --neo-dialog-shadow: 4px 4px 0 var(--neo-shadow-deep), 0 12px 32px #36122226; }
+  #view .announcement-heading { padding: 16px; border-radius: 14px 14px 0 0; }
+  #view .student-info-card dl { gap: 12px 24px; }
+  .osas-modal-overlay { padding: 16px; padding-bottom: max(20px, env(safe-area-inset-bottom)); }
+  .osas-modal-overlay .osas-modal-card { max-height: calc(100dvh - 44px); border-radius: 16px; }
+  .osas-modal-card h3 { font-size: 18px; }
+  .incident-evidence-dialog { max-height: calc(100dvh - 48px); }
+  #login-overlay .lg-card { border-radius: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view :is(.neo-surface, .osas-card, .card-lift, .inspection-panel),
+  .osas-modal-overlay, .osas-modal-overlay .osas-modal-card, .btn-primary, .btn-ghost { transition: none; }
+  .osas-modal-overlay .osas-modal-card, #view a.card-lift:hover { transform: none; }
+}
+@media print {
+  #view :is(.neo-surface, .osas-card, .card-lift, .student-info-card, .announcement-board, .inspection-panel, .inspection-stats) { box-shadow: none; border: 1px solid #ccc; }
+  .osas-modal-overlay { display: none !important; }
+}

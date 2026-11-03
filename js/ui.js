@@ -252,7 +252,7 @@ export function skeletonAnalyticsGrid(count = 4) {
   const grid = h('div', { class: `grid md:grid-cols-2 ${count > 2 ? 'xl:grid-cols-4' : 'xl:grid-cols-2'} gap-5` });
 
   if (grid.children.length < count) grid.appendChild(
-    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+    h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
         h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
@@ -270,7 +270,7 @@ export function skeletonAnalyticsGrid(count = 4) {
   );
 
   if (grid.children.length < count) grid.appendChild(
-    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+    h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
         h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
@@ -287,7 +287,7 @@ export function skeletonAnalyticsGrid(count = 4) {
   );
 
   if (grid.children.length < count) grid.appendChild(
-    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+    h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-36 bg-gray-200/80 rounded-md' }),
         h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
@@ -309,7 +309,7 @@ export function skeletonAnalyticsGrid(count = 4) {
   );
 
   if (grid.children.length < count) grid.appendChild(
-    h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
+    h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between animate-pulse min-h-[300px]' },
       h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
         h('div', { class: 'h-4 w-32 bg-gray-200/80 rounded-md' }),
         h('div', { class: 'h-3 w-14 bg-gray-100 rounded-full' }),
@@ -329,7 +329,7 @@ export function skeletonAnalyticsGrid(count = 4) {
 }
 
 export function skeletonTrendChart() {
-  return h('div', { class: 'trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-4 animate-pulse' },
+  return h('div', { class: 'neo-surface trend-chart-shell bg-white rounded-3xl shadow-sm border border-gray-100 p-4 animate-pulse' },
     h('div', { class: 'flex items-center justify-between mb-4' },
       h('div', { class: 'space-y-1' },
         h('div', { class: 'h-2.5 w-24 bg-pink-100 rounded-full' }),
@@ -387,7 +387,7 @@ export function skeletonTableWithColumns(columns = [], rowCount = 5) {
   }
   table.appendChild(tbody);
 
-  return h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
+  return h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 overflow-visible' },
     h('div', { class: 'overflow-x-auto overflow-y-visible' }, table)
   );
 }
@@ -463,7 +463,7 @@ export function skeletonHeader({ hasAction = true, hasIcon = true, titleWidth = 
 
 export function skeletonCard({ title = true, lines = 3, height = 'auto' } = {}) {
   const card = h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse',
+    class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4 animate-pulse',
     style: height !== 'auto' ? { minHeight: height } : {},
   });
   if (title) {
@@ -532,7 +532,7 @@ export function skeletonGrid(cards = 4) {
 }
 
 export function skeletonFeed(items = 4) {
-  const wrap = h('div', { class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-6' });
+  const wrap = h('div', { class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-6' });
   for (let i = 0; i < items; i++) {
     wrap.appendChild(
       h('div', { class: 'flex gap-4 items-start animate-pulse', style: { animationDelay: `${i * 100}ms` } },
@@ -549,7 +549,7 @@ export function skeletonFeed(items = 4) {
 
 export function emptyBanner({ icon: iconName = 'inbox', title, text }) {
   return h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center',
+    class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-10 flex flex-col items-center text-center',
   },
     h('div', { class: 'w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mb-4' }, icon(iconName, 'text-2xl')),
     h('p', { class: 'text-sm font-bold text-gray-800' }, title),

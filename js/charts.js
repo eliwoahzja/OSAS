@@ -118,7 +118,7 @@ export function pieChart(items, { title = '', size = 180, isDonut = false } = {}
   );
 
   return h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-shadow',
+    class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-5 flex flex-col justify-between hover:shadow-md transition-shadow',
   },
     title
       ? h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-4' },
@@ -196,7 +196,7 @@ export function donutChart(items, { centerLabel = 'Total', size = 200, stroke = 
   );
 
   return h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row items-center gap-8',
+    class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col sm:flex-row items-center gap-8',
   },
     h('div', { class: 'shrink-0' }, svg),
     legend,
@@ -206,7 +206,7 @@ export function donutChart(items, { centerLabel = 'Total', size = 200, stroke = 
 export function yearBarChart(items, { title = 'Incidents by Year', subtitle = '' } = {}) {
   const rows = (items || []).filter((item) => Number.isFinite(Number(item.year)) && Number(item.incidents) > 0);
   if (!rows.length) {
-    return h('div', { class: 'trend-chart-shell yearly-chart-empty bg-white rounded-3xl shadow-sm border border-gray-100 p-6' },
+    return h('div', { class: 'neo-surface trend-chart-shell yearly-chart-empty bg-white rounded-3xl shadow-sm border border-gray-100 p-6' },
       h('h3', { class: 'text-base font-bold text-gray-900' }, title),
       h('p', { class: 'text-sm text-gray-500 mt-4' }, 'No incident reports yet'),
       h('p', { class: 'text-[13px] text-gray-500 mt-1' }, 'Saved incident reports will appear here as they are logged.'),
@@ -223,7 +223,7 @@ export function yearBarChart(items, { title = 'Incidents by Year', subtitle = ''
     ),
     h('span', { class: 'yearly-chart-year' }, String(row.year)),
   )));
-  return h('div', { class: 'trend-chart-shell yearly-chart bg-white rounded-3xl shadow-sm border border-gray-100 p-6' },
+  return h('div', { class: 'neo-surface trend-chart-shell yearly-chart bg-white rounded-3xl shadow-sm border border-gray-100 p-6' },
     h('h3', { class: 'text-base font-bold text-gray-900' }, title),
     subtitle ? h('p', { class: 'text-[12px] text-gray-500 mt-1' }, subtitle) : null,
     bars,
@@ -271,7 +271,7 @@ export function barChart(items, { title = '', subtitle = '' } = {}) {
   }));
 
   return h('div', {
-    class: 'bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 hover:shadow-md transition-shadow',
+    class: 'neo-surface bg-white rounded-3xl shadow-sm border border-gray-100 p-6 flex flex-col gap-4 hover:shadow-md transition-shadow',
   },
     title
       ? h('div', { class: 'flex items-center justify-between border-b border-gray-100 pb-3 mb-2' },

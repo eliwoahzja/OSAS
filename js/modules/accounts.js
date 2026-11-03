@@ -82,7 +82,7 @@ function openEditModal(user, isSelf, onSaved) {
     h('div', {}, h('label', { class: labelCls }, 'Account type'), role),
     err,
     h('div', { class: 'flex justify-end gap-3 pt-2' },
-      h('button', { type: 'button', class: 'px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50', onclick: () => modal.close() }, 'Cancel'),
+      h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Cancel'),
       save,
     ),
   );
@@ -118,7 +118,7 @@ function openDeleteModal(user, onDeleted) {
     ),
     err,
     h('div', { class: 'flex justify-end gap-3 pt-2' },
-      h('button', { type: 'button', class: 'px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50', onclick: () => modal.close() }, 'Cancel'),
+      h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Cancel'),
       confirmBtn,
     ),
   );
@@ -173,7 +173,7 @@ function openCreateModal(onCreated) {
     h('div', {}, h('label', { class: labelCls }, 'Account type'), role),
     err,
     h('div', { class: 'flex justify-end gap-3 pt-2' },
-      h('button', { type: 'button', class: 'px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50', onclick: () => modal.close() }, 'Cancel'),
+      h('button', { type: 'button', class: 'btn-ghost', onclick: () => modal.close() }, 'Cancel'),
       save,
     ),
   );
