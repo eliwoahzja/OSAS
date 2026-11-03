@@ -3,7 +3,7 @@
 **Assessment date:** 2026-11-03 (Asia/Manila)  
 **Repository:** [eliwoahzja/OSAS](https://github.com/eliwoahzja/OSAS/tree/main)  
 **Reference implementation audited:** `c4a667050c3a8f5515338b7c967604c06f8d2b23` on `main`  
-**Scope:** Repository review, GitHub CI status, read-only checks of connected Supabase project, and owner-reported change to hosted sign-up settings.
+**Scope:** Repository review, GitHub CI status, applied Supabase performance migration and post-change advisor checks, Vercel production deployment verification, and owner-reported change to hosted sign-up settings.
 
 ## Status meanings
 
@@ -26,6 +26,9 @@
 | Supabase Edge Functions | Verified active | Nine functions reported ACTIVE in the connected project. Active deployment is not proof of successful end-to-end execution. |
 | README role matrix | Fixed in source | Documentation now matches `js/app.js` route permissions: four student-accessible routes; remaining management routes administrator-only. |
 | Public sign-up disabled | **Owner confirmed; recheck pending** | Owner reports turning OFF **Allow new users to sign up** in Supabase Authentication settings. The previous report captured `disable_signup: false` before the reported change. Independently re-read the hosted setting and test regular sign-up rejection and admin-managed creation before closing. |
+| Foreign-key and RLS performance | **Verified in live Supabase** | Migration `20261103155508_optimize_fk_indexes_and_rls_policy_plans.sql` added 7 indexes, converted 6 per-row Auth policies to cached init plans, and consolidated redundant account-read policies. Performance advisor now reports no missing FK indexes, Auth initplan warnings, or multiple permissive policies. New indexes are currently unused; database tables are small. |
+| Vercel production output | **Verified deployed** | `vercel.json` now targets generated `dist/`. `frontend` and `codebase` production deployments for `156b747e` report READY; `https://stagnesacademy.vercel.app/` and its JS entry point returned HTTP 200. A probe of `/server.js` returned HTML fallback, not server source. |
+| Production packaging CI check | **Verified** | [Workflow run 41669037508](https://github.com/eliwoahzja/OSAS/actions/runs/41669037508) passed, including checks for required dist files and exclusion of `server.js` and `supabase/`. |
 
 ## Outstanding tasks (priority order)
 
@@ -47,11 +50,11 @@
 
 ### P2: Operations and performance
 
-- [ ] **Set intended default branch and protect it.** GitHub reports `master` as default, although active work and CI target `main`. `main` was unprotected during this audit. Configure required checks and protection rules.
-- [ ] **Align build output with Vercel configuration.** `npm run build` generates `dist/`, while `vercel.json` declares `outputDirectory: "."` and `.vercelignore` excludes `dist`. Verify the deployed output and remove unnecessary shipped files without disrupting existing deployment.
-- [ ] **Address performance advisor results.** Supabase reported seven foreign keys without covering indexes and several RLS initplan warnings. Benchmark representative queries and fix high-impact entries first. See [Supabase foreign key index advisor](https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys).
+- [ ] **Set intended default branch and protect it.** GitHub still reports `master` as default and `main` as unprotected. The connected GitHub actions expose source and CI writes but no repository-settings mutation. Repository administrator action is required in [GitHub Settings](https://github.com/eliwoahzja/OSAS/settings): set default branch to `main`, then create a branch ruleset for `main` requiring the `verify` CI check and blocking force pushes/deletions. Recheck settings afterward.
+- [x] **Align build output with Vercel configuration.** `vercel.json` now uses `outputDirectory: "dist"`; the source `.vercelignore` still excludes stale local build artifacts, but Vercel generates `dist/` during its remote build. Production deployed from `main`, the static entry points respond, and the CI artifact smoke checks passed.
+- [x] **Address missing FK indexes and RLS initialization warnings.** Applied `20261103155508_optimize_fk_indexes_and_rls_policy_plans` to the linked database and committed the exact SQL migration. Post-change performance advisor has no missing FK index, Auth RLS initplan, or multiple permissive policy finding. Future query benchmarking is still advisable, because the small tables do not yet show measurable performance gains. The advisor reports unused-index informational entries; do not drop newly created indexes merely because no workload has used them yet.
 - [ ] **Remove repository-specific personal fallback contact values** from client configuration where unnecessary; rely on documented environment/site settings.
-- [ ] **Expand CI** to exercise database migrations, RLS policies, production build contents, and representative authenticated API workflows, in addition to existing JavaScript checks.
+- [ ] **Expand CI** to exercise database migrations, live-equivalent RLS tests, and representative authenticated API workflows, in addition to existing JavaScript checks. [x] Production static artifact checks were added and passed.
 
 ## Defense questions to prepare
 
